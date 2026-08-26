@@ -2,9 +2,12 @@
 
 A web app where potters design slab-built forms (mugs, vases, boxes) as parametric 3D
 objects, preview them live, and export **true-scale, multi-page printable templates**
-they can tape together and cut. The whole app state is exposed through **WebMCP tools**,
-so an AI chat client (ChatGPT, Claude, etc. via a WebMCP bridge) can edit the same design
-the user sees on screen, in the same session.
+they can tape together and cut. The whole app state is exposed through **WebMCP tools**
+(`document.modelContext`), so an agent — e.g. ChatGPT's in-app browser, which supports
+WebMCP natively — can edit the same design the user sees on screen, in the same session.
+
+Built for the **WebMCP Challenge** (Devpost, deadline Sep 3 2026) — see §10 for
+submission requirements.
 
 ---
 
@@ -91,7 +94,8 @@ better fit for MCP tools (structured parameters ≫ "move vertex 372").
 | Profile editor | Custom 2D SVG editor (drag control points on a Catmull-Rom/Bézier profile) | Small, and it *is* the product's key interaction. |
 | State | **zustand** (+ `zundo` for undo/redo) | One store = single source of truth for UI **and** MCP tools — this is what makes "same session" editing work. |
 | Validation | **zod** | Shared schemas: form params, MCP tool inputs, store actions. |
-| WebMCP | **@mcp-b/global** (polyfill for `document.modelContext`) + **@mcp-b/react-webmcp** (`useWebMCP` hook) | Works today in every browser; transparently uses the native API where it exists (Edge 147+, Chrome origin trial). |
+| WebMCP | **native `document.modelContext.registerTool`** (thin typed wrapper of our own) | The hackathon's target environments (ChatGPT in-app browser; Chrome with `#enable-webmcp-testing`) ship the API natively, and the required code shape must appear in the repo. No polyfill or bridge needed. |
+| Hosting | **Vercel** (static Vite build, auto-deploy from GitHub) | Hackathon sponsor; account already connected to this Claude session so setup is zero-touch; judges just need a live URL. |
 | PDF | **jsPDF + svg2pdf.js** | Vector, exact mm scale, client-side. |
 | Tests | vitest on `src/lib/geometry` | The unfold math is pure functions — cheap to test, embarrassing to get wrong in a demo. |
 
@@ -134,15 +138,25 @@ JSON state summary so the model doesn't need a follow-up read.
 - `export_templates({ paperSize?: "A4"|"Letter" })` → triggers the PDF download, returns
   page count + assembly summary.
 
-Registration via `useWebMCP` in an `<McpProvider>` mounted at app root; tool handlers
-call store actions and read back `describeState()`. Also call out tool annotations
-(`readOnlyHint`) so clients can call read tools without confirmation prompts.
+Registration goes through the **native API directly** — the exact shape the hackathon
+requires in the repo:
 
-**Reality check (Aug 2026)**: Edge 147 ships `document.modelContext` natively; Chrome 149+
-has it behind an origin trial; no mainstream chat client calls page tools *directly* yet.
-Demo path: the **WebMCP Bridge / MCP-B extension** connects page tools to MCP clients
-(Claude Code, Cursor; ChatGPT via its MCP connector support). Test with the bridge early
-in the hackathon — day 1, not day 3 — and confirm whatever client the judges will use.
+```js
+document.modelContext.registerTool({
+  name: "update_form",
+  description: "...",
+  inputSchema: { /* JSON Schema, generated from our zod schemas */ },
+  execute: async (input) => { /* calls store actions, returns state summary */ }
+});
+```
+
+Tool handlers call store actions and read back `describeState()`. Feature-detect
+`document.modelContext` and show a status badge (native / unavailable) in the UI.
+
+**How judges run it (per hackathon rules)**: ChatGPT's in-app browser supports WebMCP
+out of the box; Google Chrome supports it behind `chrome://flags/#enable-webmcp-testing`.
+No bridge extension, no remote MCP server — everything is in-page. Test in both
+environments from day 1.
 
 ## 8. Build plan (ordered, each milestone demoable)
 
@@ -161,9 +175,10 @@ jsPDF/svg2pdf pipeline. *Demo: print A4 pages, tape, cut — bring a real paper 
 (and ideally a slab-built mug made from one) to judging.*
 
 **M4 — WebMCP integration**
-@mcp-b/global + tool registrations · `describe_project`/`update_form`/`export_templates`
-first, rest after · verify end-to-end through the bridge extension with a real chat
-client · a "🔌 agent connected / last tool call" indicator in the UI (great for demo). 
+Native `document.modelContext` tool registrations · `describe_project`/`update_form`/
+`export_templates` first, rest after · verify end-to-end in ChatGPT's in-app browser and
+Chrome with the WebMCP flag · a "🔌 agent tools registered / last tool call" indicator
+in the UI (great for demo). 
 
 **M5 — Curved vase + polish** (only after M4 works)
 Profile curve editor · gore + band unrolling · faceted forms · warnings/guardrails ·
@@ -183,10 +198,25 @@ If time is short, cut curved forms before cutting the WebMCP polish.
 5. One closing line on WebMCP: "no screenshots, no DOM scraping — the site hands the
    agent real tools."
 
-## 10. Risks & mitigations
+## 10. Hackathon submission checklist (deadline: Sep 3, 2026)
 
-- **Bridge/client flakiness** → test the exact judge setup on day 1; keep a local MCP
-  client (Claude Code + bridge) as fallback; record a backup screen capture.
+- [ ] Live URL (Vercel) that works in ChatGPT's in-app browser and Chrome with
+      `chrome://flags/#enable-webmcp-testing`
+- [ ] Open-source **LICENSE file (MIT)** — must be detectable in the repo About section
+- [ ] Repo contains `document.modelContext.registerTool({...})` usage, all source,
+      and run instructions in the README
+- [ ] Text description: why WebMCP fits (structured parametric edits ≫ UI guessing),
+      the human+agent collaboration story, implementation summary
+- [ ] Demo video: <3 min, public YouTube, with audio
+- Judging criteria to optimize: **WebMCP Leverage** (deep, non-trivial tool surface —
+  our whole design is tool-first), **Execution** (complete product, not a PoC — the
+  printed/taped template closes the loop), **Impact** (real audience: slab potters),
+  **Creativity** (physical-world output is rare in this space)
+
+## 11. Risks & mitigations
+
+- **Judge-environment surprises** → test in ChatGPT's in-app browser from day 1 (it's
+  the primary judging surface); record a backup screen capture of the full flow.
 - **Print scale drift** → calibration ruler on page 1; instructions overlay; test on a
   real printer early.
 - **Scope creep in 3D** → viewport is *read-only preview*; all editing via parameters,
