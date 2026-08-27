@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { setClayInputSchema, updateFormInputSchema, PRESETS } from "@/lib/model/schemas"
-import { describeState, selectPieces, useProjectStore } from "@/store/useProjectStore"
+import { describeState, describeTemplates, selectPieces, useProjectStore } from "@/store/useProjectStore"
+import type { SetClayInput, UpdateFormInput } from "@/lib/model/schemas"
 import { textResult, type ToolDescriptor, type ToolResult } from "./modelContext"
 
 /**
@@ -50,29 +51,31 @@ export function buildTools(): ToolDescriptor[] {
       annotations: { title: "Update form dimensions" },
       execute: (input) =>
         run("update_form", () => {
-          useProjectStore.getState().updateForm(updateFormInputSchema.parse(input ?? {}))
+          // the store action validates with the same zod schema
+          useProjectStore.getState().updateForm((input ?? {}) as UpdateFormInput)
           return textResult(stateText("Form updated."))
         }),
     },
     {
       name: "set_clay",
       description:
-        "Update clay settings: shrinkagePct (total wet-to-fired shrinkage, e.g. 12 for a typical stoneware), wallThicknessMm (slab thickness), seamAllowanceMm. These change how the flat templates are computed (shrinkage scales them up; wall thickness shifts the developed mid-surface). Returns the full new state.",
+        "Update clay settings: shrinkagePct (total wet-to-fired shrinkage, e.g. 12 for a typical stoneware), wallThicknessMm (slab thickness). These change how the flat templates are computed (shrinkage scales them up; wall thickness shifts the developed mid-surface). Returns the full new state.",
       inputSchema: z.toJSONSchema(setClayInputSchema),
       annotations: { title: "Set clay properties" },
       execute: (input) =>
         run("set_clay", () => {
-          useProjectStore.getState().setClay(setClayInputSchema.parse(input ?? {}))
+          useProjectStore.getState().setClay((input ?? {}) as SetClayInput)
           return textResult(stateText("Clay settings updated."))
         }),
     },
     {
       name: "get_template_summary",
       description:
-        "Get the printable template summary: each flat piece with its wet-clay dimensions, plus how many pages the printout needs at the current paper size (A4 or Letter). Read-only.",
+        "Get the printable template details: each flat piece with wet-clay dimensions and assembly notes, the overall layout size, glue overlap, and exactly how many pages the PDF will have at the current paper size (A4 or Letter). Read-only.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true, title: "Template summary" },
-      execute: () => run("get_template_summary", () => textResult(stateText())),
+      execute: () =>
+        run("get_template_summary", () => textResult(JSON.stringify(describeTemplates(), null, 2))),
     },
     {
       name: "export_templates",

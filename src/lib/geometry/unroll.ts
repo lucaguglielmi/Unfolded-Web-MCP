@@ -110,7 +110,9 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
   const innerBottomR = outerBottomR - t
 
   const pieces: Piece[] = []
-  const isStraight = Math.abs(midTopR - midBottomR) < 1e-9
+  // treat sub-0.05mm taper as straight: it is far below printing tolerance and
+  // would otherwise unroll into an absurdly large near-degenerate sector
+  const isStraight = Math.abs(midTopR - midBottomR) < 0.05
 
   if (isStraight) {
     const wall = unrollCylinder(midBottomR * scale, form.heightMm * scale)
@@ -140,11 +142,45 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
     kind: "disc",
     id: "base",
     label: "Base",
-    diameterMm: 2 * innerBottomR * scale,
+    diameterMm: 2 * Math.max(0, innerBottomR) * scale,
     notes: ["Sized to the inner wall so the wall wraps around it"],
   })
 
   return pieces
+}
+
+/**
+ * Physical-plausibility warnings for the current design. These are shown in
+ * the UI and returned to agents so impossible combinations are caught before
+ * anything is printed.
+ */
+export function formWarnings(form: FormParams, clay: ClaySettings): string[] {
+  const warnings: string[] = []
+  const t = clay.wallThicknessMm
+  const topD = form.type === "cylinder" ? form.bottomDiameterMm : form.topDiameterMm
+  const innerBottomD = form.bottomDiameterMm - 2 * t
+
+  if (innerBottomD <= 0) {
+    warnings.push(
+      `Wall thickness (${t} mm) leaves no room for a base inside a ${form.bottomDiameterMm} mm bottom — thin the walls or widen the base.`
+    )
+  } else if (innerBottomD < 15) {
+    warnings.push(
+      `The base disc is only ${innerBottomD.toFixed(0)} mm across — joining the wall to it will be fiddly.`
+    )
+  }
+  if (topD - 2 * t <= 0) {
+    warnings.push(
+      `Wall thickness (${t} mm) closes off the ${topD} mm opening at the rim entirely.`
+    )
+  }
+  const taper = Math.abs(topD - form.bottomDiameterMm)
+  if (form.type === "tapered" && taper > 0.05 && taper < form.heightMm * 0.06) {
+    warnings.push(
+      "Very slight taper: the unrolled arc is nearly straight and unwieldy to print — consider a cylinder, or increase the taper."
+    )
+  }
+  return warnings
 }
 
 /** Human/agent-readable summary of a piece's key dimensions. */

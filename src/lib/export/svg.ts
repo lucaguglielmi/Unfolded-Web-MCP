@@ -1,4 +1,4 @@
-import type { Piece } from "@/lib/geometry/unroll"
+import { describePiece, type Piece } from "@/lib/geometry/unroll"
 
 /**
  * Pure SVG-path generation for template pieces. All coordinates are
@@ -200,4 +200,67 @@ export function paginate(layoutWidthMm: number, layoutHeightMm: number, paper: P
   const cols = Math.max(1, Math.ceil((layoutWidthMm - PAGE_OVERLAP_MM) / stepWidthMm))
   const rows = Math.max(1, Math.ceil((layoutHeightMm - PAGE_OVERLAP_MM) / stepHeightMm))
   return { cols, rows, printWidthMm, printHeightMm, stepWidthMm, stepHeightMm }
+}
+
+interface Box {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/** rough advance width per character of the 4mm annotation font */
+const ANNOTATION_CHAR_MM = 2.1
+
+/** Everything a piece puts on paper: its outline plus the annotation text under it. */
+function contentBoxes(layout: TemplateLayout): Box[] {
+  return layout.placed.flatMap(({ piece, graphic, dx, dy }) => [
+    { x: dx, y: dy, w: graphic.widthMm, h: graphic.heightMm },
+    {
+      x: dx,
+      y: dy + graphic.heightMm,
+      w: describePiece(piece).length * ANNOTATION_CHAR_MM,
+      h: ANNOTATION_MM,
+    },
+  ])
+}
+
+export interface Tile {
+  row: number
+  col: number
+  /** layout-space origin of this tile's printable area */
+  x0: number
+  y0: number
+}
+
+/** Tiles of the page grid that actually contain content — the pages worth printing. */
+export function contentTiles(layout: TemplateLayout, pg: Pagination): Tile[] {
+  const boxes = contentBoxes(layout)
+  const tiles: Tile[] = []
+  for (let row = 0; row < pg.rows; row++) {
+    for (let col = 0; col < pg.cols; col++) {
+      const x0 = col * pg.stepWidthMm
+      const y0 = row * pg.stepHeightMm
+      const hit = boxes.some(
+        (b) => b.x < x0 + pg.printWidthMm && b.x + b.w > x0 && b.y < y0 + pg.printHeightMm && b.y + b.h > y0
+      )
+      if (hit) tiles.push({ row, col, x0, y0 })
+    }
+  }
+  return tiles
+}
+
+export interface PageCount {
+  /** template tiles that actually print (empty tiles are skipped) */
+  templatePages: number
+  /** template pages plus the overview/instructions page */
+  totalPages: number
+  pagination: Pagination
+}
+
+/** The exact page count the PDF export produces. */
+export function countPages(layout: TemplateLayout, paper: PaperSize): PageCount {
+  const pagination = paginate(layout.widthMm, layout.heightMm, paper)
+  const templatePages = contentTiles(layout, pagination).length
+  return { templatePages, totalPages: templatePages + 1, pagination }
 }

@@ -37,11 +37,6 @@ export const claySettingsSchema = z.object({
     .min(2)
     .max(15)
     .describe("Slab thickness in millimeters (typically 4-6 for mugs)"),
-  seamAllowanceMm: z
-    .number()
-    .min(0)
-    .max(20)
-    .describe("Extra material at join edges in millimeters, for beveled/scored seams"),
 })
 
 export type FormType = z.infer<typeof formTypeSchema>
@@ -81,5 +76,4 @@ export const PRESETS: Record<string, FormParams> = {
 export const DEFAULT_CLAY: ClaySettings = {
   shrinkagePct: 12,
   wallThicknessMm: 5,
-  seamAllowanceMm: 0,
 }

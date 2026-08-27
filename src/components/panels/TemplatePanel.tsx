@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react"
+import { InfoTip } from "@/components/InfoTip"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { describePiece } from "@/lib/geometry/unroll"
-import { layoutPieces, paginate, tickMarks, type PaperSize } from "@/lib/export/svg"
+import { countPages, layoutPieces, tickMarks, type PaperSize } from "@/lib/export/svg"
 import { selectPieces, useProjectStore } from "@/store/useProjectStore"
 
 export function TemplatePanel() {
@@ -11,19 +12,23 @@ export function TemplatePanel() {
   const paperSize = useProjectStore((s) => s.paperSize)
   const setPaperSize = useProjectStore((s) => s.setPaperSize)
   const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const pieces = useMemo(() => selectPieces(form, clay), [form, clay])
   const layout = useMemo(() => layoutPieces(pieces), [pieces])
-  const pg = paginate(layout.widthMm, layout.heightMm, paperSize)
+  const pages = countPages(layout, paperSize)
 
   const PAD = 16
   const fontSize = Math.max(6, Math.min(12, layout.widthMm / 28))
 
   const onExport = async () => {
     setExporting(true)
+    setExportError(null)
     try {
       const { exportTemplatesPdf } = await import("@/lib/export/pdf")
       await exportTemplatesPdf({ pieces, name: form.name, paper: paperSize })
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : String(error))
     } finally {
       setExporting(false)
     }
@@ -33,9 +38,17 @@ export function TemplatePanel() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
         <div>
-          <h2 className="text-sm font-semibold">Flat templates</h2>
+          <h2 className="flex items-center gap-1.5 text-sm font-medium">
+            Flat templates
+            <InfoTip>
+              Printed pieces are larger than the fired pot: they include your clay's
+              shrinkage. Cut slabs to the template and the finished piece fires down to
+              the size you designed.
+            </InfoTip>
+          </h2>
           <p className="text-muted-foreground text-xs">
-            wet-clay scale · ~{pg.cols * pg.rows} page{pg.cols * pg.rows > 1 ? "s" : ""} on {paperSize}
+            wet-clay scale · {pages.templatePages} template page
+            {pages.templatePages > 1 ? "s" : ""} + overview on {paperSize}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -50,6 +63,12 @@ export function TemplatePanel() {
           </Button>
         </div>
       </div>
+
+      {exportError && (
+        <p className="border-b px-4 py-2 text-xs text-red-600">
+          Export failed: {exportError}
+        </p>
+      )}
 
       <div className="min-h-0 flex-1 overflow-auto p-4">
         <svg

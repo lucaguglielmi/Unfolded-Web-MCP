@@ -3,6 +3,7 @@ import "svg2pdf.js"
 import type { Piece } from "@/lib/geometry/unroll"
 import { describePiece } from "@/lib/geometry/unroll"
 import {
+  contentTiles,
   layoutPieces,
   paginate,
   tickMarks,
@@ -199,19 +200,7 @@ export async function exportTemplatesPdf(options: {
 
   /* ---------------------------------------------------------- tile pages */
   let pages = 1
-  for (let r = 0; r < pg.rows; r++) {
-    for (let c = 0; c < pg.cols; c++) {
-      const x0 = c * pg.stepWidthMm
-      const y0 = r * pg.stepHeightMm
-      const hasContent = layout.placed.some(
-        ({ graphic, dx, dy }) =>
-          dx < x0 + pg.printWidthMm &&
-          dx + graphic.widthMm > x0 &&
-          dy < y0 + pg.printHeightMm &&
-          dy + graphic.heightMm + 8 > y0
-      )
-      if (!hasContent) continue
-
+  for (const { row: r, col: c, x0, y0 } of contentTiles(layout, pg)) {
       doc.addPage()
       pages++
 
@@ -252,7 +241,6 @@ export async function exportTemplatesPdf(options: {
         pageH - 5
       )
       doc.setTextColor(0)
-    }
   }
 
   doc.save(`unfolded-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${paper.toLowerCase()}.pdf`)

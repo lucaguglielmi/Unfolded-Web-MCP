@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { layoutPieces, paginate, pieceGraphic, tickMarks } from "./svg"
+import { countPages, layoutPieces, paginate, pieceGraphic, tickMarks } from "./svg"
 import type { Piece } from "@/lib/geometry/unroll"
 
 const rect: Piece = { kind: "rectangle", id: "wall", label: "Wall", widthMm: 285.6, heightMm: 113.6, notes: [] }
@@ -92,5 +92,25 @@ describe("paginate", () => {
   it("pages overlap by the glue margin", () => {
     const p = paginate(500, 500, "A4")
     expect(p.printWidthMm - p.stepWidthMm).toBeCloseTo(10)
+  })
+})
+
+describe("countPages", () => {
+  it("matches the export: content tiles plus one overview page", () => {
+    const layout = layoutPieces([rect, disc])
+    const pages = countPages(layout, "A4")
+    // mug wall is 285.6mm wide -> 2 columns, everything on one row
+    expect(pages.templatePages).toBe(2)
+    expect(pages.totalPages).toBe(3)
+  })
+
+  it("skips grid tiles with no content", () => {
+    const tall: Piece = { kind: "rectangle", id: "wall", label: "Wall", widthMm: 80, heightMm: 600, notes: [] }
+    const layout = layoutPieces([tall])
+    const pages = countPages(layout, "A4")
+    // 1 column x 3 rows, all with content
+    expect(pages.pagination.cols).toBe(1)
+    expect(pages.templatePages).toBeLessThanOrEqual(pages.pagination.cols * pages.pagination.rows)
+    expect(pages.totalPages).toBe(pages.templatePages + 1)
   })
 })

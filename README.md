@@ -40,7 +40,7 @@ Registered via `document.modelContext.registerTool` (see [`src/mcp/tools.ts`](./
 |---|---|
 | `describe_project` | Read the current design, clay settings, and template pieces |
 | `update_form` | Change form type / height / diameters (fired mm) |
-| `set_clay` | Change shrinkage %, wall thickness, seam allowance |
+| `set_clay` | Change shrinkage % and wall thickness |
 | `apply_preset` | Start from a preset (classic mug, tumbler, bud vase) |
 
 UI and agent tools share the same zustand store and zod schemas, so human and agent

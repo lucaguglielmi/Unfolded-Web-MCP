@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useProjectStore } from "@/store/useProjectStore"
 
 export function AgentBadge() {
@@ -6,17 +7,28 @@ export function AgentBadge() {
   const lastAgentCall = useProjectStore((s) => s.lastAgentCall)
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2.5">
       {lastAgentCall && (
         <span className="text-muted-foreground text-xs">
-          last agent call: <code>{lastAgentCall.tool}</code>
+          last agent call: <code className="text-foreground/80">{lastAgentCall.tool}</code>
         </span>
       )}
-      {agentStatus === "native" ? (
-        <Badge className="bg-emerald-600 text-white">🔌 WebMCP active</Badge>
-      ) : (
-        <Badge variant="outline">WebMCP not detected</Badge>
-      )}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {agentStatus === "native" ? (
+            <Badge className="cursor-help bg-emerald-600 text-white">🔌 WebMCP active</Badge>
+          ) : (
+            <Badge variant="outline" className="text-muted-foreground cursor-help font-normal">
+              WebMCP not detected
+            </Badge>
+          )}
+        </TooltipTrigger>
+        <TooltipContent className="max-w-72 leading-relaxed">
+          {agentStatus === "native"
+            ? "This page registered its editing tools on document.modelContext (WebMCP). An AI agent in your browser can read and edit this design with you — try asking it to change the shape or export the templates."
+            : "WebMCP lets an AI agent use this app with you. Open this page in ChatGPT's in-app browser, or in Chrome with chrome://flags/#enable-webmcp-testing enabled."}
+        </TooltipContent>
+      </Tooltip>
     </div>
   )
 }

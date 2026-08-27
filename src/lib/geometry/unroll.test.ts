@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { buildPieces, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
+import { buildPieces, formWarnings, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
 import type { ClaySettings, FormParams } from "@/lib/model/schemas"
 
-const clay: ClaySettings = { shrinkagePct: 0, wallThicknessMm: 5, seamAllowanceMm: 0 }
+const clay: ClaySettings = { shrinkagePct: 0, wallThicknessMm: 5 }
 
 describe("shrinkageScale", () => {
   it("is identity at 0%", () => {
@@ -79,5 +79,50 @@ describe("buildPieces", () => {
     const tumbler: FormParams = { ...mug, type: "tapered", topDiameterMm: 90, bottomDiameterMm: 65 }
     const [wall] = buildPieces(tumbler, clay)
     expect(wall.kind).toBe("annularSector")
+  })
+
+  it("treats sub-tolerance taper as straight instead of a degenerate sector", () => {
+    const nearly: FormParams = { ...mug, type: "tapered", topDiameterMm: 85.01, bottomDiameterMm: 85 }
+    const [wall] = buildPieces(nearly, clay)
+    expect(wall.kind).toBe("rectangle")
+  })
+
+  it("never emits a negative base disc when walls are thicker than the radius", () => {
+    const thick = { ...clay, wallThicknessMm: 15 }
+    const tiny: FormParams = { ...mug, bottomDiameterMm: 20, topDiameterMm: 20 }
+    const base = buildPieces(tiny, thick).find((p) => p.id === "base")
+    if (base?.kind !== "disc") throw new Error("expected disc base")
+    expect(base.diameterMm).toBeGreaterThanOrEqual(0)
+  })
+})
+
+describe("formWarnings", () => {
+  const mug: FormParams = {
+    type: "cylinder",
+    name: "test",
+    heightMm: 100,
+    topDiameterMm: 85,
+    bottomDiameterMm: 85,
+  }
+
+  it("is quiet for a sane design", () => {
+    expect(formWarnings(mug, clay)).toEqual([])
+  })
+
+  it("flags walls that leave no room for a base", () => {
+    const warnings = formWarnings(
+      { ...mug, bottomDiameterMm: 20, topDiameterMm: 20 },
+      { ...clay, wallThicknessMm: 15 }
+    )
+    expect(warnings.length).toBeGreaterThan(0)
+    expect(warnings.join(" ")).toMatch(/no room/i)
+  })
+
+  it("flags a nearly-straight taper as unwieldy", () => {
+    const warnings = formWarnings(
+      { ...mug, type: "tapered", topDiameterMm: 86, bottomDiameterMm: 85, heightMm: 200 },
+      clay
+    )
+    expect(warnings.join(" ")).toMatch(/taper/i)
   })
 })

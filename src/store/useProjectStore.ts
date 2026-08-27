@@ -9,8 +9,8 @@ import {
   type SetClayInput,
   type UpdateFormInput,
 } from "@/lib/model/schemas"
-import { buildPieces, describePiece, type Piece } from "@/lib/geometry/unroll"
-import { layoutPieces, paginate, type PaperSize } from "@/lib/export/svg"
+import { buildPieces, describePiece, formWarnings, type Piece } from "@/lib/geometry/unroll"
+import { countPages, layoutPieces, PAGE_OVERLAP_MM, type PaperSize } from "@/lib/export/svg"
 
 export type AgentStatus = "native" | "unavailable"
 
@@ -79,17 +79,54 @@ export function describeState(): {
   clay: ClaySettings
   paperSize: PaperSize
   pieces: string[]
-  estimatedPages: number
+  printedPages: number
+  warnings: string[]
 } {
   const { form, clay, paperSize } = useProjectStore.getState()
   const pieces = buildPieces(form, clay)
-  const layout = layoutPieces(pieces)
-  const pg = paginate(layout.widthMm, layout.heightMm, paperSize)
+  const pages = countPages(layoutPieces(pieces), paperSize)
   return {
     form,
     clay,
     paperSize,
     pieces: pieces.map(describePiece),
-    estimatedPages: pg.cols * pg.rows,
+    printedPages: pages.totalPages,
+    warnings: formWarnings(form, clay),
+  }
+}
+
+/** Template-focused snapshot for get_template_summary — layout, pieces, paging. */
+export function describeTemplates(): {
+  paperSize: PaperSize
+  pages: { overview: number; template: number; total: number; grid: string }
+  layoutMm: { width: number; height: number }
+  glueOverlapMm: number
+  pieces: { label: string; kind: Piece["kind"]; dimensions: string; notes: string[] }[]
+  warnings: string[]
+} {
+  const { form, clay, paperSize } = useProjectStore.getState()
+  const pieces = buildPieces(form, clay)
+  const layout = layoutPieces(pieces)
+  const pages = countPages(layout, paperSize)
+  return {
+    paperSize,
+    pages: {
+      overview: 1,
+      template: pages.templatePages,
+      total: pages.totalPages,
+      grid: `${pages.pagination.rows}x${pages.pagination.cols}`,
+    },
+    layoutMm: {
+      width: Number(layout.widthMm.toFixed(1)),
+      height: Number(layout.heightMm.toFixed(1)),
+    },
+    glueOverlapMm: PAGE_OVERLAP_MM,
+    pieces: pieces.map((p) => ({
+      label: p.label,
+      kind: p.kind,
+      dimensions: describePiece(p).replace(`${p.label}: `, ""),
+      notes: p.notes,
+    })),
+    warnings: formWarnings(form, clay),
   }
 }
