@@ -54,6 +54,12 @@ Two pottery-specific corrections are applied — clay shrinkage scaling (`1/(1�
 mid-surface development (`r − t/2`). See
 [`src/lib/geometry/unroll.ts`](./src/lib/geometry/unroll.ts).
 
+## Deploy
+
+Hosted on Cloudflare (Workers static assets). Every push to `main` deploys via
+GitHub Actions (`.github/workflows/deploy.yml`); it needs the `CLOUDFLARE_API_TOKEN`
+and `CLOUDFLARE_ACCOUNT_ID` repo secrets. Manual deploy: `npm run build && npx wrangler deploy`.
+
 ## License
 
 [MIT](./LICENSE)

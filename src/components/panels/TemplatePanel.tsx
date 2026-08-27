@@ -1,0 +1,116 @@
+import { useMemo, useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { describePiece } from "@/lib/geometry/unroll"
+import { layoutPieces, paginate, tickMarks, type PaperSize } from "@/lib/export/svg"
+import { selectPieces, useProjectStore } from "@/store/useProjectStore"
+
+export function TemplatePanel() {
+  const form = useProjectStore((s) => s.form)
+  const clay = useProjectStore((s) => s.clay)
+  const paperSize = useProjectStore((s) => s.paperSize)
+  const setPaperSize = useProjectStore((s) => s.setPaperSize)
+  const [exporting, setExporting] = useState(false)
+
+  const pieces = useMemo(() => selectPieces(form, clay), [form, clay])
+  const layout = useMemo(() => layoutPieces(pieces), [pieces])
+  const pg = paginate(layout.widthMm, layout.heightMm, paperSize)
+
+  const PAD = 16
+  const fontSize = Math.max(6, Math.min(12, layout.widthMm / 28))
+
+  const onExport = async () => {
+    setExporting(true)
+    try {
+      const { exportTemplatesPdf } = await import("@/lib/export/pdf")
+      await exportTemplatesPdf({ pieces, name: form.name, paper: paperSize })
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
+        <div>
+          <h2 className="text-sm font-semibold">Flat templates</h2>
+          <p className="text-muted-foreground text-xs">
+            wet-clay scale · ~{pg.cols * pg.rows} page{pg.cols * pg.rows > 1 ? "s" : ""} on {paperSize}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Tabs value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)}>
+            <TabsList>
+              <TabsTrigger value="A4">A4</TabsTrigger>
+              <TabsTrigger value="Letter">Letter</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Button size="sm" onClick={onExport} disabled={exporting}>
+            {exporting ? "Exporting…" : "Export PDF"}
+          </Button>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-auto p-4">
+        <svg
+          className="mx-auto h-auto w-full max-w-2xl"
+          viewBox={`${-PAD} ${-PAD} ${layout.widthMm + 2 * PAD} ${layout.heightMm + 2 * PAD}`}
+        >
+          {layout.placed.map(({ piece, graphic, dx, dy }) => (
+            <g key={piece.id} transform={`translate(${dx} ${dy})`}>
+              <path
+                d={graphic.d}
+                strokeWidth={0.8}
+                className="fill-amber-500/10 stroke-foreground"
+              />
+              {graphic.seams.map((seam, i) => (
+                <g key={i} className="stroke-amber-600 dark:stroke-amber-500">
+                  <line
+                    x1={seam.x1}
+                    y1={seam.y1}
+                    x2={seam.x2}
+                    y2={seam.y2}
+                    strokeWidth={0.8}
+                    strokeDasharray="5 3"
+                  />
+                  {tickMarks(seam).map((tick, j) => (
+                    <line
+                      key={j}
+                      x1={tick.x1}
+                      y1={tick.y1}
+                      x2={tick.x2}
+                      y2={tick.y2}
+                      strokeWidth={0.8}
+                    />
+                  ))}
+                </g>
+              ))}
+              <text
+                x={graphic.labelAt.x}
+                y={graphic.labelAt.y}
+                textAnchor="middle"
+                fontSize={fontSize}
+                className="fill-foreground font-medium"
+              >
+                {piece.label}
+              </text>
+              <text
+                x={0}
+                y={graphic.heightMm + fontSize * 0.9}
+                fontSize={fontSize * 0.62}
+                className="fill-muted-foreground"
+              >
+                {describePiece(piece).replace(`${piece.label}: `, "")}
+              </text>
+            </g>
+          ))}
+        </svg>
+        <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-xs">
+          Dashed amber edges are seams (45° bevel, score &amp; slip); tick marks are
+          registration marks. The PDF tiles pages with 10 mm glue overlaps and includes a
+          calibration ruler — always print at 100%.
+        </p>
+      </div>
+    </div>
+  )
+}

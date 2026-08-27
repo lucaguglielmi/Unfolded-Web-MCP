@@ -95,7 +95,7 @@ better fit for MCP tools (structured parameters ≫ "move vertex 372").
 | State | **zustand** (+ `zundo` for undo/redo) | One store = single source of truth for UI **and** MCP tools — this is what makes "same session" editing work. |
 | Validation | **zod** | Shared schemas: form params, MCP tool inputs, store actions. |
 | WebMCP | **native `document.modelContext.registerTool`** (thin typed wrapper of our own) | The hackathon's target environments (ChatGPT in-app browser; Chrome with `#enable-webmcp-testing`) ship the API natively, and the required code shape must appear in the repo. No polyfill or bridge needed. |
-| Hosting | **Vercel** (static Vite build, auto-deploy from GitHub) | Hackathon sponsor; account already connected to this Claude session so setup is zero-touch; judges just need a live URL. |
+| Hosting | **Cloudflare Workers static assets** (wrangler + GitHub Actions on push to main) | Hackathon sponsor (judge + $10k credits prize); free plan covers everything; `wrangler.jsonc` + `.github/workflows/deploy.yml` are in the repo — requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repo secrets. |
 | PDF | **jsPDF + svg2pdf.js** | Vector, exact mm scale, client-side. |
 | Tests | vitest on `src/lib/geometry` | The unfold math is pure functions — cheap to test, embarrassing to get wrong in a demo. |
 
@@ -200,7 +200,7 @@ If time is short, cut curved forms before cutting the WebMCP polish.
 
 ## 10. Hackathon submission checklist (deadline: Sep 3, 2026)
 
-- [ ] Live URL (Vercel) that works in ChatGPT's in-app browser and Chrome with
+- [ ] Live URL (Cloudflare, `unfolded.<account>.workers.dev`) that works in ChatGPT's in-app browser and Chrome with
       `chrome://flags/#enable-webmcp-testing`
 - [ ] Open-source **LICENSE file (MIT)** — must be detectable in the repo About section
 - [ ] Repo contains `document.modelContext.registerTool({...})` usage, all source,

@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { setClayInputSchema, updateFormInputSchema, PRESETS } from "@/lib/model/schemas"
-import { describeState, useProjectStore } from "@/store/useProjectStore"
+import { describeState, selectPieces, useProjectStore } from "@/store/useProjectStore"
 import { textResult, type ToolDescriptor, type ToolResult } from "./modelContext"
 
 /**
@@ -65,6 +65,50 @@ export function buildTools(): ToolDescriptor[] {
           useProjectStore.getState().setClay(setClayInputSchema.parse(input ?? {}))
           return textResult(stateText("Clay settings updated."))
         }),
+    },
+    {
+      name: "get_template_summary",
+      description:
+        "Get the printable template summary: each flat piece with its wet-clay dimensions, plus how many pages the printout needs at the current paper size (A4 or Letter). Read-only.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      annotations: { readOnlyHint: true, title: "Template summary" },
+      execute: () => run("get_template_summary", () => textResult(stateText())),
+    },
+    {
+      name: "export_templates",
+      description:
+        "Export the printable template as a multi-page PDF and download it in the potter's browser. Pages tile the true-scale template with 10 mm glue overlaps; page 1 has assembly instructions, an assembly map, and a calibration ruler. Optionally set paperSize ('A4' or 'Letter') first. Returns the page count.",
+      inputSchema: z.toJSONSchema(
+        z.object({
+          paperSize: z.enum(["A4", "Letter"]).optional().describe("Paper size for the printout"),
+        })
+      ),
+      annotations: { title: "Export printable PDF" },
+      execute: async (input) => {
+        useProjectStore.getState().recordAgentCall("export_templates")
+        try {
+          const { paperSize } = z
+            .object({ paperSize: z.enum(["A4", "Letter"]).optional() })
+            .parse(input ?? {})
+          if (paperSize) useProjectStore.getState().setPaperSize(paperSize)
+          const state = useProjectStore.getState()
+          const pieces = selectPieces(state.form, state.clay)
+          const { exportTemplatesPdf } = await import("@/lib/export/pdf")
+          const result = await exportTemplatesPdf({
+            pieces,
+            name: state.form.name,
+            paper: state.paperSize,
+          })
+          return textResult(
+            `PDF downloaded in the potter's browser: ${result.pages} pages on ${result.paper} ` +
+              `(1 overview + ${result.pages - 1} template pages in a ${result.rows}x${result.cols} grid). ` +
+              `Remind the potter to print at 100% scale and verify the calibration ruler.`
+          )
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return textResult(`Export failed: ${message}`, true)
+        }
+      },
     },
     {
       name: "apply_preset",

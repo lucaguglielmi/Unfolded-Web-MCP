@@ -1,0 +1,96 @@
+import { describe, expect, it } from "vitest"
+import { layoutPieces, paginate, pieceGraphic, tickMarks } from "./svg"
+import type { Piece } from "@/lib/geometry/unroll"
+
+const rect: Piece = { kind: "rectangle", id: "wall", label: "Wall", widthMm: 285.6, heightMm: 113.6, notes: [] }
+const disc: Piece = { kind: "disc", id: "base", label: "Base", diameterMm: 85.2, notes: [] }
+const sector: Piece = {
+  kind: "annularSector",
+  id: "wall",
+  label: "Wall",
+  innerRadiusMm: 356.2,
+  outerRadiusMm: 504.6,
+  angleRad: (34.5 * Math.PI) / 180,
+  outerArcMm: 303.4,
+  innerArcMm: 214.2,
+  slantMm: 148.4,
+  notes: [],
+}
+
+describe("pieceGraphic", () => {
+  it("rectangle bbox matches its dimensions and marks both seam edges", () => {
+    const g = pieceGraphic(rect)
+    expect(g.widthMm).toBeCloseTo(285.6)
+    expect(g.heightMm).toBeCloseTo(113.6)
+    expect(g.seams).toHaveLength(2)
+  })
+
+  it("disc bbox is diameter x diameter with no seams", () => {
+    const g = pieceGraphic(disc)
+    expect(g.widthMm).toBeCloseTo(85.2)
+    expect(g.heightMm).toBeCloseTo(85.2)
+    expect(g.seams).toHaveLength(0)
+  })
+
+  it("sector bbox width equals the outer chord for angles < 180deg", () => {
+    const g = pieceGraphic(sector)
+    const chord = 2 * sector.outerRadiusMm * Math.sin(sector.angleRad / 2)
+    expect(g.widthMm).toBeCloseTo(chord, 1)
+    expect(g.seams).toHaveLength(2)
+    // radial seam length = slant
+    const s = g.seams[0]
+    expect(Math.hypot(s.x2 - s.x1, s.y2 - s.y1)).toBeCloseTo(sector.slantMm, 1)
+  })
+
+  it("sector outline stays inside its bounding box", () => {
+    const g = pieceGraphic(sector)
+    for (const s of g.seams) {
+      for (const [x, y] of [
+        [s.x1, s.y1],
+        [s.x2, s.y2],
+      ]) {
+        expect(x).toBeGreaterThanOrEqual(-0.01)
+        expect(y).toBeGreaterThanOrEqual(-0.01)
+        expect(x).toBeLessThanOrEqual(g.widthMm + 0.01)
+        expect(y).toBeLessThanOrEqual(g.heightMm + 0.01)
+      }
+    }
+  })
+})
+
+describe("tickMarks", () => {
+  it("puts perpendicular ticks along the edge", () => {
+    const ticks = tickMarks({ x1: 0, y1: 0, x2: 0, y2: 100 }, 3, 4)
+    expect(ticks).toHaveLength(3)
+    expect(ticks[1].y1).toBeCloseTo(50)
+    expect(Math.min(ticks[1].x1, ticks[1].x2)).toBeCloseTo(-2)
+    expect(Math.max(ticks[1].x1, ticks[1].x2)).toBeCloseTo(2)
+  })
+})
+
+describe("layoutPieces", () => {
+  it("stacks pieces without overlap", () => {
+    const layout = layoutPieces([rect, disc])
+    expect(layout.placed[1].dy).toBeGreaterThan(rect.heightMm)
+    expect(layout.widthMm).toBeCloseTo(285.6)
+  })
+})
+
+describe("paginate", () => {
+  it("fits a small piece on one page", () => {
+    const p = paginate(100, 100, "A4")
+    expect(p.cols).toBe(1)
+    expect(p.rows).toBe(1)
+  })
+
+  it("tiles a mug wall wider than one A4 page onto two columns", () => {
+    const p = paginate(285.6, 250, "A4")
+    expect(p.cols).toBe(2)
+    expect(p.rows).toBe(1)
+  })
+
+  it("pages overlap by the glue margin", () => {
+    const p = paginate(500, 500, "A4")
+    expect(p.printWidthMm - p.stepWidthMm).toBeCloseTo(10)
+  })
+})

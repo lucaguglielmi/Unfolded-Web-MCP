@@ -10,6 +10,7 @@ import {
   type UpdateFormInput,
 } from "@/lib/model/schemas"
 import { buildPieces, describePiece, type Piece } from "@/lib/geometry/unroll"
+import { layoutPieces, paginate, type PaperSize } from "@/lib/export/svg"
 
 export type AgentStatus = "native" | "unavailable"
 
@@ -21,12 +22,14 @@ export interface AgentCall {
 interface ProjectState {
   form: FormParams
   clay: ClaySettings
+  paperSize: PaperSize
   agentStatus: AgentStatus
   lastAgentCall: AgentCall | null
 
   updateForm: (patch: UpdateFormInput) => void
   setClay: (patch: SetClayInput) => void
   applyPreset: (presetId: keyof typeof PRESETS) => void
+  setPaperSize: (paper: PaperSize) => void
   setAgentStatus: (status: AgentStatus) => void
   recordAgentCall: (tool: string) => void
 }
@@ -39,6 +42,7 @@ interface ProjectState {
 export const useProjectStore = create<ProjectState>()((set) => ({
   form: PRESETS["classic-mug"],
   clay: DEFAULT_CLAY,
+  paperSize: "A4",
   agentStatus: "unavailable",
   lastAgentCall: null,
 
@@ -60,6 +64,7 @@ export const useProjectStore = create<ProjectState>()((set) => ({
   applyPreset: (presetId) =>
     set(() => ({ form: { ...PRESETS[presetId] }, clay: { ...DEFAULT_CLAY } })),
 
+  setPaperSize: (paperSize) => set({ paperSize }),
   setAgentStatus: (agentStatus) => set({ agentStatus }),
   recordAgentCall: (tool) => set({ lastAgentCall: { tool, at: Date.now() } }),
 }))
@@ -72,12 +77,19 @@ export function selectPieces(form: FormParams, clay: ClaySettings): Piece[] {
 export function describeState(): {
   form: FormParams
   clay: ClaySettings
+  paperSize: PaperSize
   pieces: string[]
+  estimatedPages: number
 } {
-  const { form, clay } = useProjectStore.getState()
+  const { form, clay, paperSize } = useProjectStore.getState()
+  const pieces = buildPieces(form, clay)
+  const layout = layoutPieces(pieces)
+  const pg = paginate(layout.widthMm, layout.heightMm, paperSize)
   return {
     form,
     clay,
-    pieces: buildPieces(form, clay).map(describePiece),
+    paperSize,
+    pieces: pieces.map(describePiece),
+    estimatedPages: pg.cols * pg.rows,
   }
 }

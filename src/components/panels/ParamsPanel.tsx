@@ -1,4 +1,3 @@
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -6,9 +5,8 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { describePiece } from "@/lib/geometry/unroll"
 import { PRESETS, type FormType } from "@/lib/model/schemas"
-import { selectPieces, useProjectStore } from "@/store/useProjectStore"
+import { useProjectStore } from "@/store/useProjectStore"
 
 function DimensionSlider({
   label,
@@ -52,8 +50,6 @@ export function ParamsPanel() {
   const updateForm = useProjectStore((s) => s.updateForm)
   const setClay = useProjectStore((s) => s.setClay)
   const applyPreset = useProjectStore((s) => s.applyPreset)
-
-  const pieces = selectPieces(form, clay)
 
   return (
     <div className="space-y-4">
@@ -130,25 +126,6 @@ export function ParamsPanel() {
             Dimensions above are fired sizes. Templates are scaled up for shrinkage and
             developed along the slab mid-surface.
           </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Template pieces</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {pieces.map((piece) => (
-            <div key={piece.id} className="text-sm">
-              <Badge variant="secondary" className="mr-2">
-                {piece.label}
-              </Badge>
-              <span className="text-muted-foreground">
-                {describePiece(piece).replace(`${piece.label}: `, "")}
-              </span>
-            </div>
-          ))}
-          <p className="text-muted-foreground text-xs">Wet-clay sizes, ready to cut.</p>
         </CardContent>
       </Card>
 
