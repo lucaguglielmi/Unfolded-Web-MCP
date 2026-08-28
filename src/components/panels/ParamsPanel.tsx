@@ -1,15 +1,26 @@
 import { useState, type ReactNode } from "react"
-import { TriangleAlert } from "lucide-react"
+import { Amphora, Coffee, Cone, CupSoda, Cylinder, TriangleAlert } from "lucide-react"
+import { IconOptionGroup } from "@/components/IconOptionGroup"
 import { InfoTip } from "@/components/InfoTip"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formWarnings } from "@/lib/geometry/unroll"
 import { PRESETS, type FormType } from "@/lib/model/schemas"
 import { useProjectStore } from "@/store/useProjectStore"
+
+const FORM_TYPE_OPTIONS = [
+  { value: "cylinder" as const, label: "Cylinder", icon: Cylinder },
+  { value: "tapered" as const, label: "Tapered", icon: Cone },
+]
+
+const PRESET_ICONS: Record<string, typeof Coffee> = {
+  "classic-mug": Coffee,
+  tumbler: CupSoda,
+  "bud-vase": Amphora,
+}
 
 function SectionTitle({ children, tip }: { children: ReactNode; tip?: ReactNode }) {
   return (
@@ -114,12 +125,11 @@ export function ParamsPanel() {
 
         <NameField />
 
-        <Tabs value={form.type} onValueChange={(v) => updateForm({ type: v as FormType })}>
-          <TabsList className="w-full">
-            <TabsTrigger value="cylinder">Cylinder</TabsTrigger>
-            <TabsTrigger value="tapered">Tapered</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <IconOptionGroup
+          value={form.type}
+          onChange={(v) => updateForm({ type: v as FormType })}
+          options={FORM_TYPE_OPTIONS}
+        />
         <p className="text-muted-foreground text-xs leading-relaxed">
           {form.type === "cylinder"
             ? "Straight wall — unrolls to a rectangle."
@@ -195,18 +205,21 @@ export function ParamsPanel() {
 
       <section className="space-y-3">
         <SectionTitle>Presets</SectionTitle>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(PRESETS).map(([id, preset]) => (
-            <Button
-              key={id}
-              variant="outline"
-              size="sm"
-              className="font-normal"
-              onClick={() => applyPreset(id as keyof typeof PRESETS)}
-            >
-              {preset.name}
-            </Button>
-          ))}
+        <div className="grid grid-cols-3 gap-2">
+          {Object.entries(PRESETS).map(([id, preset]) => {
+            const Icon = PRESET_ICONS[id] ?? Coffee
+            return (
+              <Button
+                key={id}
+                variant="outline"
+                className="h-auto flex-col gap-1.5 py-3 font-normal"
+                onClick={() => applyPreset(id as keyof typeof PRESETS)}
+              >
+                <Icon className="size-5" />
+                <span className="text-xs leading-tight">{preset.name}</span>
+              </Button>
+            )
+          })}
         </div>
       </section>
     </div>

@@ -55,20 +55,25 @@ function Scene() {
 
 export function Viewport() {
   return (
-    <Canvas camera={{ position: [2.4, 1.6, 2.4], fov: 38 }} className="touch-none bg-background">
-      <ambientLight intensity={0.65} />
-      <directionalLight position={[4, 6, 3]} intensity={1.05} />
-      <directionalLight position={[-3, 2, -4]} intensity={0.35} />
-      <Scene />
-      <OrbitControls
-        makeDefault
-        enableDamping
-        enablePan={false}
-        target={[0, 0, 0]}
-        minDistance={1.2}
-        maxDistance={7}
-        maxPolarAngle={Math.PI * 0.55}
-      />
-    </Canvas>
+    <div className="relative h-full w-full">
+      <Canvas camera={{ position: [2.4, 1.6, 2.4], fov: 38 }} className="touch-none bg-background">
+        <ambientLight intensity={0.65} />
+        <directionalLight position={[4, 6, 3]} intensity={1.05} />
+        <directionalLight position={[-3, 2, -4]} intensity={0.35} />
+        <Scene />
+        <OrbitControls
+          makeDefault
+          enableDamping
+          enablePan={false}
+          target={[0, 0, 0]}
+          minDistance={1.2}
+          maxDistance={7}
+          maxPolarAngle={Math.PI * 0.55}
+        />
+      </Canvas>
+      <p className="text-muted-foreground/70 pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 text-xs">
+        Drag to rotate · Scroll to zoom
+      </p>
+    </div>
   )
 }

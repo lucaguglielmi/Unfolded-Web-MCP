@@ -1,4 +1,5 @@
 import { useMemo } from "react"
+import { Loader2 } from "lucide-react"
 import { InfoTip } from "@/components/InfoTip"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -49,6 +50,7 @@ export function TemplatePanel() {
           {/* On mobile the large sticky bar at the bottom of the screen is the
               one Export action — this inline button would just duplicate it. */}
           <Button size="sm" onClick={() => exportPdf()} disabled={isExporting} className="hidden lg:inline-flex">
+            {isExporting && <Loader2 className="size-4 animate-spin" />}
             {isExporting ? "Exporting…" : "Export PDF"}
           </Button>
         </div>

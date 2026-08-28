@@ -16,7 +16,13 @@ export function AgentBadge() {
       <Tooltip>
         <TooltipTrigger asChild>
           {agentStatus === "native" ? (
-            <Badge className="cursor-help bg-emerald-600 text-white">🔌 WebMCP active</Badge>
+            <Badge className="cursor-help gap-1.5 bg-emerald-600 text-white">
+              <span className="relative flex size-1.5">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-white/70" />
+                <span className="relative inline-flex size-1.5 rounded-full bg-white" />
+              </span>
+              WebMCP active
+            </Badge>
           ) : (
             <Badge variant="outline" className="text-muted-foreground cursor-help font-normal">
               WebMCP not detected
