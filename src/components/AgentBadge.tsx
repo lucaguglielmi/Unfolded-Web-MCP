@@ -7,9 +7,9 @@ export function AgentBadge() {
   const lastAgentCall = useProjectStore((s) => s.lastAgentCall)
 
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex min-w-0 items-center gap-2.5">
       {lastAgentCall && (
-        <span className="text-muted-foreground text-xs">
+        <span className="text-muted-foreground hidden truncate text-xs sm:inline">
           last agent call: <code className="text-foreground/80">{lastAgentCall.tool}</code>
         </span>
       )}

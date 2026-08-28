@@ -11,6 +11,7 @@ import {
 } from "@/lib/model/schemas"
 import { buildPieces, describePiece, formWarnings, type Piece } from "@/lib/geometry/unroll"
 import { countPages, layoutPieces, PAGE_OVERLAP_MM, type PaperSize } from "@/lib/export/svg"
+import type { ExportResult } from "@/lib/export/pdf"
 
 export type AgentStatus = "native" | "unavailable"
 
@@ -25,6 +26,8 @@ interface ProjectState {
   paperSize: PaperSize
   agentStatus: AgentStatus
   lastAgentCall: AgentCall | null
+  isExporting: boolean
+  exportError: string | null
 
   updateForm: (patch: UpdateFormInput) => void
   setClay: (patch: SetClayInput) => void
@@ -32,6 +35,8 @@ interface ProjectState {
   setPaperSize: (paper: PaperSize) => void
   setAgentStatus: (status: AgentStatus) => void
   recordAgentCall: (tool: string) => void
+  /** Shared by the desktop template panel and the mobile sticky export bar. */
+  exportPdf: () => Promise<ExportResult>
 }
 
 /**
@@ -39,12 +44,14 @@ interface ProjectState {
  * actions, so edits from a person and from their agent stay in sync in the
  * same session. Patches are validated/clamped by the zod schemas.
  */
-export const useProjectStore = create<ProjectState>()((set) => ({
+export const useProjectStore = create<ProjectState>()((set, get) => ({
   form: PRESETS["classic-mug"],
   clay: DEFAULT_CLAY,
   paperSize: "A4",
   agentStatus: "unavailable",
   lastAgentCall: null,
+  isExporting: false,
+  exportError: null,
 
   updateForm: (patch) =>
     set((state) => {
@@ -67,6 +74,21 @@ export const useProjectStore = create<ProjectState>()((set) => ({
   setPaperSize: (paperSize) => set({ paperSize }),
   setAgentStatus: (agentStatus) => set({ agentStatus }),
   recordAgentCall: (tool) => set({ lastAgentCall: { tool, at: Date.now() } }),
+
+  exportPdf: async () => {
+    set({ isExporting: true, exportError: null })
+    try {
+      const { form, clay, paperSize } = get()
+      const pieces = buildPieces(form, clay)
+      const { exportTemplatesPdf } = await import("@/lib/export/pdf")
+      return await exportTemplatesPdf({ pieces, name: form.name, paper: paperSize })
+    } catch (error) {
+      set({ exportError: error instanceof Error ? error.message : String(error) })
+      throw error
+    } finally {
+      set({ isExporting: false })
+    }
+  },
 }))
 
 export function selectPieces(form: FormParams, clay: ClaySettings): Piece[] {

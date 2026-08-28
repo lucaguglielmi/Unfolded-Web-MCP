@@ -55,7 +55,7 @@ function Scene() {
 
 export function Viewport() {
   return (
-    <Canvas camera={{ position: [2.4, 1.6, 2.4], fov: 38 }} className="bg-background">
+    <Canvas camera={{ position: [2.4, 1.6, 2.4], fov: 38 }} className="touch-none bg-background">
       <ambientLight intensity={0.65} />
       <directionalLight position={[4, 6, 3]} intensity={1.05} />
       <directionalLight position={[-3, 2, -4]} intensity={0.35} />

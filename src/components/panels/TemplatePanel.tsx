@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useMemo } from "react"
 import { InfoTip } from "@/components/InfoTip"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -11,8 +11,9 @@ export function TemplatePanel() {
   const clay = useProjectStore((s) => s.clay)
   const paperSize = useProjectStore((s) => s.paperSize)
   const setPaperSize = useProjectStore((s) => s.setPaperSize)
-  const [exporting, setExporting] = useState(false)
-  const [exportError, setExportError] = useState<string | null>(null)
+  const isExporting = useProjectStore((s) => s.isExporting)
+  const exportError = useProjectStore((s) => s.exportError)
+  const exportPdf = useProjectStore((s) => s.exportPdf)
 
   const pieces = useMemo(() => selectPieces(form, clay), [form, clay])
   const layout = useMemo(() => layoutPieces(pieces), [pieces])
@@ -21,22 +22,9 @@ export function TemplatePanel() {
   const PAD = 16
   const fontSize = Math.max(6, Math.min(12, layout.widthMm / 28))
 
-  const onExport = async () => {
-    setExporting(true)
-    setExportError(null)
-    try {
-      const { exportTemplatesPdf } = await import("@/lib/export/pdf")
-      await exportTemplatesPdf({ pieces, name: form.name, paper: paperSize })
-    } catch (error) {
-      setExportError(error instanceof Error ? error.message : String(error))
-    } finally {
-      setExporting(false)
-    }
-  }
-
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2">
         <div>
           <h2 className="flex items-center gap-1.5 text-sm font-medium">
             Flat templates
@@ -58,8 +46,10 @@ export function TemplatePanel() {
               <TabsTrigger value="Letter">Letter</TabsTrigger>
             </TabsList>
           </Tabs>
-          <Button size="sm" onClick={onExport} disabled={exporting}>
-            {exporting ? "Exporting…" : "Export PDF"}
+          {/* On mobile the large sticky bar at the bottom of the screen is the
+              one Export action — this inline button would just duplicate it. */}
+          <Button size="sm" onClick={() => exportPdf()} disabled={isExporting} className="hidden lg:inline-flex">
+            {isExporting ? "Exporting…" : "Export PDF"}
           </Button>
         </div>
       </div>

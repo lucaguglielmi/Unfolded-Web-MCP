@@ -1,37 +1,132 @@
+import { useState } from "react"
 import { AgentBadge } from "@/components/AgentBadge"
 import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { TemplatePanel } from "@/components/panels/TemplatePanel"
 import { Viewport } from "@/components/viewport/Viewport"
+import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
+import { countPages, layoutPieces } from "@/lib/export/svg"
+import { selectPieces, useProjectStore } from "@/store/useProjectStore"
 import { useWebMCP } from "@/mcp/useWebMCP"
+
+type MobileTab = "settings" | "preview"
+type PreviewView = "3d" | "template"
 
 export default function App() {
   useWebMCP()
 
+  const [mobileTab, setMobileTab] = useState<MobileTab>("settings")
+  const [previewView, setPreviewView] = useState<PreviewView>("3d")
+
+  const form = useProjectStore((s) => s.form)
+  const clay = useProjectStore((s) => s.clay)
+  const paperSize = useProjectStore((s) => s.paperSize)
+  const isExporting = useProjectStore((s) => s.isExporting)
+  const exportError = useProjectStore((s) => s.exportError)
+  const exportPdf = useProjectStore((s) => s.exportPdf)
+
+  const pages = countPages(layoutPieces(selectPieces(form, clay)), paperSize)
+
   return (
     <TooltipProvider>
-      <div className="bg-background text-foreground flex h-screen flex-col">
-        <header className="flex items-center justify-between border-b px-5 py-2.5">
-          <div className="flex items-baseline gap-3">
+      <div className="bg-background text-foreground flex h-dvh flex-col overflow-hidden">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-5">
+          <div className="flex min-w-0 items-baseline gap-3">
             <h1 className="text-base font-semibold tracking-tight">Unfolded</h1>
-            <p className="text-muted-foreground hidden text-xs sm:block">
+            <p className="text-muted-foreground hidden truncate text-xs sm:block">
               slab pottery templates — design in 3D, print flat, build in clay
             </p>
           </div>
           <AgentBadge />
         </header>
+
+        {/* Mobile-only: primary Settings / Preview switch, just below the header */}
+        <div className="border-b px-4 py-2 lg:hidden">
+          <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as MobileTab)}>
+            <TabsList className="w-full">
+              <TabsTrigger value="settings" className="flex-1">
+                Settings
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="flex-1">
+                Preview
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
         <div className="flex min-h-0 flex-1">
-          <aside className="w-72 shrink-0 overflow-y-auto border-r p-5 lg:w-80">
+          {/* Settings: fixed sidebar on desktop, full-width tab pane on mobile */}
+          <div
+            className={cn(
+              "min-h-0 w-full overflow-y-auto p-4 sm:p-5 lg:w-72 lg:border-r xl:w-80",
+              mobileTab === "settings" ? "block" : "hidden",
+              "lg:block"
+            )}
+          >
             <ParamsPanel />
-          </aside>
-          <main className="flex min-w-0 flex-1">
-            <div className="min-w-0 flex-1 border-r">
+          </div>
+
+          {/* Preview cluster: 3D + template, side by side on desktop, tabbed on mobile */}
+          <div
+            className={cn(
+              "min-h-0 flex-1 flex-col lg:flex-row",
+              mobileTab === "preview" ? "flex" : "hidden",
+              "lg:flex"
+            )}
+          >
+            {/* Mobile-only: secondary 3D / Template switch */}
+            <div className="border-b px-4 py-2 lg:hidden">
+              <Tabs value={previewView} onValueChange={(v) => setPreviewView(v as PreviewView)}>
+                <TabsList className="w-full">
+                  <TabsTrigger value="3d" className="flex-1">
+                    3D preview
+                  </TabsTrigger>
+                  <TabsTrigger value="template" className="flex-1">
+                    Template
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            <div
+              className={cn(
+                "min-h-0 flex-1 lg:border-r",
+                previewView === "3d" ? "block" : "hidden",
+                "lg:block"
+              )}
+            >
               <Viewport />
             </div>
-            <div className="min-w-0 flex-1">
+            <div
+              className={cn(
+                "min-h-0 flex-1",
+                previewView === "template" ? "block" : "hidden",
+                "lg:block"
+              )}
+            >
               <TemplatePanel />
             </div>
-          </main>
+          </div>
+        </div>
+
+        {/* Mobile-only: large sticky export CTA, reachable from any tab */}
+        <div
+          className="shrink-0 border-t px-4 py-3 lg:hidden"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
+          {exportError && <p className="mb-2 text-xs text-red-600">Export failed: {exportError}</p>}
+          <Button
+            size="lg"
+            className="h-14 w-full text-base font-semibold"
+            onClick={() => exportPdf()}
+            disabled={isExporting}
+          >
+            {isExporting
+              ? "Exporting…"
+              : `Export PDF · ${pages.totalPages} page${pages.totalPages > 1 ? "s" : ""}`}
+          </Button>
         </div>
       </div>
     </TooltipProvider>

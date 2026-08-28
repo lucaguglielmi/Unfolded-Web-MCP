@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { setClayInputSchema, updateFormInputSchema, PRESETS } from "@/lib/model/schemas"
-import { describeState, describeTemplates, selectPieces, useProjectStore } from "@/store/useProjectStore"
+import { describeState, describeTemplates, useProjectStore } from "@/store/useProjectStore"
 import type { SetClayInput, UpdateFormInput } from "@/lib/model/schemas"
 import { textResult, type ToolDescriptor, type ToolResult } from "./modelContext"
 
@@ -94,14 +94,7 @@ export function buildTools(): ToolDescriptor[] {
             .object({ paperSize: z.enum(["A4", "Letter"]).optional() })
             .parse(input ?? {})
           if (paperSize) useProjectStore.getState().setPaperSize(paperSize)
-          const state = useProjectStore.getState()
-          const pieces = selectPieces(state.form, state.clay)
-          const { exportTemplatesPdf } = await import("@/lib/export/pdf")
-          const result = await exportTemplatesPdf({
-            pieces,
-            name: state.form.name,
-            paper: state.paperSize,
-          })
+          const result = await useProjectStore.getState().exportPdf()
           return textResult(
             `PDF downloaded in the potter's browser: ${result.pages} pages on ${result.paper} ` +
               `(1 overview + ${result.pages - 1} template pages in a ${result.rows}x${result.cols} grid). ` +
