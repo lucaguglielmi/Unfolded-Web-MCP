@@ -9,7 +9,7 @@ import {
   type SetClayInput,
   type UpdateFormInput,
 } from "@/lib/model/schemas"
-import { buildPieces, describePiece, formWarnings, type Piece } from "@/lib/geometry/unroll"
+import { buildPieces, describePiece, formWarnings, shrinkageScale, type Piece } from "@/lib/geometry/unroll"
 import { countPages, layoutPieces, PAGE_OVERLAP_MM, type PaperSize } from "@/lib/export/svg"
 import type { ExportResult } from "@/lib/export/pdf"
 
@@ -81,7 +81,12 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       const { form, clay, paperSize } = get()
       const pieces = buildPieces(form, clay)
       const { exportTemplatesPdf } = await import("@/lib/export/pdf")
-      return await exportTemplatesPdf({ pieces, name: form.name, paper: paperSize })
+      return await exportTemplatesPdf({
+        pieces,
+        name: form.name,
+        paper: paperSize,
+        scale: shrinkageScale(clay.shrinkagePct),
+      })
     } catch (error) {
       set({ exportError: error instanceof Error ? error.message : String(error) })
       throw error
@@ -107,11 +112,12 @@ export function describeState(): {
   const { form, clay, paperSize } = useProjectStore.getState()
   const pieces = buildPieces(form, clay)
   const pages = countPages(layoutPieces(pieces), paperSize)
+  const scale = shrinkageScale(clay.shrinkagePct)
   return {
     form,
     clay,
     paperSize,
-    pieces: pieces.map(describePiece),
+    pieces: pieces.map((p) => describePiece(p, scale)),
     printedPages: pages.totalPages,
     warnings: formWarnings(form, clay),
   }
@@ -130,6 +136,7 @@ export function describeTemplates(): {
   const pieces = buildPieces(form, clay)
   const layout = layoutPieces(pieces)
   const pages = countPages(layout, paperSize)
+  const scale = shrinkageScale(clay.shrinkagePct)
   return {
     paperSize,
     pages: {
@@ -146,7 +153,7 @@ export function describeTemplates(): {
     pieces: pieces.map((p) => ({
       label: p.label,
       kind: p.kind,
-      dimensions: describePiece(p).replace(`${p.label}: `, ""),
+      dimensions: describePiece(p, scale).replace(`${p.label}: `, ""),
       notes: p.notes,
     })),
     warnings: formWarnings(form, clay),

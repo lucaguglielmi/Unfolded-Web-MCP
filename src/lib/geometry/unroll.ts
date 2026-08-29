@@ -183,18 +183,35 @@ export function formWarnings(form: FormParams, clay: ClaySettings): string[] {
   return warnings
 }
 
-/** Human/agent-readable summary of a piece's key dimensions. */
-export function describePiece(piece: Piece): string {
-  const mm = (v: number) => `${v.toFixed(1)} mm`
+/**
+ * Formats one printed (wet-clay) dimension, with the corresponding fired
+ * size alongside it whenever shrinkage actually changes the number — e.g.
+ * "40.0 mm (35.2 mm fired)". scale=1 (no shrinkage configured) collapses to
+ * plain "40.0 mm" since the parenthetical would just repeat the same value.
+ */
+function fmtFired(wetMm: number, scale: number): string {
+  const wet = `${wetMm.toFixed(1)} mm`
+  if (scale === 1) return wet
+  return `${wet} (${(wetMm / scale).toFixed(1)} mm fired)`
+}
+
+/**
+ * Human/agent-readable summary of a piece's key dimensions. Pass the
+ * shrinkage scale (shrinkageScale(clay.shrinkagePct)) to annotate each
+ * printed dimension with its fired size; omit it for plain wet-clay-only
+ * output (e.g. internal length estimates).
+ */
+export function describePiece(piece: Piece, scale = 1): string {
+  const dim = (v: number) => fmtFired(v, scale)
   switch (piece.kind) {
     case "rectangle":
-      return `${piece.label}: rectangle ${mm(piece.widthMm)} x ${mm(piece.heightMm)}`
+      return `${piece.label}: rectangle ${dim(piece.widthMm)} x ${dim(piece.heightMm)}`
     case "annularSector":
       return (
-        `${piece.label}: annular sector, radii ${mm(piece.innerRadiusMm)}-${mm(piece.outerRadiusMm)}, ` +
-        `angle ${((piece.angleRad * 180) / Math.PI).toFixed(1)} deg, arcs ${mm(piece.innerArcMm)} / ${mm(piece.outerArcMm)}`
+        `${piece.label}: annular sector, radii ${dim(piece.innerRadiusMm)}-${dim(piece.outerRadiusMm)}, ` +
+        `angle ${((piece.angleRad * 180) / Math.PI).toFixed(1)} deg, arcs ${dim(piece.innerArcMm)} / ${dim(piece.outerArcMm)}`
       )
     case "disc":
-      return `${piece.label}: disc, diameter ${mm(piece.diameterMm)}`
+      return `${piece.label}: disc, diameter ${dim(piece.diameterMm)}`
   }
 }

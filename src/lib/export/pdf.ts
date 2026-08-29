@@ -6,7 +6,11 @@ import {
   contentTiles,
   layoutPieces,
   paginate,
+  textFits,
   tickMarks,
+  ANNOTATION_FONT_MM,
+  LABEL_FONT_MM,
+  NAME_FONT_MM,
   PAGE_MARGIN_MM,
   PAGE_OVERLAP_MM,
   PAPERS,
@@ -18,9 +22,13 @@ import {
  * True-scale, multi-page PDF export. The template layout is tiled onto pages;
  * neighboring pages overlap by PAGE_OVERLAP_MM so the printouts can be glued.
  * Page 1 is an overview with assembly map + calibration rulers.
+ *
+ * No color anywhere in the template artwork — printers vary, ink isn't
+ * always available, and cut vs. seam lines are already distinguished by
+ * line style (solid vs. dashed), not hue.
  */
 
-const SEAM_COLOR = "#b45309"
+const SEAM_COLOR = "#57534e"
 const OUTLINE_COLOR = "#1c1917"
 
 const SVG_NS = "http://www.w3.org/2000/svg"
@@ -31,8 +39,20 @@ function el<K extends string>(name: K, attrs: Record<string, string | number>): 
   return node
 }
 
-/** Full layout as one SVG group: outlines, seams, ticks, labels. */
-function layoutSvg(layout: TemplateLayout, viewBox: string, widthMm: number, heightMm: number): SVGSVGElement {
+/**
+ * Full layout as one SVG group: outlines, seams, ticks, and text. Each of
+ * the three text elements (project name, piece label, dimensions) is only
+ * drawn if it fits within the piece's own width — a small slab prints blank
+ * rather than with text spilling off its edges.
+ */
+function layoutSvg(
+  layout: TemplateLayout,
+  viewBox: string,
+  widthMm: number,
+  heightMm: number,
+  scale: number,
+  projectName: string
+): SVGSVGElement {
   const svg = el("svg", {
     xmlns: SVG_NS,
     viewBox,
@@ -70,26 +90,47 @@ function layoutSvg(layout: TemplateLayout, viewBox: string, widthMm: number, hei
         )
       }
     }
-    const label = el("text", {
-      x: graphic.labelAt.x,
-      y: graphic.labelAt.y,
-      "font-family": "helvetica",
-      "font-size": 7,
-      "text-anchor": "middle",
-      fill: OUTLINE_COLOR,
-    })
-    label.textContent = piece.label
-    g.appendChild(label)
 
-    const dims = el("text", {
-      x: 0,
-      y: graphic.heightMm + 6,
-      "font-family": "helvetica",
-      "font-size": 4,
-      fill: "#57534e",
-    })
-    dims.textContent = describePiece(piece)
-    g.appendChild(dims)
+    const availableWidth = graphic.widthMm
+
+    if (textFits(projectName, NAME_FONT_MM, availableWidth)) {
+      const name = el("text", {
+        x: graphic.labelAt.x,
+        y: graphic.labelAt.y - LABEL_FONT_MM * 0.6 - 1,
+        "font-family": "helvetica",
+        "font-size": NAME_FONT_MM,
+        "text-anchor": "middle",
+        fill: SEAM_COLOR,
+      })
+      name.textContent = projectName
+      g.appendChild(name)
+    }
+
+    if (textFits(piece.label, LABEL_FONT_MM, availableWidth)) {
+      const label = el("text", {
+        x: graphic.labelAt.x,
+        y: graphic.labelAt.y,
+        "font-family": "helvetica",
+        "font-size": LABEL_FONT_MM,
+        "text-anchor": "middle",
+        fill: OUTLINE_COLOR,
+      })
+      label.textContent = piece.label
+      g.appendChild(label)
+    }
+
+    const dimsText = describePiece(piece, scale).replace(`${piece.label}: `, "")
+    if (textFits(dimsText, ANNOTATION_FONT_MM, availableWidth)) {
+      const dims = el("text", {
+        x: 0,
+        y: graphic.heightMm + ANNOTATION_FONT_MM + 2,
+        "font-family": "helvetica",
+        "font-size": ANNOTATION_FONT_MM,
+        fill: SEAM_COLOR,
+      })
+      dims.textContent = dimsText
+      g.appendChild(dims)
+    }
 
     svg.appendChild(g)
   }
@@ -122,8 +163,10 @@ export async function exportTemplatesPdf(options: {
   pieces: Piece[]
   name: string
   paper: PaperSize
+  /** shrinkageScale(clay.shrinkagePct) — used to print fired dimensions alongside wet ones */
+  scale: number
 }): Promise<ExportResult> {
-  const { pieces, name, paper } = options
+  const { pieces, name, paper, scale } = options
   const layout = layoutPieces(pieces)
   const pg = paginate(layout.widthMm, layout.heightMm, paper)
   const { widthMm: pageW, heightMm: pageH } = PAPERS[paper]
@@ -189,7 +232,9 @@ export async function exportTemplatesPdf(options: {
     layout,
     `0 0 ${gridW} ${gridH}`,
     gridW * mapScale,
-    gridH * mapScale
+    gridH * mapScale,
+    scale,
+    name
   )
   document.body.appendChild(mapSvg)
   try {
@@ -208,7 +253,9 @@ export async function exportTemplatesPdf(options: {
         layout,
         `${x0} ${y0} ${pg.printWidthMm} ${pg.printHeightMm}`,
         pg.printWidthMm,
-        pg.printHeightMm
+        pg.printHeightMm,
+        scale,
+        name
       )
       document.body.appendChild(tileSvg)
       try {

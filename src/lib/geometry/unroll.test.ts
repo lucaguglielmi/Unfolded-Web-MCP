@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildPieces, formWarnings, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
+import { buildPieces, describePiece, formWarnings, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
 import type { ClaySettings, FormParams } from "@/lib/model/schemas"
 
 const clay: ClaySettings = { shrinkagePct: 0, wallThicknessMm: 5 }
@@ -124,5 +124,20 @@ describe("formWarnings", () => {
       clay
     )
     expect(warnings.join(" ")).toMatch(/taper/i)
+  })
+})
+
+describe("describePiece", () => {
+  const disc = { kind: "disc" as const, id: "base", label: "Base", diameterMm: 100, notes: [] }
+
+  it("omits the fired parenthetical when there is no shrinkage (scale=1, the default)", () => {
+    expect(describePiece(disc)).toBe("Base: disc, diameter 100.0 mm")
+  })
+
+  it("shows the fired size alongside the printed size when scale != 1", () => {
+    const scale = shrinkageScale(12) // wet 100mm -> fired 88mm
+    const text = describePiece(disc, scale)
+    expect(text).toContain("100.0 mm")
+    expect(text).toContain("88.0 mm fired")
   })
 })

@@ -1,6 +1,7 @@
 import { useState } from "react"
-import { Amphora, Box, Loader2, Scissors } from "lucide-react"
+import { Amphora, Box, Scissors } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
+import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { IconOptionGroup } from "@/components/IconOptionGroup"
 import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { TemplatePanel } from "@/components/panels/TemplatePanel"
@@ -9,8 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { countPages, layoutPieces } from "@/lib/export/svg"
-import { selectPieces, useProjectStore } from "@/store/useProjectStore"
 import { useWebMCP } from "@/mcp/useWebMCP"
 
 type MobileTab = "settings" | "preview"
@@ -26,15 +25,6 @@ export default function App() {
 
   const [mobileTab, setMobileTab] = useState<MobileTab>("settings")
   const [previewView, setPreviewView] = useState<PreviewView>("3d")
-
-  const form = useProjectStore((s) => s.form)
-  const clay = useProjectStore((s) => s.clay)
-  const paperSize = useProjectStore((s) => s.paperSize)
-  const isExporting = useProjectStore((s) => s.isExporting)
-  const exportError = useProjectStore((s) => s.exportError)
-  const exportPdf = useProjectStore((s) => s.exportPdf)
-
-  const pages = countPages(layoutPieces(selectPieces(form, clay)), paperSize)
 
   return (
     <TooltipProvider>
@@ -122,22 +112,13 @@ export default function App() {
           className="shrink-0 border-t px-4 py-3 shadow-[0_-6px_16px_-8px_rgba(0,0,0,0.12)] lg:hidden"
           style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
         >
-          {exportError && <p className="mb-2 text-xs text-red-600">Export failed: {exportError}</p>}
-          <Button
-            size="lg"
-            className="h-14 w-full text-base font-semibold"
-            onClick={() => exportPdf()}
-            disabled={isExporting}
-          >
-            {isExporting ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                Exporting…
-              </>
-            ) : (
-              `Export PDF · ${pages.totalPages} page${pages.totalPages > 1 ? "s" : ""}`
-            )}
-          </Button>
+          <ExportPdfDialog
+            trigger={
+              <Button size="lg" className="h-14 w-full text-base font-semibold">
+                Export PDF
+              </Button>
+            }
+          />
         </div>
       </div>
     </TooltipProvider>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { countPages, layoutPieces, paginate, pieceGraphic, tickMarks } from "./svg"
+import { countPages, layoutPieces, paginate, pieceGraphic, textFits, tickMarks } from "./svg"
 import type { Piece } from "@/lib/geometry/unroll"
 
 const rect: Piece = { kind: "rectangle", id: "wall", label: "Wall", widthMm: 285.6, heightMm: 113.6, notes: [] }
@@ -92,6 +92,20 @@ describe("paginate", () => {
   it("pages overlap by the glue margin", () => {
     const p = paginate(500, 500, "A4")
     expect(p.printWidthMm - p.stepWidthMm).toBeCloseTo(10)
+  })
+})
+
+describe("textFits", () => {
+  it("empty text always fits", () => {
+    expect(textFits("", 6, 0)).toBe(true)
+  })
+
+  it("a short label fits a normal-sized piece", () => {
+    expect(textFits("Wall", 6, 285.6)).toBe(true)
+  })
+
+  it("a long project name does not fit a tiny piece", () => {
+    expect(textFits("A very long espresso cup project name", 3.2, 20)).toBe(false)
   })
 })
 

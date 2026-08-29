@@ -1,4 +1,4 @@
-import { describePiece, type Piece } from "@/lib/geometry/unroll"
+import type { Piece } from "@/lib/geometry/unroll"
 
 /**
  * Pure SVG-path generation for template pieces. All coordinates are
@@ -154,6 +154,28 @@ const GAP_MM = 18
 /** vertical room under each piece for its dimension annotation */
 export const ANNOTATION_MM = 10
 
+/**
+ * Shared text sizing between the on-screen preview and the printed PDF, so
+ * what you see in-app is what prints. All three text elements a piece can
+ * carry (project name, piece label, dimensions) are constrained to the
+ * piece's own width — see textFits.
+ */
+export const LABEL_FONT_MM = 6
+export const NAME_FONT_MM = 3.2
+export const ANNOTATION_FONT_MM = 3.6
+
+/**
+ * Rough estimate of whether a text string rendered at fontSizeMm fits
+ * within maxWidthMm. Used to decide whether to print something on a piece
+ * at all — a small slab should stay blank rather than have text overflow
+ * off its edges. Not pixel-perfect (average glyph width varies by font and
+ * character), but conservative enough for a print-layout gate.
+ */
+export function textFits(text: string, fontSizeMm: number, maxWidthMm: number): boolean {
+  if (text.length === 0) return true
+  return text.length * fontSizeMm * 0.52 <= maxWidthMm
+}
+
 /** Stack pieces in a column — simple, predictable, and fine for a handful of pieces. */
 export function layoutPieces(pieces: Piece[]): TemplateLayout {
   const placed: PlacedPiece[] = []
@@ -209,20 +231,19 @@ interface Box {
   h: number
 }
 
-/** rough advance width per character of the 4mm annotation font */
-const ANNOTATION_CHAR_MM = 2.1
-
-/** Everything a piece puts on paper: its outline plus the annotation text under it. */
+/**
+ * Everything a piece puts on paper: its outline plus the annotation row
+ * under it. Text (name/label/dimensions) is always constrained to fit
+ * within the piece's own width (see textFits) or omitted entirely, so it
+ * never needs a wider box than the piece itself.
+ */
 function contentBoxes(layout: TemplateLayout): Box[] {
-  return layout.placed.flatMap(({ piece, graphic, dx, dy }) => [
-    { x: dx, y: dy, w: graphic.widthMm, h: graphic.heightMm },
-    {
-      x: dx,
-      y: dy + graphic.heightMm,
-      w: describePiece(piece).length * ANNOTATION_CHAR_MM,
-      h: ANNOTATION_MM,
-    },
-  ])
+  return layout.placed.map(({ graphic, dx, dy }) => ({
+    x: dx,
+    y: dy,
+    w: graphic.widthMm,
+    h: graphic.heightMm + ANNOTATION_MM,
+  }))
 }
 
 export interface Tile {
