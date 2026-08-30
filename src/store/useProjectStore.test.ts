@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { DEFAULT_CLAY, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
-import { _resetHistoryCoalescing, _setPdfModuleForTests, useProjectStore } from "./useProjectStore"
+import {
+  _resetHistoryCoalescing,
+  _setPdfModuleForTests,
+  describeTemplates,
+  useProjectStore,
+} from "./useProjectStore"
 
 const reset = () => {
   useProjectStore.setState({
@@ -142,6 +147,16 @@ describe("display units", () => {
     setUnit("in")
     expect(undo()).toBe(true)
     expect(useProjectStore.getState().unit).toBe("in")
+  })
+
+  it("describeTemplates renders its warnings in the preferred unit too", () => {
+    // walls thicker than the base radius always warn, mentioning lengths
+    useProjectStore.getState().updateForm({ bottomDiameterMm: 20 })
+    useProjectStore.getState().setClay({ wallThicknessMm: 15 })
+    useProjectStore.getState().setUnit("in")
+    const joined = describeTemplates().warnings.join(" ")
+    expect(joined).toContain(" in")
+    expect(joined).not.toContain(" cm")
   })
 })
 

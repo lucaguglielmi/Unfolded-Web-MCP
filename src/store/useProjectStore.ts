@@ -455,6 +455,6 @@ export function describeTemplates(): {
       dimensions: describePiece(p, scale, unit).replace(`${p.label}: `, ""),
       notes: p.notes,
     })),
-    warnings: formWarnings(form, clay),
+    warnings: formWarnings(form, clay, unit),
   }
 }
