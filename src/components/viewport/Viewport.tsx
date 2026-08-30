@@ -181,6 +181,11 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
   const isFaceted = form.type === "faceted"
   const radialSegments = isFaceted ? form.facets : 96
 
+  // Rebuilds on every slider step (~60 Hz during a drag): r3f disposes the
+  // replaced lathe geometries correctly, so this is allocation churn, not a
+  // leak, and it is smooth on current hardware. If a low-end device ever
+  // stutters while dragging, THIS memo is the place to throttle — don't
+  // optimize it before a measurement says so.
   const { outerPoints, innerPoints, rimInnerR, rimOuterR, height, bottomY, halfBot, maxHalf } = useMemo(() => {
     // straight forms keep topDiameterMm mirrored to bottom (store invariant)
     const topR = form.topDiameterMm / 2
