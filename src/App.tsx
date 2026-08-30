@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState, type UIEvent } from "react"
 import { Box, Check, Link2, Maximize2, Redo2, Scissors, Undo2, X } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
 import { ChromeFlagNudge } from "@/components/ChromeFlagNudge"
@@ -62,7 +62,7 @@ function useIsDesktop(): boolean {
  * card on mobile, the 3D viewport when expanded or on desktop. Works on
  * changes from the person and the agent alike.
  */
-function UndoRedoControls() {
+function UndoRedoControls({ className }: { className?: string }) {
   const canUndo = useProjectStore((s) => s.history.length > 0)
   const canRedo = useProjectStore((s) => s.future.length > 0)
   const undo = useProjectStore((s) => s.undo)
@@ -72,7 +72,7 @@ function UndoRedoControls() {
     "bg-background/90 text-foreground flex size-8 items-center justify-center rounded-md border shadow-sm transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
 
   return (
-    <div className="absolute bottom-2.5 left-2.5 z-20 flex gap-1.5">
+    <div className={cn("absolute bottom-2.5 left-2.5 z-20 flex gap-1.5", className)}>
       <button
         type="button"
         aria-label="Undo last change"
@@ -178,7 +178,10 @@ function ShareDialog() {
             ChatGPT's browser, where your agent can keep editing it. The link updates
             live as you work.
           </p>
-          <code className="bg-muted text-muted-foreground w-full truncate rounded-md px-3 py-2 text-[11px]">
+          {/* break-all + min-w-0: a long unbroken URL must never widen the
+              dialog (iOS Safari doesn't zero a nowrap flex item's min-width,
+              which pushed the whole column past the screen edge) */}
+          <code className="bg-muted text-muted-foreground w-full min-w-0 rounded-md px-3 py-2 text-[11px] leading-relaxed break-all">
             {url}
           </code>
           <Button onClick={copy} className="w-full">
@@ -204,11 +207,23 @@ const PREVIEW_VIEW_OPTIONS = [
 export default function App() {
   useWebMCP()
 
-  // Mobile: settings are the main page; the preview lives in a small
-  // thumbnail card up top and expands to a full-screen overlay on tap.
+  // Mobile: settings are the main page; the preview lives in a thumbnail
+  // card up top and expands to a full-screen overlay on tap. Scrolling the
+  // settings collapses the card into a small 3D chip on the left (with the
+  // piece's name beside it) so the controls get the room; scrolling back
+  // to the top restores it.
   const [previewExpanded, setPreviewExpanded] = useState(false)
   const [previewView, setPreviewView] = useState<PreviewView>("3d")
+  const [previewCollapsed, setPreviewCollapsed] = useState(false)
   const isDesktop = useIsDesktop()
+  const formName = useProjectStore((s) => s.form.name)
+
+  const handleSettingsScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (isDesktop) return
+    const top = event.currentTarget.scrollTop
+    // hysteresis so the card doesn't flicker around the threshold
+    setPreviewCollapsed((collapsed) => (collapsed ? top > 8 : top > 48))
+  }
 
   // /webmcp: the explainer page the header's WebMCP pill links to. The
   // Worker serves index.html for every path (SPA fallback), so this one
@@ -246,7 +261,11 @@ export default function App() {
             className={cn(
               previewExpanded
                 ? "fixed inset-0 z-50 flex flex-col"
-                : "relative order-1 mx-4 mt-3 h-44 shrink-0 overflow-hidden rounded-xl border",
+                : cn(
+                    "relative order-1 mx-4 mt-3 flex shrink-0 overflow-hidden rounded-xl border",
+                    "transition-[height] duration-300 ease-out",
+                    previewCollapsed ? "h-20" : "h-52"
+                  ),
               // lg:relative (not static) so UndoRedoControls anchors to the
               // preview cluster on desktop too
               "bg-background lg:relative lg:z-auto lg:order-2 lg:m-0 lg:flex lg:h-auto lg:min-h-0 lg:min-w-0 lg:flex-1 lg:flex-row lg:overflow-visible lg:rounded-none lg:border-0"
@@ -277,16 +296,25 @@ export default function App() {
             <div
               className={cn(
                 "relative min-h-0",
-                previewExpanded ? (previewView === "3d" ? "flex-1" : "hidden") : "h-full",
-                "lg:block lg:h-auto lg:flex-1 lg:border-r"
+                previewExpanded
+                  ? previewView === "3d"
+                    ? "flex-1"
+                    : "hidden"
+                  : previewCollapsed
+                    ? "h-full w-24 shrink-0 border-r"
+                    : "h-full flex-1",
+                "lg:block lg:h-auto lg:w-auto lg:flex-1 lg:border-r"
               )}
             >
               {/* In the small thumbnail all callouts at once would clutter —
-                  cycle them one at a time; the main preview shows them all. */}
+                  cycle them one at a time; the main preview shows them all;
+                  the collapsed scroll-chip is too small for any. */}
               <Suspense fallback={<ViewportLoader />}>
                 <Viewport
                   showHintOnMobile={previewExpanded}
-                  measurementsMode={previewExpanded || isDesktop ? "static" : "cycle"}
+                  measurementsMode={
+                    previewExpanded || isDesktop ? "static" : previewCollapsed ? "hidden" : "cycle"
+                  }
                 />
               </Suspense>
               {/* units toggle floats in the main preview (not the thumbnail,
@@ -301,6 +329,15 @@ export default function App() {
                 <UnitToggle className="bg-background/90 shadow-sm" />
               </div>
             </div>
+
+            {/* Collapsed thumbnail: the piece's name rides beside the small 3D chip */}
+            {!previewExpanded && previewCollapsed && (
+              <div className="flex min-w-0 flex-1 flex-col justify-center px-3.5 lg:hidden">
+                <p className="truncate text-sm font-medium">{formName}</p>
+                <p className="text-muted-foreground text-xs">Tap to open the 3D preview</p>
+              </div>
+            )}
+
             <div
               className={cn(
                 "min-h-0",
@@ -311,7 +348,9 @@ export default function App() {
               <TemplatePanel />
             </div>
 
-            <UndoRedoControls />
+            <UndoRedoControls
+              className={cn(!previewExpanded && previewCollapsed && "max-lg:hidden")}
+            />
 
             {/* Thumbnail tap targets: the whole card opens the 3D preview;
                 the chips open straight into either full-screen view */}
@@ -326,7 +365,7 @@ export default function App() {
                   }}
                   className="absolute inset-0"
                 />
-                <div className="absolute right-2.5 bottom-2.5 flex gap-1.5">
+                <div className={cn("absolute right-2.5 bottom-2.5 flex gap-1.5", previewCollapsed && "hidden")}>
                   <button
                     type="button"
                     onClick={() => {
@@ -355,7 +394,10 @@ export default function App() {
           </div>
 
           {/* Settings: the main page on mobile, fixed sidebar on desktop */}
-          <div className="order-2 min-h-0 w-full flex-1 overflow-y-auto p-4 sm:p-5 lg:order-1 lg:w-72 lg:flex-none lg:border-r xl:w-80">
+          <div
+            onScroll={handleSettingsScroll}
+            className="order-2 min-h-0 w-full flex-1 overflow-y-auto p-4 sm:p-5 lg:order-1 lg:w-72 lg:flex-none lg:border-r xl:w-80"
+          >
             <ParamsPanel />
           </div>
         </div>

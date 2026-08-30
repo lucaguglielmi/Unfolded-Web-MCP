@@ -189,6 +189,24 @@
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* option-card icons (shape / profile pickers) give a pleased little
+   left-right wobble when hovered or when their option gets chosen */
+.icon-wobble {
+  transform-origin: 50% 62%;
+}
+button:hover > .icon-wobble,
+button[aria-checked="true"] > .icon-wobble {
+  animation: icon-wobble 0.55s ease-in-out;
+}
+
+@keyframes icon-wobble {
+  0%   { transform: rotate(0deg); }
+  28%  { transform: rotate(-9deg); }
+  58%  { transform: rotate(7deg); }
+  82%  { transform: rotate(-3deg); }
+  100% { transform: rotate(0deg); }
+}
+
 /* quiet breathing pulse for loaders */
 .gentle-pulse {
   animation: gentle-pulse 1.6s ease-in-out infinite;
@@ -217,6 +235,8 @@
   .rise-in,
   .viewport-in,
   .gentle-pulse,
+  button:hover > .icon-wobble,
+  button[aria-checked="true"] > .icon-wobble,
   .webmcp-page main > section,
   .webmcp-page main > footer {
     animation: none;

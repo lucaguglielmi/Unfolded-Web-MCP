@@ -99,7 +99,8 @@ export function IconOptionGroup<T extends string>({
                 : "border-border text-muted-foreground hover:border-foreground/30 hover:bg-accent hover:text-foreground"
             )}
           >
-            <Icon className={orientation === "vertical" ? "size-5" : "size-4"} />
+            {/* .icon-wobble: a little left-right shake on hover / selection */}
+            <Icon className={cn("icon-wobble", orientation === "vertical" ? "size-5" : "size-4")} />
             <span>{option.label}</span>
           </button>
         )

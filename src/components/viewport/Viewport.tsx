@@ -27,7 +27,7 @@ const MEASURE_LINE = "#c6c1bb"
 const TICK = 0.045
 const DIM_GAP = 0.18
 
-export type MeasurementsMode = "static" | "cycle"
+export type MeasurementsMode = "static" | "cycle" | "hidden"
 
 function MeasureLabel({
   position,
@@ -126,6 +126,8 @@ function useMeasurementCycler(count: number, active: boolean): { index: number; 
  */
 function Measurements({ entries, mode }: { entries: MeasureEntry[]; mode: MeasurementsMode }) {
   const { index, opacity } = useMeasurementCycler(entries.length, mode === "cycle")
+  // "hidden": the collapsed scroll-thumbnail is too small for any callout
+  if (mode === "hidden") return null
   const shown = mode === "cycle" ? [entries[Math.min(index, entries.length - 1)]] : entries
   const o = mode === "cycle" ? opacity : 1
   return (

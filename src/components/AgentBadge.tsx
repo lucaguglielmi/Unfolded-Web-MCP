@@ -52,7 +52,7 @@ export function AgentBadge() {
   return (
     <div className="flex min-w-0 items-center gap-2.5">
       {lastAgentCall && (
-        <span className="text-muted-foreground hidden truncate text-xs sm:inline">
+        <span className="text-muted-foreground hidden min-w-0 truncate text-xs sm:inline">
           last agent call: <code className="text-foreground/80">{lastAgentCall.tool}</code>
         </span>
       )}
