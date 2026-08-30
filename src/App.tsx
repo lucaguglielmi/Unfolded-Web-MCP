@@ -19,7 +19,6 @@ import {
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { successFeedback, tapFeedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
-import { WebMCPPage } from "@/pages/WebMCPPage"
 import { shareUrl } from "@/lib/model/shareLink"
 import { useProjectStore } from "@/store/useProjectStore"
 import { useWebMCP } from "@/mcp/useWebMCP"
@@ -33,6 +32,11 @@ type PreviewView = "3d" | "template"
  */
 const Viewport = lazy(() =>
   import("@/components/viewport/Viewport").then((m) => ({ default: m.Viewport }))
+)
+
+/* Most visitors never open the explainer — keep it out of the shell chunk. */
+const WebMCPPage = lazy(() =>
+  import("@/pages/WebMCPPage").then((m) => ({ default: m.WebMCPPage }))
 )
 
 function ViewportLoader() {
@@ -233,7 +237,11 @@ export default function App() {
   // check is all the routing the app needs. Tools register on this page
   // too (useWebMCP above), so it can show the live connection status.
   if (window.location.pathname.replace(/\/+$/, "") === "/webmcp") {
-    return <WebMCPPage />
+    return (
+      <Suspense fallback={<div className="min-h-dvh bg-white" />}>
+        <WebMCPPage />
+      </Suspense>
+    )
   }
 
   return (
