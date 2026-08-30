@@ -68,6 +68,9 @@ export function useWebMCP(): void {
     // direct registration upgrades it to "native".
     const startedAt = performance.now()
     let timer = window.setInterval(() => {
+      // hidden tabs skip the poll — the visibilitychange recheck below
+      // fires the moment the tab comes back, so nothing is missed
+      if (document.hidden) return
       if (tryRegister()) {
         window.clearInterval(timer)
         return
@@ -76,7 +79,7 @@ export function useWebMCP(): void {
         window.clearInterval(timer)
         // late injection is normal for agent browsers — keep watching, slowly
         timer = window.setInterval(() => {
-          if (tryRegister()) window.clearInterval(timer)
+          if (!document.hidden && tryRegister()) window.clearInterval(timer)
         }, SLOW_POLL_MS)
       }
     }, FAST_POLL_MS)
