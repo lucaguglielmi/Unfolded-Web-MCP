@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { IconOptionGroup } from "@/components/IconOptionGroup"
 import { InfoTip } from "@/components/InfoTip"
+import { UnitToggle } from "@/components/UnitToggle"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
@@ -117,7 +118,6 @@ export function ParamsPanel() {
   const applyPreset = useProjectStore((s) => s.applyPreset)
 
   const unit = useProjectStore((s) => s.unit)
-  const setUnit = useProjectStore((s) => s.setUnit)
   const warnings = formWarnings(form, clay, unit)
   const capacity = capacityMl(form, clay)
 
@@ -128,25 +128,7 @@ export function ParamsPanel() {
           <SectionTitle tip="All dimensions are the fired result you want. The printable templates are automatically scaled up to compensate for clay shrinkage.">
             Form
           </SectionTitle>
-          {/* display preference only — the model stays metric (mm) */}
-          <div role="radiogroup" aria-label="Measurement units" className="flex rounded-md border p-0.5">
-            {(["cm", "in"] as const).map((u) => (
-              <button
-                key={u}
-                type="button"
-                role="radio"
-                aria-checked={unit === u}
-                onClick={() => setUnit(u)}
-                className={
-                  unit === u
-                    ? "bg-foreground text-background rounded px-2 py-0.5 text-[11px] font-medium"
-                    : "text-muted-foreground hover:text-foreground rounded px-2 py-0.5 text-[11px] font-medium transition-colors"
-                }
-              >
-                {u}
-              </button>
-            ))}
-          </div>
+          <UnitToggle />
         </div>
 
         {/* form.name stays in the model (export dialog, PDF stamps, share

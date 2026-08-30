@@ -41,7 +41,7 @@ The header pill tells the truth about how (and whether) an agent is connected:
 |---|---|---|
 | **WebMCP active** | pulsing green | The API is available in *this* tab (`document`/`navigator`/`window.modelContext`) and tool registration succeeded — human and agent share one live session. |
 | **Connected via ChatGPT** | solid green | This tab has no direct WebMCP, but the design arrived through an agent-minted link (`?via=chatgpt` on tool-issued `shareUrl`s) — the explicit signal that it's open in the conversation's internal browser. Edits here aren't shared until synced back (`open_model`). |
-| **WebMCP unavailable** | grey | Neither could be confirmed. |
+| **WebMCP** | grey | Neither could be confirmed — the pill just names the capability; the tooltip explains how to connect. |
 
 A ChatGPT connection is shown **only** on that explicit link signal — never inferred
 from the user agent, referrer, screen size, or being inside an in-app browser. Direct

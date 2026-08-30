@@ -138,6 +138,10 @@ try {
   )
   const metric = stateFrom(await callTool(page, "set_units", { units: "cm" }))
   check("set_units switches back to centimeters", metric.units === "cm" && metric.shareUrl.includes("units=cm"))
+  const unitToggles = await page
+    .locator('[role="radiogroup"][aria-label="Measurement units"]')
+    .count()
+  check("units toggle present in both the params panel and the 3D preview", unitToggles === 2)
 
   // ---------------------------------------------------- legacy + taper model
   const legacy = stateFrom(await callTool(page, "update_form", { type: "tapered" }))
@@ -226,7 +230,7 @@ try {
   await latePage.close()
 
   // ----------------------------------------------- three badge states
-  // 1. no API, no signal -> grey "WebMCP unavailable"
+  // 1. no API, no signal -> grey pill just says "WebMCP"
   const plainPage = await ctx.newPage()
   await plainPage.goto(BASE, { waitUntil: "networkidle" })
   await plainPage.waitForTimeout(1200)
@@ -235,8 +239,8 @@ try {
     ping: !!document.querySelector('a[href="/webmcp"] .animate-ping'),
   }))
   check(
-    "no API and no signal shows 'WebMCP unavailable' (grey, no pulse)",
-    plainPill.text === "WebMCP unavailable" && !plainPill.ping,
+    "no API and no signal shows plain 'WebMCP' (grey, no pulse)",
+    plainPill.text === "WebMCP" && !plainPill.ping,
     JSON.stringify(plainPill)
   )
   await plainPage.close()

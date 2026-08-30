@@ -11,7 +11,8 @@ import { useProjectStore, type AgentStatus } from "@/store/useProjectStore"
  *   WebMCP, but the design arrived through an agent-minted link — the
  *   explicit signal that it is open in the internal browser of a ChatGPT
  *   conversation. Never inferred from user agent / referrer / in-app-ness.
- * - "WebMCP unavailable" (grey): neither could be confirmed.
+ * - "WebMCP" (grey): neither could be confirmed — the pill just names the
+ *   capability without shouting about its absence; the tooltip explains.
  *
  * Links to /webmcp, the page that explains the whole story.
  */
@@ -35,7 +36,7 @@ const STATUS: Record<
     ping: false,
   },
   unavailable: {
-    label: "WebMCP unavailable",
+    label: "WebMCP",
     tooltip:
       "WebMCP is not available in this browser tab. Ask ChatGPT to open Unfolded in its internal browser, or use the built-in browser in the ChatGPT desktop app.",
     dot: "bg-stone-300",

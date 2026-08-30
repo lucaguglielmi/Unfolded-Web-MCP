@@ -192,9 +192,9 @@ export function WebMCPPage() {
             <li className="flex items-start gap-3">
               <span className="mt-1 inline-flex size-2 shrink-0 rounded-full bg-stone-300" />
               <p className="text-sm leading-relaxed text-stone-600">
-                <span className="font-semibold text-stone-900">WebMCP unavailable</span> — neither
-                could be confirmed in this tab. Ask ChatGPT to open Unfolded in its internal
-                browser, or enable the Chrome flag above.
+                <span className="font-semibold text-stone-900">WebMCP</span> with a grey dot —
+                neither could be confirmed in this tab. Ask ChatGPT to open Unfolded in its
+                internal browser, or enable the Chrome flag above.
               </p>
             </li>
           </ul>

@@ -5,6 +5,7 @@ import { ChromeFlagNudge } from "@/components/ChromeFlagNudge"
 import { LogoMark } from "@/components/LogoMark"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { IconOptionGroup } from "@/components/IconOptionGroup"
+import { UnitToggle } from "@/components/UnitToggle"
 import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { TemplatePanel } from "@/components/panels/TemplatePanel"
 import { Button } from "@/components/ui/button"
@@ -275,7 +276,7 @@ export default function App() {
 
             <div
               className={cn(
-                "min-h-0",
+                "relative min-h-0",
                 previewExpanded ? (previewView === "3d" ? "flex-1" : "hidden") : "h-full",
                 "lg:block lg:h-auto lg:flex-1 lg:border-r"
               )}
@@ -288,6 +289,17 @@ export default function App() {
                   measurementsMode={previewExpanded || isDesktop ? "static" : "cycle"}
                 />
               </Suspense>
+              {/* units toggle floats in the main preview (not the thumbnail,
+                  where the tap overlay owns the corners) — the dimension
+                  callouts it switches live right here */}
+              <div
+                className={cn(
+                  "absolute right-2.5 bottom-2.5 z-20",
+                  previewExpanded ? "block" : "hidden lg:block"
+                )}
+              >
+                <UnitToggle className="bg-background/90 shadow-sm" />
+              </div>
             </div>
             <div
               className={cn(
