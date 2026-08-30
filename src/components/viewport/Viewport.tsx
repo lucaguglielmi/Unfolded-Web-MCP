@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { Grid, Html, Line, OrbitControls } from "@react-three/drei"
@@ -32,10 +32,13 @@ export type MeasurementsMode = "static" | "cycle" | "hidden"
 function MeasureLabel({
   position,
   opacity = 1,
+  innerRef,
   children,
 }: {
   position: [number, number, number]
   opacity?: number
+  /** DOM handle so the cycle fader can drive opacity without re-rendering */
+  innerRef?: (el: HTMLDivElement | null) => void
   children: string
 }) {
   return (
@@ -44,9 +47,10 @@ function MeasureLabel({
       center
       zIndexRange={[1, 0]}
       className="text-muted-foreground/80 pointer-events-none text-[10px] font-medium whitespace-nowrap select-none"
-      style={{ opacity }}
     >
-      {children}
+      <div ref={innerRef} style={{ opacity }}>
+        {children}
+      </div>
     </Html>
   )
 }
@@ -63,58 +67,89 @@ interface MeasureEntry {
 const CYCLE_FADE_MS = 700
 const CYCLE_HOLD_MS = 2200
 
+const easeInOut = (p: number) => (p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2)
+
+/** one callout: its dimension lines plus the floating label */
+function MeasureEntryView({
+  entry,
+  opacity,
+  groupRef,
+  labelRef,
+}: {
+  entry: MeasureEntry
+  opacity: number
+  groupRef?: React.RefObject<THREE.Group | null>
+  labelRef?: (el: HTMLDivElement | null) => void
+}) {
+  return (
+    <group ref={groupRef}>
+      {entry.lines.map((points, i) => (
+        <Line key={i} points={points} color={MEASURE_LINE} lineWidth={1} transparent opacity={opacity} />
+      ))}
+      <MeasureLabel position={entry.labelPos} opacity={opacity} innerRef={labelRef}>
+        {entry.label}
+      </MeasureLabel>
+    </group>
+  )
+}
+
 /**
- * Ping-pong through the measurement entries with a slow crossfade: fade
- * one in, hold, fade out, step to the neighbor, reverse at the ends.
- * Re-renders only during the fades. Inactive (static mode) => everything
- * fully visible.
+ * Cycle mode: ping-pong through the entries with a slow crossfade — fade
+ * one in, hold, fade out, step to the neighbor, reverse at the ends. The
+ * fade itself runs entirely outside React: useFrame drives the line
+ * materials and the label's DOM opacity through refs, and React renders
+ * only when the shown entry steps (about every 3.6 s).
  */
-function useMeasurementCycler(count: number, active: boolean): { index: number; opacity: number } {
-  const [state, setState] = useState({ index: 0, opacity: 1 })
+function CycleMeasurements({ entries }: { entries: MeasureEntry[] }) {
+  const [index, setIndex] = useState(0)
+  const direction = useRef(1)
+  const phase = useRef<{ name: "in" | "hold" | "out"; t: number }>({ name: "in", t: 0 })
+  const groupRef = useRef<THREE.Group>(null)
+  const labelEl = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    if (!active || count <= 1) return
-    let index = 0
-    let direction = 1
-    let raf = 0
-    let timer = 0
-    let cancelled = false
+  const applyOpacity = (o: number) => {
+    groupRef.current?.traverse((obj) => {
+      const material = (obj as THREE.Mesh).material as THREE.Material | undefined
+      if (material && "opacity" in material) material.opacity = o
+    })
+    if (labelEl.current) labelEl.current.style.opacity = String(o)
+  }
 
-    const fade = (from: number, to: number, done: () => void) => {
-      const t0 = performance.now()
-      const step = (t: number) => {
-        if (cancelled) return
-        const p = Math.min(1, (t - t0) / CYCLE_FADE_MS)
-        // ease-in-out
-        const eased = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2
-        setState({ index, opacity: from + (to - from) * eased })
-        if (p < 1) raf = requestAnimationFrame(step)
-        else done()
+  useFrame((_, delta) => {
+    const p = phase.current
+    p.t += delta * 1000
+    if (p.name === "in") {
+      const f = Math.min(1, p.t / CYCLE_FADE_MS)
+      applyOpacity(easeInOut(f))
+      if (f >= 1) Object.assign(p, { name: "hold", t: 0 })
+    } else if (p.name === "hold") {
+      if (p.t >= CYCLE_HOLD_MS) Object.assign(p, { name: "out", t: 0 })
+    } else {
+      const f = Math.min(1, p.t / CYCLE_FADE_MS)
+      applyOpacity(1 - easeInOut(f))
+      if (f >= 1) {
+        Object.assign(p, { name: "in", t: 0 })
+        setIndex((i) => {
+          if (i + direction.current >= entries.length || i + direction.current < 0) {
+            direction.current = -direction.current
+          }
+          return i + direction.current
+        })
       }
-      raf = requestAnimationFrame(step)
     }
+  })
 
-    const cycle = () => {
-      fade(0, 1, () => {
-        timer = window.setTimeout(() => {
-          fade(1, 0, () => {
-            if (index + direction >= count || index + direction < 0) direction = -direction
-            index += direction
-            cycle()
-          })
-        }, CYCLE_HOLD_MS)
-      })
-    }
-    cycle()
-
-    return () => {
-      cancelled = true
-      cancelAnimationFrame(raf)
-      window.clearTimeout(timer)
-    }
-  }, [active, count])
-
-  return active && count > 1 ? state : { index: 0, opacity: 1 }
+  const entry = entries[Math.min(index, entries.length - 1)]
+  return (
+    <MeasureEntryView
+      key={entry.key}
+      entry={entry}
+      // a freshly stepped entry mounts invisible; the fade-in lifts it
+      opacity={0}
+      groupRef={groupRef}
+      labelRef={(el) => (labelEl.current = el)}
+    />
+  )
 }
 
 /**
@@ -122,32 +157,15 @@ function useMeasurementCycler(count: number, active: boolean): { index: number; 
  * once; cycle mode (the small mobile thumbnail, where they'd clutter)
  * shows one at a time, slowly crossfading back and forth through the
  * set — which follows the shape: a tapered form also cycles its top
- * width.
+ * width. "hidden": the collapsed scroll-thumbnail is too small for any.
  */
 function Measurements({ entries, mode }: { entries: MeasureEntry[]; mode: MeasurementsMode }) {
-  const { index, opacity } = useMeasurementCycler(entries.length, mode === "cycle")
-  // "hidden": the collapsed scroll-thumbnail is too small for any callout
   if (mode === "hidden") return null
-  const shown = mode === "cycle" ? [entries[Math.min(index, entries.length - 1)]] : entries
-  const o = mode === "cycle" ? opacity : 1
+  if (mode === "cycle" && entries.length > 1) return <CycleMeasurements entries={entries} />
   return (
     <>
-      {shown.map((entry) => (
-        <group key={entry.key}>
-          {entry.lines.map((points, i) => (
-            <Line
-              key={i}
-              points={points}
-              color={MEASURE_LINE}
-              lineWidth={1}
-              transparent
-              opacity={o}
-            />
-          ))}
-          <MeasureLabel position={entry.labelPos} opacity={o}>
-            {entry.label}
-          </MeasureLabel>
-        </group>
+      {entries.map((entry) => (
+        <MeasureEntryView key={entry.key} entry={entry} opacity={1} />
       ))}
     </>
   )
@@ -157,7 +175,6 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
   const form = useProjectStore((s) => s.form)
   const wallThicknessMm = useProjectStore((s) => s.clay.wallThicknessMm)
   const unit: Unit = useProjectStore((s) => s.unit)
-  const fmtLen = (mm: number) => formatLength(mm, unit)
 
   // A faceted form is a lathe with exactly N revolution segments; flat
   // shading makes the facets read as crisp planes instead of a low-poly bug.
@@ -214,55 +231,58 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
   // Anchor points for the dimension callouts: height line to the right of
   // the pot, base width laid on the grid in front, wall-thickness leader on
   // the front-LEFT rim edge so it never collides with the (centered) top
-  // width of a tapered form.
-  const dimX = maxHalf + DIM_GAP
-  const dimZ = maxHalf + DIM_GAP
-  const rimMid = ((rimInnerR + rimOuterR) / 2) * Math.SQRT1_2
-  const topDimY = height + 0.14
-
-  const measureEntries: MeasureEntry[] = [
-    {
-      key: "height",
-      label: fmtLen(form.heightMm),
-      labelPos: [dimX + 0.16, height / 2, 0],
-      lines: [
-        [[dimX, 0, 0], [dimX, height, 0]],
-        [[dimX - TICK, 0, 0], [dimX + TICK, 0, 0]],
-        [[dimX - TICK, height, 0], [dimX + TICK, height, 0]],
-      ],
-    },
-    {
-      key: "bottom",
-      label: fmtLen(form.bottomDiameterMm),
-      labelPos: [0, 0, dimZ + 0.2],
-      lines: [
-        [[-halfBot, 0, dimZ], [halfBot, 0, dimZ]],
-        [[-halfBot, 0, dimZ - TICK], [-halfBot, 0, dimZ + TICK]],
-        [[halfBot, 0, dimZ - TICK], [halfBot, 0, dimZ + TICK]],
-      ],
-    },
-    // top width only when it can differ from the bottom
-    ...(form.tapered
-      ? [
-          {
-            key: "top",
-            label: fmtLen(form.topDiameterMm),
-            labelPos: [0, topDimY + 0.14, 0] as Vec3,
-            lines: [
-              [[-rimOuterR, topDimY, 0], [rimOuterR, topDimY, 0]] as Vec3[],
-              [[-rimOuterR, topDimY - TICK, 0], [-rimOuterR, topDimY + TICK, 0]] as Vec3[],
-              [[rimOuterR, topDimY - TICK, 0], [rimOuterR, topDimY + TICK, 0]] as Vec3[],
-            ],
-          },
-        ]
-      : []),
-    {
-      key: "wall",
-      label: `wall ${fmtLen(wallThicknessMm)}`,
-      labelPos: [-rimMid, height + 0.3, rimMid],
-      lines: [[[-rimMid, height, rimMid], [-rimMid, height + 0.2, rimMid]]],
-    },
-  ]
+  // width of a tapered form. Memoized so drei's Line geometries only
+  // rebuild when the design actually changes, not on every Scene render.
+  const measureEntries: MeasureEntry[] = useMemo(() => {
+    const fmt = (mm: number) => formatLength(mm, unit)
+    const dimX = maxHalf + DIM_GAP
+    const dimZ = maxHalf + DIM_GAP
+    const rimMid = ((rimInnerR + rimOuterR) / 2) * Math.SQRT1_2
+    const topDimY = height + 0.14
+    return [
+      {
+        key: "height",
+        label: fmt(form.heightMm),
+        labelPos: [dimX + 0.16, height / 2, 0],
+        lines: [
+          [[dimX, 0, 0], [dimX, height, 0]],
+          [[dimX - TICK, 0, 0], [dimX + TICK, 0, 0]],
+          [[dimX - TICK, height, 0], [dimX + TICK, height, 0]],
+        ],
+      },
+      {
+        key: "bottom",
+        label: fmt(form.bottomDiameterMm),
+        labelPos: [0, 0, dimZ + 0.2],
+        lines: [
+          [[-halfBot, 0, dimZ], [halfBot, 0, dimZ]],
+          [[-halfBot, 0, dimZ - TICK], [-halfBot, 0, dimZ + TICK]],
+          [[halfBot, 0, dimZ - TICK], [halfBot, 0, dimZ + TICK]],
+        ],
+      },
+      // top width only when it can differ from the bottom
+      ...(form.tapered
+        ? [
+            {
+              key: "top",
+              label: fmt(form.topDiameterMm),
+              labelPos: [0, topDimY + 0.14, 0] as Vec3,
+              lines: [
+                [[-rimOuterR, topDimY, 0], [rimOuterR, topDimY, 0]] as Vec3[],
+                [[-rimOuterR, topDimY - TICK, 0], [-rimOuterR, topDimY + TICK, 0]] as Vec3[],
+                [[rimOuterR, topDimY - TICK, 0], [rimOuterR, topDimY + TICK, 0]] as Vec3[],
+              ],
+            },
+          ]
+        : []),
+      {
+        key: "wall",
+        label: `wall ${fmt(wallThicknessMm)}`,
+        labelPos: [-rimMid, height + 0.3, rimMid],
+        lines: [[[-rimMid, height, rimMid], [-rimMid, height + 0.2, rimMid]]],
+      },
+      ]
+  }, [form, wallThicknessMm, unit, maxHalf, height, rimInnerR, rimOuterR, halfBot])
 
   // One-time entrance: the vessel eases in from a slight extra yaw and a
   // touch smaller, settling into its resting pose over ~1.1s. Pure
