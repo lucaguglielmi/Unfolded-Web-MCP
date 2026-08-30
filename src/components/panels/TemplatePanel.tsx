@@ -58,14 +58,11 @@ export function TemplatePanel() {
               <TabsTrigger value="Letter">Letter</TabsTrigger>
             </TabsList>
           </Tabs>
-          {/* On mobile the large sticky bar at the bottom of the screen is the
-              one Export action — this inline button would just duplicate it. */}
+          {/* On mobile this panel only appears in the full-screen template
+              view, which covers the sticky export bar — so the header button
+              is the direct Export action there, and never a duplicate. */}
           <ExportPdfDialog
-            trigger={
-              <Button size="sm" className="hidden lg:inline-flex">
-                Export PDF
-              </Button>
-            }
+            trigger={<Button size="sm">Export PDF</Button>}
           />
         </div>
       </div>

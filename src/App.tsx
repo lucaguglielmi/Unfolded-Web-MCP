@@ -96,19 +96,44 @@ export default function App() {
               <TemplatePanel />
             </div>
 
-            {/* Thumbnail tap target: the whole card opens the full preview */}
+            {/* Thumbnail tap targets: the whole card opens the 3D preview;
+                the chips open straight into either full-screen view */}
             {!previewExpanded && (
-              <button
-                type="button"
-                aria-label="Open full-screen preview"
-                onClick={() => setPreviewExpanded(true)}
-                className="absolute inset-0 z-10 flex items-end justify-end p-2.5 lg:hidden"
-              >
-                <span className="bg-background/90 text-foreground flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium shadow-sm">
-                  <Maximize2 className="size-3.5" />
-                  Preview
-                </span>
-              </button>
+              <div className="absolute inset-0 z-10 lg:hidden">
+                <button
+                  type="button"
+                  aria-label="Open full-screen 3D preview"
+                  onClick={() => {
+                    setPreviewView("3d")
+                    setPreviewExpanded(true)
+                  }}
+                  className="absolute inset-0"
+                />
+                <div className="absolute right-2.5 bottom-2.5 flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewView("3d")
+                      setPreviewExpanded(true)
+                    }}
+                    className="bg-background/90 text-foreground flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium shadow-sm"
+                  >
+                    <Maximize2 className="size-3.5" />
+                    Preview
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPreviewView("template")
+                      setPreviewExpanded(true)
+                    }}
+                    className="bg-background/90 text-foreground flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium shadow-sm"
+                  >
+                    <Scissors className="size-3.5" />
+                    Templates
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

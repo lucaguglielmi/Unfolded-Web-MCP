@@ -27,13 +27,23 @@ import {
  * neighboring pages overlap by PAGE_OVERLAP_MM so the printouts can be glued.
  * Page 1 is an overview with assembly map + calibration rulers.
  *
- * No color anywhere in the template artwork — printers vary, ink isn't
+ * No color in the template artwork itself — printers vary, ink isn't
  * always available, and cut vs. seam lines are already distinguished by
- * line style (solid vs. dashed), not hue.
+ * line style (solid vs. dashed), not hue. The overview's assembly map is
+ * the one exception: it's purely illustrative (never measured or cut), so
+ * it uses color and heavier lines to be readable at a glance.
  */
 
 const SEAM_COLOR = "#57534e"
 const OUTLINE_COLOR = "#1c1917"
+
+/* assembly-map palette: warm clay tones matching the app's 3D preview */
+const MAP_ACCENT = "#b45309"
+const MAP_PAGE_FILL = "#fdf3ea"
+const MAP_PIECE_FILL = "#e9dbcb"
+const MAP_PIECE_STROKE = "#7a5c42"
+const MAP_SEAM = "#b08968"
+const MAP_EMPTY = "#c8c3bd"
 
 const SVG_NS = "http://www.w3.org/2000/svg"
 
@@ -231,6 +241,53 @@ function layoutSvg(
   return svg
 }
 
+/**
+ * The assembly map's artwork: piece silhouettes only — filled clay tones,
+ * heavier outlines, no text or registration ticks. At map scale (≤0.35x)
+ * the template pages' fine linework and labels would collapse into noise;
+ * this map only has to show where each piece lands on the page grid.
+ */
+function assemblyMapSvg(
+  layout: TemplateLayout,
+  viewBox: string,
+  widthMm: number,
+  heightMm: number
+): SVGSVGElement {
+  const svg = el("svg", {
+    xmlns: SVG_NS,
+    viewBox,
+    width: `${widthMm}mm`,
+    height: `${heightMm}mm`,
+  }) as SVGSVGElement
+  for (const { graphic, dx, dy } of layout.placed) {
+    const g = el("g", { transform: `translate(${dx} ${dy})` })
+    g.appendChild(
+      el("path", {
+        d: graphic.d,
+        fill: MAP_PIECE_FILL,
+        stroke: MAP_PIECE_STROKE,
+        "stroke-width": 2,
+        "stroke-linejoin": "round",
+      })
+    )
+    for (const seam of graphic.seams) {
+      g.appendChild(
+        el("line", {
+          x1: seam.x1,
+          y1: seam.y1,
+          x2: seam.x2,
+          y2: seam.y2,
+          stroke: MAP_SEAM,
+          "stroke-width": 1.2,
+          "stroke-dasharray": "6 4",
+        })
+      )
+    }
+    svg.appendChild(g)
+  }
+  return svg
+}
+
 function cropMarks(doc: jsPDF, x0: number, y0: number, w: number, h: number): void {
   const L = 5
   doc.setDrawColor(120)
@@ -313,35 +370,38 @@ export async function exportTemplatesPdf(options: {
   doc.line(M + 25.4, y - 2, M + 25.4, y + 2)
   doc.text("1 inch", M + 29.4, y + 1.5)
 
-  // assembly map: page grid + piece outlines, scaled to fit
+  // assembly map: page grid + piece silhouettes, scaled to fit. Purely
+  // illustrative (never measured or cut), so unlike the template pages it
+  // gets color and heavier linework.
   y += 12
   doc.setFontSize(11)
   doc.text("Assembly map", M, y)
+  doc.setFontSize(8)
+  doc.setTextColor(130)
+  doc.text("tinted pages print — blank grid cells are skipped", M + 30, y)
+  doc.setTextColor(0)
   y += 4
   const gridW = pg.cols * pg.stepWidthMm + PAGE_OVERLAP_MM
   const gridH = pg.rows * pg.stepHeightMm + PAGE_OVERLAP_MM
   const mapScale = Math.min((pageW - 2 * M) / gridW, (pageH - y - M - 6) / gridH, 0.35)
-  doc.setLineWidth(0.2)
-  for (let r = 0; r < pg.rows; r++) {
-    for (let c = 0; c < pg.cols; c++) {
-      const px = M + c * pg.stepWidthMm * mapScale
-      const py = y + r * pg.stepHeightMm * mapScale
-      doc.setDrawColor(150)
-      doc.rect(px, py, pg.printWidthMm * mapScale, pg.printHeightMm * mapScale)
-      doc.setFontSize(9)
-      doc.setTextColor(100)
-      doc.text(pageId(r, c), px + 2, py + 5)
-      doc.setTextColor(0)
-    }
+  const tiles = contentTiles(layout, pg)
+  const printedTiles = new Set(tiles.map((t) => `${t.row}:${t.col}`))
+  const tileRect = (r: number, c: number) =>
+    [
+      M + c * pg.stepWidthMm * mapScale,
+      y + r * pg.stepHeightMm * mapScale,
+      pg.printWidthMm * mapScale,
+      pg.printHeightMm * mapScale,
+    ] as const
+
+  // soft fill under the pages that will actually print
+  doc.setFillColor(MAP_PAGE_FILL)
+  for (const t of tiles) {
+    const [px, py, w, h] = tileRect(t.row, t.col)
+    doc.rect(px, py, w, h, "F")
   }
-  const mapSvg = layoutSvg(
-    layout,
-    `0 0 ${gridW} ${gridH}`,
-    gridW * mapScale,
-    gridH * mapScale,
-    scale,
-    name
-  )
+
+  const mapSvg = assemblyMapSvg(layout, `0 0 ${gridW} ${gridH}`, gridW * mapScale, gridH * mapScale)
   document.body.appendChild(mapSvg)
   try {
     await doc.svg(mapSvg, { x: M, y, width: gridW * mapScale, height: gridH * mapScale })
@@ -349,9 +409,35 @@ export async function exportTemplatesPdf(options: {
     mapSvg.remove()
   }
 
+  // page borders + ids over the artwork: clay accent for pages that print,
+  // faint dashes for the empty grid cells the export skips
+  for (let r = 0; r < pg.rows; r++) {
+    for (let c = 0; c < pg.cols; c++) {
+      const [px, py, w, h] = tileRect(r, c)
+      const prints = printedTiles.has(`${r}:${c}`)
+      if (prints) {
+        doc.setDrawColor(MAP_ACCENT)
+        doc.setLineWidth(0.5)
+      } else {
+        doc.setDrawColor(MAP_EMPTY)
+        doc.setLineWidth(0.3)
+        doc.setLineDashPattern([1.5, 1.5], 0)
+      }
+      doc.rect(px, py, w, h, "S")
+      doc.setLineDashPattern([], 0)
+      doc.setFontSize(9)
+      doc.setFont("helvetica", prints ? "bold" : "normal")
+      doc.setTextColor(prints ? MAP_ACCENT : MAP_EMPTY)
+      doc.text(pageId(r, c), px + 2, py + 5)
+    }
+  }
+  doc.setFont("helvetica", "normal")
+  doc.setTextColor(0)
+  doc.setDrawColor(0)
+
   /* ---------------------------------------------------------- tile pages */
   let pages = 1
-  for (const { row: r, col: c, x0, y0 } of contentTiles(layout, pg)) {
+  for (const { row: r, col: c, x0, y0 } of tiles) {
       doc.addPage()
       pages++
 

@@ -1,7 +1,7 @@
 import { useMemo } from "react"
 import * as THREE from "three"
 import { Canvas } from "@react-three/fiber"
-import { Grid, OrbitControls } from "@react-three/drei"
+import { Grid, Html, Line, OrbitControls } from "@react-three/drei"
 import { cn } from "@/lib/utils"
 import { useProjectStore } from "@/store/useProjectStore"
 
@@ -14,10 +14,31 @@ import { useProjectStore } from "@/store/useProjectStore"
  * real wall thickness, and a rim ring closing the wall edge — so looking
  * into the pot reads as an actual open vessel, not a solid extrusion.
  */
-const TARGET_SIZE = 1.35
+/* sized to leave margin around the pot for the dimension callouts */
+const TARGET_SIZE = 1.0
 const CLAY_OUTER = "#b08968"
 const CLAY_INNER = "#7a5c42"
 const CLAY_RIM = "#a37e5f"
+
+/* dimension callouts: quiet technical-drawing gray, sized in scene units */
+const MEASURE_LINE = "#c6c1bb"
+const TICK = 0.045
+const DIM_GAP = 0.18
+
+const fmtCm = (mm: number) => `${Math.round(mm / 10 * 10) / 10} cm`
+
+function MeasureLabel({ position, children }: { position: [number, number, number]; children: string }) {
+  return (
+    <Html
+      position={position}
+      center
+      zIndexRange={[1, 0]}
+      className="text-muted-foreground/80 pointer-events-none text-[10px] font-medium whitespace-nowrap select-none"
+    >
+      {children}
+    </Html>
+  )
+}
 
 function Scene() {
   const form = useProjectStore((s) => s.form)
@@ -28,7 +49,7 @@ function Scene() {
   const isFaceted = form.type === "faceted"
   const radialSegments = isFaceted ? form.facets : 96
 
-  const { outerPoints, innerPoints, rimInnerR, rimOuterR, height, bottomY } = useMemo(() => {
+  const { outerPoints, innerPoints, rimInnerR, rimOuterR, height, bottomY, halfBot, maxHalf } = useMemo(() => {
     const topR = (form.type === "tapered" ? form.topDiameterMm : form.bottomDiameterMm) / 2
     const bottomR = form.bottomDiameterMm / 2
     const maxDim = Math.max(form.heightMm, 2 * Math.max(topR, bottomR))
@@ -57,6 +78,8 @@ function Scene() {
       rimOuterR: oTop,
       height: h,
       bottomY: -h / 2,
+      halfBot: oBot,
+      maxHalf: Math.max(oTop, oBot),
     }
   }, [form, wallThicknessMm])
 
@@ -71,6 +94,15 @@ function Scene() {
   // distinct, readable silhouette. Round forms are rotation-invariant.
   const CAMERA_AZIMUTH = Math.PI / 4
   const startYaw = isFaceted ? CAMERA_AZIMUTH - (0.3 * Math.PI) / form.facets : 0
+
+  // Anchor points for the dimension callouts: height line to the right of
+  // the pot, base width laid on the grid in front, wall-thickness leader on
+  // the front-LEFT rim edge so it never collides with the (centered) top
+  // width of a tapered form.
+  const dimX = maxHalf + DIM_GAP
+  const dimZ = maxHalf + DIM_GAP
+  const rimMid = ((rimInnerR + rimOuterR) / 2) * Math.SQRT1_2
+  const topDimY = height + 0.14
 
   return (
     <>
@@ -105,6 +137,72 @@ function Scene() {
           <meshStandardMaterial color={CLAY_RIM} roughness={0.8} side={THREE.DoubleSide} />
         </mesh>
       </group>
+
+      {/*
+        Subtle dimension callouts in cm — the design (fired-target) sizes the
+        potter set. A sibling of the vessel group, not a child, so they stay
+        axis-aligned when faceted forms get their starting yaw.
+      */}
+      <group position={[0, bottomY, 0]}>
+        {/* height, on the right */}
+        <Line points={[[dimX, 0, 0], [dimX, height, 0]]} color={MEASURE_LINE} lineWidth={1} />
+        <Line points={[[dimX - TICK, 0, 0], [dimX + TICK, 0, 0]]} color={MEASURE_LINE} lineWidth={1} />
+        <Line
+          points={[[dimX - TICK, height, 0], [dimX + TICK, height, 0]]}
+          color={MEASURE_LINE}
+          lineWidth={1}
+        />
+        <MeasureLabel position={[dimX + 0.16, height / 2, 0]}>{fmtCm(form.heightMm)}</MeasureLabel>
+
+        {/* width across the base, laid flat on the grid in front */}
+        <Line points={[[-halfBot, 0, dimZ], [halfBot, 0, dimZ]]} color={MEASURE_LINE} lineWidth={1} />
+        <Line
+          points={[[-halfBot, 0, dimZ - TICK], [-halfBot, 0, dimZ + TICK]]}
+          color={MEASURE_LINE}
+          lineWidth={1}
+        />
+        <Line
+          points={[[halfBot, 0, dimZ - TICK], [halfBot, 0, dimZ + TICK]]}
+          color={MEASURE_LINE}
+          lineWidth={1}
+        />
+        <MeasureLabel position={[0, 0, dimZ + 0.2]}>{fmtCm(form.bottomDiameterMm)}</MeasureLabel>
+
+        {/* top width, only when it can differ from the bottom */}
+        {form.type === "tapered" && (
+          <>
+            <Line
+              points={[[-rimOuterR, topDimY, 0], [rimOuterR, topDimY, 0]]}
+              color={MEASURE_LINE}
+              lineWidth={1}
+            />
+            <Line
+              points={[[-rimOuterR, topDimY - TICK, 0], [-rimOuterR, topDimY + TICK, 0]]}
+              color={MEASURE_LINE}
+              lineWidth={1}
+            />
+            <Line
+              points={[[rimOuterR, topDimY - TICK, 0], [rimOuterR, topDimY + TICK, 0]]}
+              color={MEASURE_LINE}
+              lineWidth={1}
+            />
+            <MeasureLabel position={[0, topDimY + 0.14, 0]}>
+              {fmtCm(form.topDiameterMm)}
+            </MeasureLabel>
+          </>
+        )}
+
+        {/* wall thickness: a short leader off the front-left rim edge */}
+        <Line
+          points={[[-rimMid, height, rimMid], [-rimMid, height + 0.2, rimMid]]}
+          color={MEASURE_LINE}
+          lineWidth={1}
+        />
+        <MeasureLabel position={[-rimMid, height + 0.3, rimMid]}>
+          {`wall ${fmtCm(wallThicknessMm)}`}
+        </MeasureLabel>
+      </group>
+
       <Grid
         position={[0, bottomY - 0.002, 0]}
         args={[10, 10]}
