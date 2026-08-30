@@ -27,6 +27,87 @@ const MEASURE_LINE = "#c6c1bb"
 const TICK = 0.045
 const DIM_GAP = 0.18
 
+/*
+ * Procedural clay grain — no downloaded asset. One seamlessly tiling
+ * 256px canvas holds fine grog speckles over soft throwing-mark blotches;
+ * it feeds two textures (three.js wants sRGB for a color map but linear
+ * for a bump map, and colorSpace is per-texture): a near-white color
+ * modulation that barely mottles the glaze tone, and a bump map that
+ * catches the light as fine tooth. Seeded PRNG, so every load looks
+ * identical. Generated lazily on first Scene render, then shared.
+ */
+interface ClayGrain {
+  colorMap: THREE.CanvasTexture
+  bumpMap: THREE.CanvasTexture
+}
+let clayGrain: ClayGrain | null = null
+
+function getClayGrain(): ClayGrain {
+  if (clayGrain) return clayGrain
+  const SIZE = 256
+  const canvas = document.createElement("canvas")
+  canvas.width = canvas.height = SIZE
+  const c = canvas.getContext("2d")!
+  // near-white base: multiplying the clay color by this stays subtle
+  c.fillStyle = "#f8f6f3"
+  c.fillRect(0, 0, SIZE, SIZE)
+
+  // mulberry32 — fixed seed, deterministic grain
+  let seed = 0x51ab5304
+  const rand = () => {
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+  // draw every mark at its 8 wrap offsets too, so the texture tiles
+  const wrapped = (draw: (x: number, y: number) => void, x: number, y: number) => {
+    for (const dx of [-SIZE, 0, SIZE]) for (const dy of [-SIZE, 0, SIZE]) draw(x + dx, y + dy)
+  }
+
+  // soft low-frequency blotches: uneven slab moisture / throwing marks
+  for (let i = 0; i < 24; i++) {
+    const x = rand() * SIZE
+    const y = rand() * SIZE
+    const r = 20 + rand() * 44
+    const dark = rand() > 0.5
+    wrapped((px, py) => {
+      const g = c.createRadialGradient(px, py, 0, px, py, r)
+      g.addColorStop(0, dark ? "rgba(116,96,80,0.055)" : "rgba(255,255,255,0.05)")
+      g.addColorStop(1, "rgba(0,0,0,0)")
+      c.fillStyle = g
+      c.fillRect(px - r, py - r, 2 * r, 2 * r)
+    }, x, y)
+  }
+  // fine grog speckles: the tooth of a stoneware body
+  for (let i = 0; i < 1500; i++) {
+    const x = rand() * SIZE
+    const y = rand() * SIZE
+    const r = 0.35 + rand() * 0.85
+    const alpha = 0.04 + rand() * 0.07
+    const dark = rand() > 0.35
+    wrapped((px, py) => {
+      c.fillStyle = dark ? `rgba(86,66,52,${alpha})` : `rgba(255,252,246,${alpha})`
+      c.beginPath()
+      c.arc(px, py, r, 0, Math.PI * 2)
+      c.fill()
+    }, x, y)
+  }
+
+  const make = (colorSpace: string) => {
+    const texture = new THREE.CanvasTexture(canvas)
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+    texture.repeat.set(2, 2)
+    texture.colorSpace = colorSpace
+    return texture
+  }
+  clayGrain = {
+    colorMap: make(THREE.SRGBColorSpace),
+    bumpMap: make(THREE.NoColorSpace),
+  }
+  return clayGrain
+}
+
 export type MeasurementsMode = "static" | "cycle" | "hidden"
 
 function MeasureLabel({
@@ -180,6 +261,7 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
   // shading makes the facets read as crisp planes instead of a low-poly bug.
   const isFaceted = form.type === "faceted"
   const radialSegments = isFaceted ? form.facets : 96
+  const grain = useMemo(getClayGrain, [])
 
   // Rebuilds on every slider step (~60 Hz during a drag): r3f disposes the
   // replaced lathe geometries correctly, so this is allocation churn, not a
@@ -315,6 +397,9 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
           <meshStandardMaterial
             color={CLAY_OUTER}
             roughness={0.85}
+            map={grain.colorMap}
+            bumpMap={grain.bumpMap}
+            bumpScale={0.6}
             side={THREE.DoubleSide}
             flatShading={isFaceted}
           />
@@ -324,6 +409,9 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
           <meshStandardMaterial
             color={CLAY_INNER}
             roughness={0.9}
+            map={grain.colorMap}
+            bumpMap={grain.bumpMap}
+            bumpScale={0.6}
             side={THREE.DoubleSide}
             flatShading={isFaceted}
           />
@@ -337,7 +425,14 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
           rotation={[-Math.PI / 2, 0, 0]}
         >
           <ringGeometry args={[rimInnerR, rimOuterR, radialSegments, 1, -Math.PI / 2]} />
-          <meshStandardMaterial color={CLAY_RIM} roughness={0.8} side={THREE.DoubleSide} />
+          <meshStandardMaterial
+            color={CLAY_RIM}
+            roughness={0.8}
+            map={grain.colorMap}
+            bumpMap={grain.bumpMap}
+            bumpScale={0.6}
+            side={THREE.DoubleSide}
+          />
         </mesh>
       </group>
 
