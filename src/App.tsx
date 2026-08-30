@@ -112,7 +112,8 @@ function ShareDialog() {
   const form = useProjectStore((s) => s.form)
   const clay = useProjectStore((s) => s.clay)
   const paperSize = useProjectStore((s) => s.paperSize)
-  const url = shareUrl(form, clay, paperSize)
+  const unit = useProjectStore((s) => s.unit)
+  const url = shareUrl(form, clay, paperSize, { unit })
 
   useEffect(() => {
     if (!open) return

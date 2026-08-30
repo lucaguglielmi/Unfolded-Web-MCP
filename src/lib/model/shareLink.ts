@@ -162,24 +162,27 @@ export function buildShareParams(
   return params
 }
 
+export interface ShareUrlOptions {
+  /** preferred display unit to carry on the link (default "cm") */
+  unit?: Unit
+  /**
+   * Tag the link as minted by an agent session (?via=chatgpt). A tab that
+   * opens such a link shows "Connected via ChatGPT" — the explicit signal
+   * that this design is open in the conversation's internal browser.
+   * Never emitted for links built by the human-facing UI.
+   */
+  viaChatGpt?: boolean
+}
+
 /** Absolute share URL on the current origin (relative when there is no window, e.g. tests). */
 export function shareUrl(
   form: FormParams,
   clay: ClaySettings,
   paperSize: PaperSize,
-  unit: Unit = "cm",
-  opts?: {
-    /**
-     * Tag the link as minted by an agent session (?via=chatgpt). A tab that
-     * opens such a link shows "Connected via ChatGPT" — the explicit signal
-     * that this design is open in the conversation's internal browser.
-     * Never emitted for links built by the human-facing UI.
-     */
-    viaChatGpt?: boolean
-  }
+  opts: ShareUrlOptions = {}
 ): string {
-  const params = buildShareParams(form, clay, paperSize, unit)
-  if (opts?.viaChatGpt) params.set("via", "chatgpt")
+  const params = buildShareParams(form, clay, paperSize, opts.unit ?? "cm")
+  if (opts.viaChatGpt) params.set("via", "chatgpt")
   const qs = params.toString()
   if (typeof window === "undefined") return `?${qs}`
   return `${window.location.origin}${window.location.pathname}?${qs}`

@@ -276,7 +276,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
         scale: shrinkageScale(clay.shrinkagePct),
         unit,
         // deliberately untagged: the printed QR outlives any chat session
-        shareUrl: shareUrl(form, clay, paperSize, unit),
+        shareUrl: shareUrl(form, clay, paperSize, { unit }),
       })
     } finally {
       set((state) => ({ exportsInFlight: Math.max(0, state.exportsInFlight - 1) }))
@@ -314,7 +314,8 @@ export function describeState(): {
     units: unit,
     // agent snapshots tag the link so a tab that opens it can show it is
     // connected through the agent's session (see AgentStatus)
-    shareUrl: shareUrl(form, clay, paperSize, unit, {
+    shareUrl: shareUrl(form, clay, paperSize, {
+      unit,
       viaChatGpt: useProjectStore.getState().agentStatus === "native",
     }),
     capacityMl: capacityMl(form, clay),

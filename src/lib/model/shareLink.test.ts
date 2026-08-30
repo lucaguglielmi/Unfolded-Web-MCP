@@ -101,6 +101,7 @@ describe("buildShareParams / shareUrl", () => {
     const params = buildShareParams(PRESETS["classic-mug"], DEFAULT_CLAY, "A4", "in")
     expect(params.get("units")).toBe("in")
     expect(parseShareParams(params).unit).toBe("in")
+    expect(shareUrl(PRESETS["classic-mug"], DEFAULT_CLAY, "A4", { unit: "in" })).toContain("units=in")
   })
 
   it("emits friendly shape names and only includes top for tapered forms", () => {
@@ -119,7 +120,7 @@ describe("buildShareParams / shareUrl", () => {
   })
 
   it("tags agent-minted links with via=chatgpt, which parsing ignores", () => {
-    const url = shareUrl(PRESETS["classic-mug"], DEFAULT_CLAY, "A4", "cm", { viaChatGpt: true })
+    const url = shareUrl(PRESETS["classic-mug"], DEFAULT_CLAY, "A4", { viaChatGpt: true })
     expect(url).toContain("via=chatgpt")
     // the marker is a connection signal, not a design parameter
     const patches = parseShareParams(url)
