@@ -41,7 +41,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "describe_project",
       description:
-        "Get the current pottery design: form type and dimensions (fired sizes, in mm), clay settings (shrinkage, wall thickness), the flat template pieces the design unrolls into (wet-clay sizes, already scaled up for shrinkage), capacityMl (approximate fired interior volume), and shareUrl — a deep link that reopens exactly this design. Call this first to see what the potter is working on.",
+        "Get the current pottery design: form type and dimensions (fired sizes, in mm), clay settings (shrinkage, wall thickness), the flat template pieces the design unrolls into (wet-clay sizes, already scaled up for shrinkage), capacityMl (approximate fired interior volume), and shareUrl — a deep link that reopens exactly this design. shareUrl is tagged as coming from your session: when the potter opens it in another tab, the app there shows 'Connected via ChatGPT' so they know this design lives with you. Call this first to see what the potter is working on.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true, title: "Describe current design" },
       execute: () => run("describe_project", () => textResult(stateText())),

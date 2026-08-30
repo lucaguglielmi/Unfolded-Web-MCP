@@ -17,7 +17,16 @@ import { countPages, layoutPieces, PAGE_OVERLAP_MM, type PaperSize } from "@/lib
 import type { ExportResult } from "@/lib/export/pdf"
 import { buildShareParams, parseShareParams, shareUrl, type SharePatches } from "@/lib/model/shareLink"
 
-export type AgentStatus = "native" | "unavailable"
+/**
+ * How this tab relates to an agent:
+ * - "native": WebMCP is available HERE and tools registered — one live session.
+ * - "chatgpt": no direct WebMCP, but the design arrived via an agent-minted
+ *   link (?via=chatgpt), i.e. it is open in the internal browser of a
+ *   ChatGPT conversation. Explicit signal only — never inferred from user
+ *   agent, referrer, or being inside an in-app browser.
+ * - "unavailable": neither could be confirmed.
+ */
+export type AgentStatus = "native" | "chatgpt" | "unavailable"
 
 export interface AgentCall {
   tool: string
@@ -254,6 +263,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
         name: form.name,
         paper: paperSize,
         scale: shrinkageScale(clay.shrinkagePct),
+        // deliberately untagged: the printed QR outlives any chat session
         shareUrl: shareUrl(form, clay, paperSize),
       })
     } finally {
@@ -287,7 +297,11 @@ export function describeState(): {
     form,
     clay,
     paperSize,
-    shareUrl: shareUrl(form, clay, paperSize),
+    // agent snapshots tag the link so a tab that opens it can show it is
+    // connected through the agent's session (see AgentStatus)
+    shareUrl: shareUrl(form, clay, paperSize, {
+      viaChatGpt: useProjectStore.getState().agentStatus === "native",
+    }),
     capacityMl: capacityMl(form, clay),
     pieces: pieces.map((p) => describePiece(p, scale)),
     printedPages: pages.totalPages,
@@ -354,7 +368,16 @@ export function startProjectPersistence(): void {
  */
 export function applyShareLinkFromLocation(): void {
   if (typeof window === "undefined" || !window.location.search) return
-  useProjectStore.getState().openModel(parseShareParams(window.location.search))
+  const search = window.location.search
+  useProjectStore.getState().openModel(parseShareParams(search))
+  // Agent-minted links carry via=chatgpt: an explicit signal that this
+  // design is open in the internal browser of a ChatGPT conversation.
+  // Direct WebMCP registration ("native") always outranks it.
+  if (new URLSearchParams(search).get("via") === "chatgpt") {
+    useProjectStore.setState((state) =>
+      state.agentStatus === "native" ? {} : { agentStatus: "chatgpt" }
+    )
+  }
 }
 
 /**

@@ -63,7 +63,9 @@ export function useWebMCP(): void {
 
     if (tryRegister()) return
 
-    setAgentStatus("unavailable")
+    // No downgrade here: the store already defaults to "unavailable", and a
+    // boot-detected "chatgpt" (agent-minted link) state must survive until
+    // direct registration upgrades it to "native".
     const startedAt = performance.now()
     let timer = window.setInterval(() => {
       if (tryRegister()) {

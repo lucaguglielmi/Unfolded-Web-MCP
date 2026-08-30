@@ -97,5 +97,14 @@ describe("buildShareParams / shareUrl", () => {
   it("builds a relative URL outside the browser", () => {
     const url = shareUrl(PRESETS["classic-mug"], DEFAULT_CLAY, "A4")
     expect(url.startsWith("?type=cylinder")).toBe(true)
+    expect(url).not.toContain("via=")
+  })
+
+  it("tags agent-minted links with via=chatgpt, which parsing ignores", () => {
+    const url = shareUrl(PRESETS["classic-mug"], DEFAULT_CLAY, "A4", { viaChatGpt: true })
+    expect(url).toContain("via=chatgpt")
+    // the marker is a connection signal, not a design parameter
+    const patches = parseShareParams(url)
+    expect(JSON.stringify(patches)).not.toContain("via")
   })
 })

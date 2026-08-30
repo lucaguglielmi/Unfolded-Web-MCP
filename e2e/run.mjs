@@ -109,8 +109,11 @@ try {
 
   const desc = stateFrom(await callTool(page, "describe_project"))
   check(
-    "describe_project carries capacity and a share link",
-    desc.capacityMl > 0 && typeof desc.shareUrl === "string" && desc.shareUrl.includes("type="),
+    "describe_project carries capacity and a session-tagged share link",
+    desc.capacityMl > 0 &&
+      typeof desc.shareUrl === "string" &&
+      desc.shareUrl.includes("type=") &&
+      desc.shareUrl.includes("via=chatgpt"),
     JSON.stringify({ capacityMl: desc.capacityMl, shareUrl: desc.shareUrl })
   )
 
@@ -208,6 +211,37 @@ try {
   )
   check("__unfoldedTools console hook is exposed for manual testing", consoleHook)
   await latePage.close()
+
+  // ----------------------------------------------- three badge states
+  // 1. no API, no signal -> grey "WebMCP unavailable"
+  const plainPage = await ctx.newPage()
+  await plainPage.goto(BASE, { waitUntil: "networkidle" })
+  await plainPage.waitForTimeout(1200)
+  const plainPill = await plainPage.evaluate(() => ({
+    text: document.querySelector('a[href="/webmcp"]')?.textContent?.trim(),
+    ping: !!document.querySelector('a[href="/webmcp"] .animate-ping'),
+  }))
+  check(
+    "no API and no signal shows 'WebMCP unavailable' (grey, no pulse)",
+    plainPill.text === "WebMCP unavailable" && !plainPill.ping,
+    JSON.stringify(plainPill)
+  )
+  await plainPage.close()
+
+  // 2. agent-minted link (?via=chatgpt), still no direct API -> solid green
+  const viaPage = await ctx.newPage()
+  await viaPage.goto(`${BASE}/?type=hexagon&height=120&via=chatgpt`, { waitUntil: "networkidle" })
+  await viaPage.waitForTimeout(1200)
+  const viaPill = await viaPage.evaluate(() => ({
+    text: document.querySelector('a[href="/webmcp"]')?.textContent?.trim(),
+    ping: !!document.querySelector('a[href="/webmcp"] .animate-ping'),
+  }))
+  check(
+    "an agent-minted link shows 'Connected via ChatGPT' (solid green, no pulse)",
+    viaPill.text === "Connected via ChatGPT" && !viaPill.ping,
+    JSON.stringify(viaPill)
+  )
+  await viaPage.close()
 
   // -------------------------------------- navigator.modelContext fallback
   const navPage = await ctx.newPage()

@@ -1,16 +1,52 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import { useProjectStore } from "@/store/useProjectStore"
+import { useProjectStore, type AgentStatus } from "@/store/useProjectStore"
 
 /**
- * The WebMCP status pill: always reads "WebMCP", with a status dot that
- * turns green and softly pulses while agent tools are registered in this
- * browser. Links to /webmcp, the page that explains the whole story.
+ * The WebMCP status pill, with three honest states:
+ *
+ * - "WebMCP active" (pulsing green): the API is available in THIS tab and
+ *   the tools registered — human and agent share one live session.
+ * - "Connected via ChatGPT" (solid green, no pulse): this tab has no direct
+ *   WebMCP, but the design arrived through an agent-minted link — the
+ *   explicit signal that it is open in the internal browser of a ChatGPT
+ *   conversation. Never inferred from user agent / referrer / in-app-ness.
+ * - "WebMCP unavailable" (grey): neither could be confirmed.
+ *
+ * Links to /webmcp, the page that explains the whole story.
  */
+
+const STATUS: Record<
+  AgentStatus,
+  { label: string; tooltip: string; dot: string; ping: boolean }
+> = {
+  native: {
+    label: "WebMCP active",
+    tooltip:
+      "This page is directly connected to the agent through WebMCP. Changes made by you or the agent are visible in the same live session.",
+    dot: "bg-emerald-500",
+    ping: true,
+  },
+  chatgpt: {
+    label: "Connected via ChatGPT",
+    tooltip:
+      "This tab does not have direct WebMCP access, but Unfolded is connected through the internal browser for this ChatGPT conversation. The agent can read and update the design there. Changes made in this tab are not automatically shared unless the design is synchronised.",
+    dot: "bg-emerald-500",
+    ping: false,
+  },
+  unavailable: {
+    label: "WebMCP unavailable",
+    tooltip:
+      "WebMCP is not available in this browser tab. Ask ChatGPT to open Unfolded in its internal browser, or use the built-in browser in the ChatGPT desktop app.",
+    dot: "bg-stone-300",
+    ping: false,
+  },
+}
+
 export function AgentBadge() {
   const agentStatus = useProjectStore((s) => s.agentStatus)
   const lastAgentCall = useProjectStore((s) => s.lastAgentCall)
-  const active = agentStatus === "native"
+  const status = STATUS[agentStatus]
 
   return (
     <div className="flex min-w-0 items-center gap-2.5">
@@ -23,28 +59,19 @@ export function AgentBadge() {
         <TooltipTrigger asChild>
           <a
             href="/webmcp"
-            aria-label={active ? "WebMCP active — learn more" : "WebMCP — learn more"}
-            className="border-border text-foreground hover:bg-accent inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+            aria-label={`${status.label} — learn more`}
+            className="border-border text-foreground hover:bg-accent inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors"
           >
             <span className="relative flex size-2">
-              {active && (
+              {status.ping && (
                 <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               )}
-              <span
-                className={cn(
-                  "relative inline-flex size-2 rounded-full",
-                  active ? "bg-emerald-500" : "bg-stone-300"
-                )}
-              />
+              <span className={cn("relative inline-flex size-2 rounded-full", status.dot)} />
             </span>
-            WebMCP
+            {status.label}
           </a>
         </TooltipTrigger>
-        <TooltipContent className="max-w-72 leading-relaxed">
-          {active
-            ? "Agent tools are live in this browser: the AI you're chatting with can read and edit this design with you — try asking it to change the shape or export the templates. Click for the full story."
-            : "WebMCP lets an AI agent use this app with you. Open this page in ChatGPT's in-app browser, or in Chrome with the WebMCP flag enabled — then just ask for the pot you want. Click to learn how."}
-        </TooltipContent>
+        <TooltipContent className="max-w-72 leading-relaxed">{status.tooltip}</TooltipContent>
       </Tooltip>
     </div>
   )

@@ -31,31 +31,36 @@ const PROMPTS = [
 ]
 
 function StatusPill() {
-  const active = useProjectStore((s) => s.agentStatus) === "native"
+  const status = useProjectStore((s) => s.agentStatus)
   const location = useProjectStore((s) => s.agentApiLocation)
+  const green = status !== "unavailable"
+  const text =
+    status === "native"
+      ? `WebMCP is active${location ? ` via ${location}` : ""} — your agent is connected to this very tab`
+      : status === "chatgpt"
+        ? "This design is connected through the internal browser of your ChatGPT conversation — this tab itself has no direct WebMCP"
+        : "WebMCP is not active in this browser tab yet — it lights up the moment a host injects the API or an agent calls a tool"
   return (
     <span
       className={cn(
         "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium",
-        active
+        green
           ? "border-emerald-200 bg-emerald-50 text-emerald-800"
           : "border-stone-200 bg-stone-50 text-stone-500"
       )}
     >
       <span className="relative flex size-2">
-        {active && (
+        {status === "native" && (
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
         )}
         <span
           className={cn(
             "relative inline-flex size-2 rounded-full",
-            active ? "bg-emerald-500" : "bg-stone-300"
+            green ? "bg-emerald-500" : "bg-stone-300"
           )}
         />
       </span>
-      {active
-        ? `WebMCP is active${location ? ` via ${location}` : ""} — your agent is connected`
-        : "WebMCP is not active in this browser yet — it lights up the moment a host injects the API or an agent calls a tool"}
+      {text}
     </span>
   )
 }
@@ -126,6 +131,12 @@ export function WebMCPPage() {
                 <li>2. Watch the WebMCP pill in the header turn green.</li>
                 <li>3. Ask for the pot you want — the design changes as you chat.</li>
               </ol>
+              <p className="mt-3 text-xs leading-relaxed text-stone-400">
+                Heads up: tapping a link in the chat opens ChatGPT's <em>ordinary</em> in-app
+                browser — a separate tab without WebMCP. That tab shows
+                &ldquo;Connected via ChatGPT&rdquo; when the agent gave you the link; the
+                agent keeps editing in its own internal browser.
+              </p>
             </div>
             <div className="rounded-2xl border border-stone-200 p-6">
               <h3 className="font-semibold tracking-tight">Google Chrome (desktop &amp; Android)</h3>
