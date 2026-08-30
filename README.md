@@ -123,6 +123,10 @@ Hosted on Cloudflare (Workers static assets). Every push to `main` deploys via
 GitHub Actions (`.github/workflows/deploy.yml`); it needs the `CLOUDFLARE_API_TOKEN`
 and `CLOUDFLARE_ACCOUNT_ID` repo secrets. Manual deploy: `npm run build && npx wrangler deploy`.
 
+Share links, WebMCP tools, and the app itself are origin-independent; the only
+place the deployed domain is written down is `VITE_SITE_URL` in [`.env`](./.env)
+(used for the absolute `og:*` meta tags). Moving domains is a one-line change.
+
 ## License
 
 [MIT](./LICENSE)
