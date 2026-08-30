@@ -37,13 +37,17 @@ import {
 const SEAM_COLOR = "#57534e"
 const OUTLINE_COLOR = "#1c1917"
 
-/* assembly-map palette: warm clay tones matching the app's 3D preview */
-const MAP_ACCENT = "#b45309"
-const MAP_PAGE_FILL = "#fdf3ea"
+/* assembly-map palette: light blue for the paper sheets, clay tones for
+   the piece silhouettes laid across them */
+const MAP_PAGE_FILL = "#e9f2fa"
+const MAP_PAGE_STROKE = "#8ab8dc"
+const MAP_PAGE_ID = "#2e6f9e"
 const MAP_PIECE_FILL = "#e9dbcb"
 const MAP_PIECE_STROKE = "#7a5c42"
 const MAP_SEAM = "#b08968"
 const MAP_EMPTY = "#c8c3bd"
+/* gap between the sheets in the map — they're separate pages, show it */
+const MAP_GAP_MM = 2.5
 
 const SVG_NS = "http://www.w3.org/2000/svg"
 
@@ -242,11 +246,14 @@ function layoutSvg(
 }
 
 /**
- * The assembly map's artwork: piece silhouettes only — filled clay tones,
- * heavier outlines, no text or registration ticks. At map scale (≤0.35x)
- * the template pages' fine linework and labels would collapse into noise;
- * this map only has to show where each piece lands on the page grid.
+ * One assembly-map sheet's artwork: the piece silhouettes that land on that
+ * page — filled clay tones, heavier outlines, no text or registration
+ * ticks. At map scale (≤0.35x) the template pages' fine linework and labels
+ * would collapse into noise; the map only has to show where each piece
+ * lands. Artwork is explicitly clipped to the viewBox so a piece never
+ * bleeds past its sheet into the gaps between pages.
  */
+let mapClipCounter = 0
 function assemblyMapSvg(
   layout: TemplateLayout,
   viewBox: string,
@@ -259,6 +266,16 @@ function assemblyMapSvg(
     width: `${widthMm}mm`,
     height: `${heightMm}mm`,
   }) as SVGSVGElement
+
+  const [vx, vy, vw, vh] = viewBox.split(" ").map(Number)
+  const clipId = `unfolded-map-clip-${mapClipCounter++}`
+  const defs = el("defs", {})
+  const clip = el("clipPath", { id: clipId })
+  clip.appendChild(el("rect", { x: vx, y: vy, width: vw, height: vh }))
+  defs.appendChild(clip)
+  svg.appendChild(defs)
+  const clipped = el("g", { "clip-path": `url(#${clipId})` })
+
   for (const { graphic, dx, dy } of layout.placed) {
     const g = el("g", { transform: `translate(${dx} ${dy})` })
     g.appendChild(
@@ -283,8 +300,9 @@ function assemblyMapSvg(
         })
       )
     }
-    svg.appendChild(g)
+    clipped.appendChild(g)
   }
+  svg.appendChild(clipped)
   return svg
 }
 
@@ -370,65 +388,68 @@ export async function exportTemplatesPdf(options: {
   doc.line(M + 25.4, y - 2, M + 25.4, y + 2)
   doc.text("1 inch", M + 29.4, y + 1.5)
 
-  // assembly map: page grid + piece silhouettes, scaled to fit. Purely
-  // illustrative (never measured or cut), so unlike the template pages it
-  // gets color and heavier linework.
+  // assembly map: every sheet of paper drawn as its own light-blue,
+  // slightly rounded page, separated by a small gap — these are separate
+  // printouts, not one connected surface. Each sheet shows just its own
+  // slice of the artwork (edge content repeating on a neighbour is the
+  // glue overlap), with its page id centered on the sheet so it can never
+  // be cut off by a piece or a page edge. Purely illustrative — color and
+  // weight never appear on the template pages.
   y += 12
   doc.setFontSize(11)
   doc.text("Assembly map", M, y)
   doc.setFontSize(8)
   doc.setTextColor(130)
-  doc.text("tinted pages print — blank grid cells are skipped", M + 30, y)
+  doc.text("blue pages print — dashed cells are skipped", M + 30, y)
   doc.setTextColor(0)
   y += 4
-  const gridW = pg.cols * pg.stepWidthMm + PAGE_OVERLAP_MM
-  const gridH = pg.rows * pg.stepHeightMm + PAGE_OVERLAP_MM
-  const mapScale = Math.min((pageW - 2 * M) / gridW, (pageH - y - M - 6) / gridH, 0.35)
   const tiles = contentTiles(layout, pg)
   const printedTiles = new Set(tiles.map((t) => `${t.row}:${t.col}`))
-  const tileRect = (r: number, c: number) =>
-    [
-      M + c * pg.stepWidthMm * mapScale,
-      y + r * pg.stepHeightMm * mapScale,
-      pg.printWidthMm * mapScale,
-      pg.printHeightMm * mapScale,
-    ] as const
-
-  // soft fill under the pages that will actually print
-  doc.setFillColor(MAP_PAGE_FILL)
-  for (const t of tiles) {
-    const [px, py, w, h] = tileRect(t.row, t.col)
-    doc.rect(px, py, w, h, "F")
-  }
-
-  const mapSvg = assemblyMapSvg(layout, `0 0 ${gridW} ${gridH}`, gridW * mapScale, gridH * mapScale)
-  document.body.appendChild(mapSvg)
-  try {
-    await doc.svg(mapSvg, { x: M, y, width: gridW * mapScale, height: gridH * mapScale })
-  } finally {
-    mapSvg.remove()
-  }
-
-  // page borders + ids over the artwork: clay accent for pages that print,
-  // faint dashes for the empty grid cells the export skips
+  const mapScale = Math.min(
+    (pageW - 2 * M - (pg.cols - 1) * MAP_GAP_MM) / (pg.cols * pg.printWidthMm),
+    (pageH - y - M - 6 - (pg.rows - 1) * MAP_GAP_MM) / (pg.rows * pg.printHeightMm),
+    0.35
+  )
+  const tileW = pg.printWidthMm * mapScale
+  const tileH = pg.printHeightMm * mapScale
+  const corner = Math.min(1.8, tileW / 6, tileH / 6)
   for (let r = 0; r < pg.rows; r++) {
     for (let c = 0; c < pg.cols; c++) {
-      const [px, py, w, h] = tileRect(r, c)
+      const px = M + c * (tileW + MAP_GAP_MM)
+      const py = y + r * (tileH + MAP_GAP_MM)
       const prints = printedTiles.has(`${r}:${c}`)
-      if (prints) {
-        doc.setDrawColor(MAP_ACCENT)
-        doc.setLineWidth(0.5)
-      } else {
+      if (!prints) {
         doc.setDrawColor(MAP_EMPTY)
         doc.setLineWidth(0.3)
         doc.setLineDashPattern([1.5, 1.5], 0)
+        doc.roundedRect(px, py, tileW, tileH, corner, corner, "S")
+        doc.setLineDashPattern([], 0)
+        doc.setFontSize(9)
+        doc.setFont("helvetica", "normal")
+        doc.setTextColor(MAP_EMPTY)
+        doc.text(pageId(r, c), px + tileW / 2, py + tileH / 2 + 1.3, { align: "center" })
+        continue
       }
-      doc.rect(px, py, w, h, "S")
-      doc.setLineDashPattern([], 0)
-      doc.setFontSize(9)
-      doc.setFont("helvetica", prints ? "bold" : "normal")
-      doc.setTextColor(prints ? MAP_ACCENT : MAP_EMPTY)
-      doc.text(pageId(r, c), px + 2, py + 5)
+      doc.setFillColor(MAP_PAGE_FILL)
+      doc.setDrawColor(MAP_PAGE_STROKE)
+      doc.setLineWidth(0.4)
+      doc.roundedRect(px, py, tileW, tileH, corner, corner, "FD")
+      const sheetSvg = assemblyMapSvg(
+        layout,
+        `${c * pg.stepWidthMm} ${r * pg.stepHeightMm} ${pg.printWidthMm} ${pg.printHeightMm}`,
+        tileW,
+        tileH
+      )
+      document.body.appendChild(sheetSvg)
+      try {
+        await doc.svg(sheetSvg, { x: px, y: py, width: tileW, height: tileH })
+      } finally {
+        sheetSvg.remove()
+      }
+      doc.setFontSize(10.5)
+      doc.setFont("helvetica", "bold")
+      doc.setTextColor(MAP_PAGE_ID)
+      doc.text(pageId(r, c), px + tileW / 2, py + tileH / 2 + 1.4, { align: "center" })
     }
   }
   doc.setFont("helvetica", "normal")
