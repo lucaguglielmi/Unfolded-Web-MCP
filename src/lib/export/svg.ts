@@ -96,6 +96,29 @@ function sectorGraphic(innerRadiusMm: number, outerRadiusMm: number, angleRad: n
   }
 }
 
+function polygonGraphic(sides: number, circumradiusMm: number): PieceGraphic {
+  // Vertices oriented so the bottom edge is horizontal (y-down coords):
+  // two adjacent vertices sit symmetric about the downward vertical.
+  const pts: Vec[] = []
+  for (let k = 0; k < sides; k++) {
+    const a = Math.PI / 2 - Math.PI / sides + (2 * Math.PI * k) / sides
+    pts.push({ x: circumradiusMm * Math.cos(a), y: circumradiusMm * Math.sin(a) })
+  }
+  const minX = Math.min(...pts.map((p) => p.x))
+  const minY = Math.min(...pts.map((p) => p.y))
+  const maxX = Math.max(...pts.map((p) => p.x))
+  const maxY = Math.max(...pts.map((p) => p.y))
+  const d =
+    pts.map((p, i) => `${i === 0 ? "M" : "L"} ${fmt(p.x - minX)} ${fmt(p.y - minY)}`).join(" ") + " Z"
+  return {
+    d,
+    seams: [],
+    widthMm: maxX - minX,
+    heightMm: maxY - minY,
+    labelAt: { x: -minX, y: -minY },
+  }
+}
+
 function discGraphic(diameterMm: number): PieceGraphic {
   const r = diameterMm / 2
   const rs = fmt(r)
@@ -116,6 +139,8 @@ export function pieceGraphic(piece: Piece): PieceGraphic {
       return sectorGraphic(piece.innerRadiusMm, piece.outerRadiusMm, piece.angleRad)
     case "disc":
       return discGraphic(piece.diameterMm)
+    case "polygon":
+      return polygonGraphic(piece.sides, piece.circumradiusMm)
   }
 }
 

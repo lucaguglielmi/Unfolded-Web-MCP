@@ -118,6 +118,19 @@ export function TemplatePanel() {
                     {piece.label}
                   </text>
                 )}
+                {piece.kind === "rectangle" &&
+                  piece.stamp &&
+                  textFits(piece.stamp, NAME_FONT_MM, availableWidth) && (
+                    <text
+                      x={graphic.labelAt.x}
+                      y={graphic.labelAt.y + LABEL_FONT_MM * 0.9 + 1}
+                      textAnchor="middle"
+                      fontSize={NAME_FONT_MM}
+                      className="fill-muted-foreground"
+                    >
+                      {piece.stamp}
+                    </text>
+                  )}
                 {showDims && (
                   <text
                     x={0}
@@ -133,10 +146,11 @@ export function TemplatePanel() {
           })}
         </svg>
         <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-xs">
-          Dashed edges are seams (45° bevel, score &amp; slip); tick marks are
-          registration marks. Small pieces that can't fit their label or dimensions just
-          print blank rather than overflow. The PDF tiles pages with 10 mm glue overlaps
-          and includes a calibration ruler — always print at 100%.
+          Dashed edges are seams — bevel at the angle stamped on the piece, then score
+          &amp; slip; tick marks are registration marks. Small pieces that can't fit
+          their label or dimensions just print blank rather than overflow. The PDF tiles
+          pages with 10 mm glue overlaps and includes a calibration ruler — always print
+          at 100%.
         </p>
       </div>
     </div>

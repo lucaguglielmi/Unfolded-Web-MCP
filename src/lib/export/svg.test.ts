@@ -95,6 +95,31 @@ describe("paginate", () => {
   })
 })
 
+describe("polygon graphic", () => {
+  const hexBase: Piece = {
+    kind: "polygon",
+    id: "base",
+    label: "Base",
+    sides: 6,
+    circumradiusMm: 50,
+    notes: [],
+  }
+
+  it("hexagon bbox: across-corners wide, across-flats tall (flat-bottom orientation)", () => {
+    const g = pieceGraphic(hexBase)
+    expect(g.widthMm).toBeCloseTo(2 * 50, 3)
+    expect(g.heightMm).toBeCloseTo(2 * 50 * Math.cos(Math.PI / 6), 3)
+    expect(g.seams).toHaveLength(0)
+  })
+
+  it("square renders axis-aligned (flat bottom), sized across flats", () => {
+    const g = pieceGraphic({ ...hexBase, sides: 4 } as Piece)
+    const acrossFlats = 2 * 50 * Math.cos(Math.PI / 4)
+    expect(g.widthMm).toBeCloseTo(acrossFlats, 3)
+    expect(g.heightMm).toBeCloseTo(acrossFlats, 3)
+  })
+})
+
 describe("textFits", () => {
   it("empty text always fits", () => {
     expect(textFits("", 6, 0)).toBe(true)

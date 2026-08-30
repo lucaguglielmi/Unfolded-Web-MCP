@@ -1,5 +1,16 @@
 import { useState, type ReactNode } from "react"
-import { Amphora, Coffee, Cone, CupSoda, Cylinder, TriangleAlert } from "lucide-react"
+import {
+  Amphora,
+  Coffee,
+  Cone,
+  CupSoda,
+  Cylinder,
+  Hexagon,
+  Pentagon,
+  Square,
+  Triangle,
+  TriangleAlert,
+} from "lucide-react"
 import { IconOptionGroup } from "@/components/IconOptionGroup"
 import { InfoTip } from "@/components/InfoTip"
 import { Button } from "@/components/ui/button"
@@ -11,15 +22,31 @@ import { formWarnings } from "@/lib/geometry/unroll"
 import { PRESETS, type FormType } from "@/lib/model/schemas"
 import { useProjectStore } from "@/store/useProjectStore"
 
-const FORM_TYPE_OPTIONS = [
-  { value: "cylinder" as const, label: "Cylinder", icon: Cylinder },
-  { value: "tapered" as const, label: "Tapered", icon: Cone },
+/**
+ * Shape choices: the round forms plus the faceted-prism family. Every
+ * faceted option is the same geometry parameterized by side count, encoded
+ * as "f<N>" in the picker value and decoded back to {type, facets}.
+ */
+const SHAPE_OPTIONS = [
+  { value: "cylinder", label: "Cylinder", icon: Cylinder },
+  { value: "tapered", label: "Tapered", icon: Cone },
+  { value: "f3", label: "Triangle", icon: Triangle },
+  { value: "f4", label: "Square", icon: Square },
+  { value: "f5", label: "Pentagon", icon: Pentagon },
+  { value: "f6", label: "Hexagon", icon: Hexagon },
 ]
+
+const SHAPE_DESCRIPTIONS: Record<string, string> = {
+  cylinder: "Straight round wall — unrolls to a rectangle.",
+  tapered: "Cone-shaped wall — unrolls to an arc.",
+  faceted: "Flat sides joined at mitered corners — unrolls to identical panels + a polygon base.",
+}
 
 const PRESET_ICONS: Record<string, typeof Coffee> = {
   "classic-mug": Coffee,
   tumbler: CupSoda,
   "bud-vase": Amphora,
+  "hex-planter": Hexagon,
 }
 
 function SectionTitle({ children, tip }: { children: ReactNode; tip?: ReactNode }) {
@@ -126,15 +153,17 @@ export function ParamsPanel() {
         <NameField />
 
         <IconOptionGroup
-          value={form.type}
-          onChange={(v) => updateForm({ type: v as FormType })}
-          options={FORM_TYPE_OPTIONS}
+          value={form.type === "faceted" ? `f${form.facets}` : form.type}
+          onChange={(v) =>
+            v.startsWith("f")
+              ? updateForm({ type: "faceted", facets: Number(v.slice(1)) })
+              : updateForm({ type: v as FormType })
+          }
+          options={SHAPE_OPTIONS}
+          columns={3}
         />
         <p className="text-muted-foreground text-xs leading-relaxed">
-          {form.type === "cylinder"
-            ? "Straight wall — unrolls to a rectangle."
-            : "Cone-shaped wall — unrolls to an arc."}{" "}
-          Faceted and curved profiles are coming next.
+          {SHAPE_DESCRIPTIONS[form.type]} Curved profiles are coming next.
         </p>
 
         <DimensionSlider
@@ -145,7 +174,18 @@ export function ParamsPanel() {
           onChange={(v) => updateForm({ heightMm: v })}
         />
         <DimensionSlider
-          label={form.type === "cylinder" ? "Diameter" : "Bottom diameter"}
+          label={
+            form.type === "tapered"
+              ? "Bottom diameter"
+              : form.type === "faceted"
+                ? "Width (across corners)"
+                : "Diameter"
+          }
+          tip={
+            form.type === "faceted"
+              ? "Measured corner to corner (the circle the corners sit on). The width across the flat faces is a bit smaller — both are listed on the base template."
+              : undefined
+          }
           value={form.bottomDiameterMm}
           min={20}
           max={300}

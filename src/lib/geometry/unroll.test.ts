@@ -53,6 +53,7 @@ describe("buildPieces", () => {
     heightMm: 100,
     topDiameterMm: 85,
     bottomDiameterMm: 85,
+    facets: 4,
   }
 
   it("develops the mid-surface, not the outer skin", () => {
@@ -94,6 +95,55 @@ describe("buildPieces", () => {
     if (base?.kind !== "disc") throw new Error("expected disc base")
     expect(base.diameterMm).toBeGreaterThanOrEqual(0)
   })
+
+  describe("faceted prisms", () => {
+    const square: FormParams = { ...mug, type: "faceted", facets: 4, bottomDiameterMm: 100 }
+
+    it("side panel width is the outer polygon side length (no mid-surface correction)", () => {
+      const [side] = buildPieces(square, clay)
+      if (side.kind !== "rectangle") throw new Error("expected rectangle side")
+      // circumradius 50, N=4: side = 2*50*sin(45deg)
+      expect(side.widthMm).toBeCloseTo(2 * 50 * Math.sin(Math.PI / 4), 5)
+      expect(side.heightMm).toBe(square.heightMm)
+    })
+
+    it("notes say how many copies to cut and the miter bevel angle", () => {
+      const [side] = buildPieces(square, clay)
+      expect(side.notes.join(" ")).toMatch(/Cut 4 copies/)
+      expect(side.notes.join(" ")).toMatch(/45°/)
+    })
+
+    it("the printable stamp carries the copy count and bevel", () => {
+      const [side] = buildPieces(square, clay)
+      if (side.kind !== "rectangle") throw new Error("expected rectangle side")
+      expect(side.stamp).toBe("cut 4 · bevel 45°")
+    })
+
+    it("base is a polygon inset by the wall thickness across the flats", () => {
+      const base = buildPieces(square, clay).find((p) => p.id === "base")
+      if (base?.kind !== "polygon") throw new Error("expected polygon base")
+      expect(base.sides).toBe(4)
+      // outer apothem = 50*cos(45deg); inner = apothem - t; back to circumradius
+      const expected = (50 * Math.cos(Math.PI / 4) - clay.wallThicknessMm) / Math.cos(Math.PI / 4)
+      expect(base.circumradiusMm).toBeCloseTo(expected, 5)
+    })
+
+    it("hexagon bevel is 30 degrees", () => {
+      const hex: FormParams = { ...square, facets: 6 }
+      const [side] = buildPieces(hex, clay)
+      expect(side.notes.join(" ")).toMatch(/30°/)
+      expect(side.notes.join(" ")).toMatch(/Cut 6 copies/)
+    })
+
+    it("warns when walls leave no room for the base, measured across flats", () => {
+      const warnings = formWarnings(
+        { ...square, facets: 3, bottomDiameterMm: 40 },
+        { ...clay, wallThicknessMm: 12 }
+      )
+      // triangle apothem = 20*cos(60deg) = 10 < 12 -> impossible
+      expect(warnings.join(" ")).toMatch(/no room/i)
+    })
+  })
 })
 
 describe("formWarnings", () => {
@@ -103,6 +153,7 @@ describe("formWarnings", () => {
     heightMm: 100,
     topDiameterMm: 85,
     bottomDiameterMm: 85,
+    facets: 4,
   }
 
   it("is quiet for a sane design", () => {

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -30,12 +30,20 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
   const isExporting = useProjectStore((s) => s.isExporting)
   const exportError = useProjectStore((s) => s.exportError)
   const updateForm = useProjectStore((s) => s.updateForm)
+  const clearExportError = useProjectStore((s) => s.clearExportError)
   const exportPdf = useProjectStore((s) => s.exportPdf)
 
-  const pages = countPages(layoutPieces(selectPieces(form, clay)), paperSize)
+  const pages = useMemo(
+    () => countPages(layoutPieces(selectPieces(form, clay)), paperSize),
+    [form, clay, paperSize]
+  )
 
   const handleOpenChange = (next: boolean) => {
-    if (next) setName(form.name)
+    if (next) {
+      setName(form.name)
+      // don't show a stale failure from an earlier attempt (or an agent's)
+      clearExportError()
+    }
     setOpen(next)
   }
 

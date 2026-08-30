@@ -19,6 +19,8 @@ export interface RectanglePiece {
   label: string
   widthMm: number
   heightMm: number
+  /** short instruction printed on the piece itself (e.g. "cut 4 · bevel 45°") */
+  stamp?: string
   notes: string[]
 }
 
@@ -45,7 +47,17 @@ export interface DiscPiece {
   notes: string[]
 }
 
-export type Piece = RectanglePiece | AnnularSectorPiece | DiscPiece
+export interface PolygonPiece {
+  kind: "polygon"
+  id: string
+  label: string
+  sides: number
+  /** center to vertex (across-corners diameter = 2x this) */
+  circumradiusMm: number
+  notes: string[]
+}
+
+export type Piece = RectanglePiece | AnnularSectorPiece | DiscPiece | PolygonPiece
 
 export function shrinkageScale(shrinkagePct: number): number {
   if (shrinkagePct < 0 || shrinkagePct >= 100) {
@@ -103,6 +115,45 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
   const scale = shrinkageScale(clay.shrinkagePct)
   const t = clay.wallThicknessMm
 
+  if (form.type === "faceted") {
+    // Straight-walled N-sided prism: N identical flat side panels joined with
+    // mitered corners, plus a polygon base. Flat panels do not bend, so no
+    // mid-surface correction applies — panels are cut to the outer face size
+    // and the corner bevel absorbs the thickness.
+    const n = form.facets
+    const outerR = form.bottomDiameterMm / 2 // across corners (circumscribed)
+    const sideOut = 2 * outerR * Math.sin(Math.PI / n)
+    const apothemOut = outerR * Math.cos(Math.PI / n)
+    const bevelDeg = 180 / n
+
+    const pieces: Piece[] = [
+      {
+        kind: "rectangle",
+        id: "side",
+        label: "Side",
+        widthMm: sideOut * scale,
+        heightMm: form.heightMm * scale,
+        stamp: `cut ${n} · bevel ${bevelDeg.toFixed(0)}°`,
+        notes: [
+          `Cut ${n} copies — one per side`,
+          `Bevel both vertical edges at ${bevelDeg.toFixed(0)}° for mitered corners`,
+          "Flat panels don't bend, so no mid-surface correction is applied",
+        ],
+      },
+    ]
+
+    const apothemIn = Math.max(0, apothemOut - t)
+    pieces.push({
+      kind: "polygon",
+      id: "base",
+      label: "Base",
+      sides: n,
+      circumradiusMm: (apothemIn / Math.cos(Math.PI / n)) * scale,
+      notes: ["Sized to the inner faces so the sides wrap around it"],
+    })
+    return pieces
+  }
+
   const outerTopR = (form.type === "cylinder" ? form.bottomDiameterMm : form.topDiameterMm) / 2
   const outerBottomR = form.bottomDiameterMm / 2
   const midTopR = outerTopR - t / 2
@@ -120,6 +171,7 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
       ...wall,
       id: "wall",
       label: "Wall",
+      stamp: "bevel seam 45°",
       notes: [
         "Wrap around the base; short edges join with a 45° bevel",
         "Add registration ticks before cutting the seam",
@@ -157,6 +209,24 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
 export function formWarnings(form: FormParams, clay: ClaySettings): string[] {
   const warnings: string[] = []
   const t = clay.wallThicknessMm
+
+  if (form.type === "faceted") {
+    // For a prism the base sits inside the flat faces, so room for it is
+    // measured across flats (apothem), not across corners.
+    const apothemOut = (form.bottomDiameterMm / 2) * Math.cos(Math.PI / form.facets)
+    const innerAcrossFlats = 2 * (apothemOut - t)
+    if (innerAcrossFlats <= 0) {
+      warnings.push(
+        `Wall thickness (${t} mm) leaves no room for a base inside a ${form.bottomDiameterMm} mm ${form.facets}-sided form — thin the walls or widen it.`
+      )
+    } else if (innerAcrossFlats < 15) {
+      warnings.push(
+        `The base is only ${innerAcrossFlats.toFixed(0)} mm across the flats — joining the sides to it will be fiddly.`
+      )
+    }
+    return warnings
+  }
+
   const topD = form.type === "cylinder" ? form.bottomDiameterMm : form.topDiameterMm
   const innerBottomD = form.bottomDiameterMm - 2 * t
 
@@ -213,5 +283,10 @@ export function describePiece(piece: Piece, scale = 1): string {
       )
     case "disc":
       return `${piece.label}: disc, diameter ${dim(piece.diameterMm)}`
+    case "polygon": {
+      const acrossCorners = 2 * piece.circumradiusMm
+      const acrossFlats = acrossCorners * Math.cos(Math.PI / piece.sides)
+      return `${piece.label}: ${piece.sides}-sided polygon, ${dim(acrossCorners)} across corners, ${dim(acrossFlats)} across flats`
+    }
   }
 }

@@ -7,8 +7,10 @@ import { z } from "zod"
  */
 
 export const formTypeSchema = z
-  .enum(["cylinder", "tapered"])
-  .describe("Form construction type. 'cylinder' is a straight-walled form; 'tapered' is a cone frustum with different top and bottom diameters.")
+  .enum(["cylinder", "tapered", "faceted"])
+  .describe(
+    "Form construction type. 'cylinder' is a straight round wall; 'tapered' is a cone frustum with different top and bottom diameters; 'faceted' is a straight-walled prism with `facets` flat sides (3 = triangular, 4 = square, 5 = pentagonal, 6 = hexagonal)."
+  )
 
 export const formParamsSchema = z.object({
   type: formTypeSchema,
@@ -18,12 +20,18 @@ export const formParamsSchema = z.object({
     .number()
     .min(20)
     .max(500)
-    .describe("Fired outer diameter at the rim in millimeters (ignored for type 'cylinder', which uses bottomDiameterMm)"),
+    .describe("Fired outer diameter at the rim in millimeters (only used by type 'tapered'; cylinder and faceted forms use bottomDiameterMm)"),
   bottomDiameterMm: z
     .number()
     .min(20)
     .max(500)
-    .describe("Fired outer diameter at the base in millimeters"),
+    .describe("Fired outer diameter at the base in millimeters. For 'faceted' forms this is measured across corners (the circumscribed circle)."),
+  facets: z
+    .number()
+    .int()
+    .min(3)
+    .max(8)
+    .describe("Number of flat sides for type 'faceted' (3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon). Ignored for cylinder and tapered forms."),
 })
 
 export const claySettingsSchema = z.object({
@@ -56,6 +64,7 @@ export const PRESETS: Record<string, FormParams> = {
     heightMm: 100,
     topDiameterMm: 85,
     bottomDiameterMm: 85,
+    facets: 4,
   },
   tumbler: {
     type: "tapered",
@@ -63,6 +72,7 @@ export const PRESETS: Record<string, FormParams> = {
     heightMm: 130,
     topDiameterMm: 90,
     bottomDiameterMm: 65,
+    facets: 4,
   },
   "bud-vase": {
     type: "tapered",
@@ -70,6 +80,15 @@ export const PRESETS: Record<string, FormParams> = {
     heightMm: 180,
     topDiameterMm: 45,
     bottomDiameterMm: 90,
+    facets: 4,
+  },
+  "hex-planter": {
+    type: "faceted",
+    name: "Hex planter",
+    heightMm: 110,
+    topDiameterMm: 140,
+    bottomDiameterMm: 140,
+    facets: 6,
   },
 }
 

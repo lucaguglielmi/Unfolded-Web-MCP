@@ -20,19 +20,22 @@ export function IconOptionGroup<T extends string>({
   onChange,
   options,
   orientation = "vertical",
+  columns,
   className,
 }: {
   value: T
   onChange: (value: T) => void
   options: IconOption<T>[]
   orientation?: "vertical" | "horizontal"
+  /** grid columns; defaults to one column per option (single row) */
+  columns?: number
   className?: string
 }) {
   return (
     <div
       role="radiogroup"
       className={cn("grid gap-2", className)}
-      style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+      style={{ gridTemplateColumns: `repeat(${columns ?? options.length}, minmax(0, 1fr))` }}
     >
       {options.map((option) => {
         const Icon = option.icon

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Amphora, Box, Scissors } from "lucide-react"
+import { Amphora, Box, Maximize2, Scissors, X } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { IconOptionGroup } from "@/components/IconOptionGroup"
@@ -7,12 +7,10 @@ import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { TemplatePanel } from "@/components/panels/TemplatePanel"
 import { Viewport } from "@/components/viewport/Viewport"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useWebMCP } from "@/mcp/useWebMCP"
 
-type MobileTab = "settings" | "preview"
 type PreviewView = "3d" | "template"
 
 const PREVIEW_VIEW_OPTIONS = [
@@ -23,7 +21,9 @@ const PREVIEW_VIEW_OPTIONS = [
 export default function App() {
   useWebMCP()
 
-  const [mobileTab, setMobileTab] = useState<MobileTab>("settings")
+  // Mobile: settings are the main page; the preview lives in a small
+  // thumbnail card up top and expands to a full-screen overlay on tap.
+  const [previewExpanded, setPreviewExpanded] = useState(false)
   const [previewView, setPreviewView] = useState<PreviewView>("3d")
 
   return (
@@ -40,74 +40,85 @@ export default function App() {
           <AgentBadge />
         </header>
 
-        {/* Mobile-only: primary Settings / Preview navigation, just below the header */}
-        <div className="border-b px-4 py-2 lg:hidden">
-          <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as MobileTab)}>
-            <TabsList className="w-full">
-              <TabsTrigger value="settings" className="flex-1">
-                Settings
-              </TabsTrigger>
-              <TabsTrigger value="preview" className="flex-1">
-                Preview
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
-        <div className="flex min-h-0 flex-1">
-          {/* Settings: fixed sidebar on desktop, full-width tab pane on mobile */}
+        <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          {/*
+            Preview cluster (3D + template). One instance of each panel — the
+            single WebGL canvas included — morphs between three shapes purely
+            via classes: mobile thumbnail card, mobile full-screen overlay,
+            desktop side-by-side split. Never duplicated, never remounted.
+          */}
           <div
             className={cn(
-              "min-h-0 w-full overflow-y-auto p-4 sm:p-5 lg:w-72 lg:border-r xl:w-80",
-              mobileTab === "settings" ? "block" : "hidden",
-              "lg:block"
+              previewExpanded
+                ? "fixed inset-0 z-50 flex flex-col"
+                : "relative order-1 mx-4 mt-3 h-44 shrink-0 overflow-hidden rounded-xl border",
+              "bg-background lg:static lg:z-auto lg:order-2 lg:m-0 lg:flex lg:h-auto lg:min-h-0 lg:min-w-0 lg:flex-1 lg:flex-row lg:overflow-visible lg:rounded-none lg:border-0"
             )}
+            style={previewExpanded ? { paddingTop: "env(safe-area-inset-top)" } : undefined}
           >
-            <ParamsPanel />
-          </div>
-
-          {/* Preview cluster: 3D + template, side by side on desktop, switchable on mobile */}
-          <div
-            className={cn(
-              "min-h-0 flex-1 flex-col lg:flex-row",
-              mobileTab === "preview" ? "flex" : "hidden",
-              "lg:flex"
+            {/* Full-screen header: view picker + close (mobile only) */}
+            {previewExpanded && (
+              <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2 lg:hidden">
+                <IconOptionGroup
+                  value={previewView}
+                  onChange={setPreviewView}
+                  options={PREVIEW_VIEW_OPTIONS}
+                  orientation="horizontal"
+                  className="max-w-sm flex-1"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Close preview"
+                  onClick={() => setPreviewExpanded(false)}
+                >
+                  <X className="size-5" />
+                </Button>
+              </div>
             )}
-          >
-            {/* Mobile-only: 3D / Template is a view setting, not navigation — an
-                icon option group reads as a value picker rather than a second,
-                nested layer of tabs under the Settings/Preview nav above. */}
-            <div className="border-b px-4 py-2 lg:hidden">
-              <IconOptionGroup
-                value={previewView}
-                onChange={setPreviewView}
-                options={PREVIEW_VIEW_OPTIONS}
-                orientation="horizontal"
-              />
-            </div>
 
             <div
               className={cn(
-                "min-h-0 flex-1 lg:border-r",
-                previewView === "3d" ? "block" : "hidden",
-                "lg:block"
+                "min-h-0",
+                previewExpanded ? (previewView === "3d" ? "flex-1" : "hidden") : "h-full",
+                "lg:block lg:h-auto lg:flex-1 lg:border-r"
               )}
             >
-              <Viewport />
+              <Viewport showHintOnMobile={previewExpanded} />
             </div>
             <div
               className={cn(
-                "min-h-0 flex-1",
-                previewView === "template" ? "block" : "hidden",
-                "lg:block"
+                "min-h-0",
+                previewExpanded ? (previewView === "template" ? "flex-1" : "hidden") : "hidden",
+                "lg:block lg:flex-1"
               )}
             >
               <TemplatePanel />
             </div>
+
+            {/* Thumbnail tap target: the whole card opens the full preview */}
+            {!previewExpanded && (
+              <button
+                type="button"
+                aria-label="Open full-screen preview"
+                onClick={() => setPreviewExpanded(true)}
+                className="absolute inset-0 z-10 flex items-end justify-end p-2.5 lg:hidden"
+              >
+                <span className="bg-background/90 text-foreground flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium shadow-sm">
+                  <Maximize2 className="size-3.5" />
+                  Preview
+                </span>
+              </button>
+            )}
+          </div>
+
+          {/* Settings: the main page on mobile, fixed sidebar on desktop */}
+          <div className="order-2 min-h-0 w-full flex-1 overflow-y-auto p-4 sm:p-5 lg:order-1 lg:w-72 lg:flex-none lg:border-r xl:w-80">
+            <ParamsPanel />
           </div>
         </div>
 
-        {/* Mobile-only: large sticky export CTA, reachable from any tab */}
+        {/* Mobile-only: large sticky export CTA */}
         <div
           className="shrink-0 border-t px-4 py-3 shadow-[0_-6px_16px_-8px_rgba(0,0,0,0.12)] lg:hidden"
           style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}

@@ -46,7 +46,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "update_form",
       description:
-        "Update the pottery form. Any subset of: type ('cylinder' = straight wall, 'tapered' = cone frustum), name, heightMm, topDiameterMm, bottomDiameterMm. Dimensions are FIRED sizes in millimeters — shrinkage compensation is applied automatically to the templates. The 3D preview and the flat templates the potter sees update immediately. Returns the full new state.",
+        "Update the pottery form. Any subset of: type ('cylinder' = straight round wall, 'tapered' = cone frustum, 'faceted' = straight prism with flat sides), facets (side count for faceted forms: 3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon), name, heightMm, topDiameterMm, bottomDiameterMm (for faceted forms this is the width across corners). Dimensions are FIRED sizes in millimeters — shrinkage compensation is applied automatically to the templates. The 3D preview and the flat templates the potter sees update immediately. Returns the full new state.",
       inputSchema: z.toJSONSchema(updateFormInputSchema),
       annotations: { title: "Update form dimensions" },
       execute: (input) =>

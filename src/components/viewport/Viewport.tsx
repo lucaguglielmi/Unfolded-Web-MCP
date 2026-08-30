@@ -2,6 +2,7 @@ import { useMemo } from "react"
 import * as THREE from "three"
 import { Canvas } from "@react-three/fiber"
 import { Grid, OrbitControls } from "@react-three/drei"
+import { cn } from "@/lib/utils"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -14,8 +15,13 @@ const TARGET_SIZE = 1.35
 function Scene() {
   const form = useProjectStore((s) => s.form)
 
+  // A faceted form is a lathe with exactly N revolution segments; flat
+  // shading makes the facets read as crisp planes instead of a low-poly bug.
+  const isFaceted = form.type === "faceted"
+  const radialSegments = isFaceted ? form.facets : 96
+
   const { points, bottomY } = useMemo(() => {
-    const topR = (form.type === "cylinder" ? form.bottomDiameterMm : form.topDiameterMm) / 2
+    const topR = (form.type === "tapered" ? form.topDiameterMm : form.bottomDiameterMm) / 2
     const bottomR = form.bottomDiameterMm / 2
     const maxDim = Math.max(form.heightMm, 2 * Math.max(topR, bottomR))
     const scale = TARGET_SIZE / maxDim
@@ -32,9 +38,15 @@ function Scene() {
   return (
     <>
       <group position={[0, bottomY, 0]}>
-        <mesh>
-          <latheGeometry args={[points, 96]} />
-          <meshStandardMaterial color="#b08968" roughness={0.85} side={THREE.DoubleSide} />
+        {/* flatShading is baked into the compiled material, so key the mesh on it */}
+        <mesh key={`${isFaceted}-${radialSegments}`}>
+          <latheGeometry args={[points, radialSegments]} />
+          <meshStandardMaterial
+            color="#b08968"
+            roughness={0.85}
+            side={THREE.DoubleSide}
+            flatShading={isFaceted}
+          />
         </mesh>
       </group>
       <Grid
@@ -53,7 +65,7 @@ function Scene() {
   )
 }
 
-export function Viewport() {
+export function Viewport({ showHintOnMobile = true }: { showHintOnMobile?: boolean }) {
   return (
     <div className="relative h-full w-full">
       <Canvas camera={{ position: [2.4, 1.6, 2.4], fov: 38 }} className="touch-none bg-background">
@@ -71,7 +83,12 @@ export function Viewport() {
           maxPolarAngle={Math.PI * 0.55}
         />
       </Canvas>
-      <p className="text-muted-foreground/70 pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 text-xs">
+      <p
+        className={cn(
+          "text-muted-foreground/70 pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap",
+          showHintOnMobile ? "block" : "hidden lg:block"
+        )}
+      >
         Drag to rotate · Scroll to zoom
       </p>
     </div>

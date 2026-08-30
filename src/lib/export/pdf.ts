@@ -119,6 +119,23 @@ function layoutSvg(
       g.appendChild(label)
     }
 
+    if (
+      piece.kind === "rectangle" &&
+      piece.stamp &&
+      textFits(piece.stamp, NAME_FONT_MM, availableWidth)
+    ) {
+      const stamp = el("text", {
+        x: graphic.labelAt.x,
+        y: graphic.labelAt.y + LABEL_FONT_MM * 0.9 + 1,
+        "font-family": "helvetica",
+        "font-size": NAME_FONT_MM,
+        "text-anchor": "middle",
+        fill: SEAM_COLOR,
+      })
+      stamp.textContent = piece.stamp
+      g.appendChild(stamp)
+    }
+
     const dimsText = describePiece(piece, scale).replace(`${piece.label}: `, "")
     if (textFits(dimsText, ANNOTATION_FONT_MM, availableWidth)) {
       const dims = el("text", {
@@ -187,7 +204,7 @@ export async function exportTemplatesPdf(options: {
     "1. Print ALL pages at 100% scale (no 'fit to page').",
     "2. Check the calibration bars below with a ruler before cutting.",
     "3. Tape pages following the map; edges overlap by the glue strip (10 mm).",
-    "4. Cut along solid outlines. Dashed edges are seams: bevel 45°, score and slip.",
+    "4. Cut along solid outlines. Dashed edges are seams: bevel at the angle stamped on the piece, score and slip.",
     "5. Tick marks across seams are registration marks — align them when wrapping.",
   ]
   instructions.forEach((line, i) => doc.text(line, M, M + 24 + i * 6))

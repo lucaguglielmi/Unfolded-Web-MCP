@@ -35,6 +35,8 @@ interface ProjectState {
   setPaperSize: (paper: PaperSize) => void
   setAgentStatus: (status: AgentStatus) => void
   recordAgentCall: (tool: string) => void
+  /** Dismiss a stale export failure (e.g. when re-opening the export dialog). */
+  clearExportError: () => void
   /** Shared by the desktop template panel and the mobile sticky export bar. */
   exportPdf: () => Promise<ExportResult>
 }
@@ -57,9 +59,9 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     set((state) => {
       const parsed = updateFormInputSchema.parse(patch)
       const form = { ...state.form, ...parsed }
-      // A cylinder has one diameter: keep top mirroring bottom so switching
-      // to 'tapered' starts from a sensible shape.
-      if (form.type === "cylinder") {
+      // Cylinder and faceted forms have one width: keep top mirroring bottom
+      // so switching to 'tapered' starts from a sensible shape.
+      if (form.type !== "tapered") {
         form.topDiameterMm = form.bottomDiameterMm
       }
       return { form }
@@ -74,6 +76,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   setPaperSize: (paperSize) => set({ paperSize }),
   setAgentStatus: (agentStatus) => set({ agentStatus }),
   recordAgentCall: (tool) => set({ lastAgentCall: { tool, at: Date.now() } }),
+  clearExportError: () => set({ exportError: null }),
 
   exportPdf: async () => {
     set({ isExporting: true, exportError: null })
