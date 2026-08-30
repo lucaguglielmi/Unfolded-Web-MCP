@@ -90,7 +90,8 @@ try {
   const page = await ctx.newPage()
   await page.addInitScript(mcpHostInit)
   await page.goto(BASE, { waitUntil: "networkidle" })
-  await page.waitForTimeout(1500)
+  // the 3D viewport is a lazy chunk now — give it a beat to mount
+  await page.waitForTimeout(2500)
 
   const names = await page.evaluate(() => Object.keys(window.__mcpTools))
   check(

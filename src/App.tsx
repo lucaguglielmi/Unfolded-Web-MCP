@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { lazy, Suspense, useEffect, useState } from "react"
 import { Box, Check, Link2, Maximize2, Redo2, Scissors, Undo2, X } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
 import { LogoMark } from "@/components/LogoMark"
@@ -6,7 +6,6 @@ import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { IconOptionGroup } from "@/components/IconOptionGroup"
 import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { TemplatePanel } from "@/components/panels/TemplatePanel"
-import { Viewport } from "@/components/viewport/Viewport"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -23,6 +22,24 @@ import { useProjectStore } from "@/store/useProjectStore"
 import { useWebMCP } from "@/mcp/useWebMCP"
 
 type PreviewView = "3d" | "template"
+
+/*
+ * The 3D stack (three.js + react-three-fiber) is by far the heaviest part
+ * of the bundle — lazy-loading it lets the app shell paint immediately,
+ * with a small kiln-warming loader where the preview will appear.
+ */
+const Viewport = lazy(() =>
+  import("@/components/viewport/Viewport").then((m) => ({ default: m.Viewport }))
+)
+
+function ViewportLoader() {
+  return (
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3">
+      <LogoMark className="gentle-pulse h-8 w-auto" />
+      <p className="text-muted-foreground gentle-pulse text-xs">warming up the kiln…</p>
+    </div>
+  )
+}
 
 /** Tailwind's lg breakpoint — where the preview stops being a thumbnail. */
 function useIsDesktop(): boolean {
@@ -99,7 +116,13 @@ function ShareDialog() {
     let cancelled = false
     import("qrcode")
       .then(({ toDataURL }) =>
-        toDataURL(url, { margin: 1, width: 512, color: { dark: "#1c1917", light: "#ffffff" } })
+        // error correction H tolerates the logomark sitting in the middle
+        toDataURL(url, {
+          margin: 1,
+          width: 512,
+          errorCorrectionLevel: "H",
+          color: { dark: "#1c1917", light: "#ffffff" },
+        })
       )
       .then((dataUrl) => {
         if (!cancelled) setQr(dataUrl)
@@ -136,11 +159,17 @@ function ShareDialog() {
         </DialogHeader>
         <div className="flex flex-col items-center gap-4">
           {qr && (
-            <img
-              src={qr}
-              alt="QR code of the design's share link"
-              className="size-44 rounded-lg border p-2"
-            />
+            <div className="rise-in relative">
+              <img
+                src={qr}
+                alt="QR code of the design's share link"
+                className="size-44 rounded-lg border p-2"
+              />
+              {/* the logomark lives in the middle — EC level H absorbs it */}
+              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-white px-1.5 py-1">
+                <LogoMark className="h-5 w-auto" />
+              </span>
+            </div>
           )}
           <p className="text-muted-foreground text-center text-xs leading-relaxed">
             Scan with your phone to open this exact design there — for example in
@@ -189,7 +218,7 @@ export default function App() {
 
   return (
     <TooltipProvider>
-      <div className="bg-background text-foreground flex h-dvh flex-col overflow-hidden">
+      <div className="bg-background text-foreground app-fade-in flex h-dvh flex-col overflow-hidden">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-5">
           <div className="flex min-w-0 items-baseline gap-2.5">
             <LogoMark animated className="h-5 w-auto shrink-0 self-center" />
@@ -252,10 +281,12 @@ export default function App() {
             >
               {/* In the small thumbnail all callouts at once would clutter —
                   cycle them one at a time; the main preview shows them all. */}
-              <Viewport
-                showHintOnMobile={previewExpanded}
-                measurementsMode={previewExpanded || isDesktop ? "static" : "cycle"}
-              />
+              <Suspense fallback={<ViewportLoader />}>
+                <Viewport
+                  showHintOnMobile={previewExpanded}
+                  measurementsMode={previewExpanded || isDesktop ? "static" : "cycle"}
+                />
+              </Suspense>
             </div>
             <div
               className={cn(

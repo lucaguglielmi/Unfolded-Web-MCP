@@ -180,13 +180,15 @@ export function ParamsPanel() {
           onChange={(v) => updateForm({ bottomDiameterMm: v })}
         />
         {form.tapered && (
-          <DimensionSlider
-            label={form.type === "faceted" ? "Top width (across corners)" : "Top diameter"}
-            value={form.topDiameterMm}
-            min={20}
-            max={300}
-            onChange={(v) => updateForm({ topDiameterMm: v })}
-          />
+          <div className="rise-in">
+            <DimensionSlider
+              label={form.type === "faceted" ? "Top width (across corners)" : "Top diameter"}
+              value={form.topDiameterMm}
+              min={20}
+              max={300}
+              onChange={(v) => updateForm({ topDiameterMm: v })}
+            />
+          </div>
         )}
 
         <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
@@ -231,7 +233,7 @@ export function ParamsPanel() {
       </section>
 
       {warnings.length > 0 && (
-        <div className="space-y-1.5 rounded-md border border-amber-200 bg-amber-50 p-3">
+        <div className="rise-in space-y-1.5 rounded-md border border-amber-200 bg-amber-50 p-3">
           {warnings.map((warning) => (
             <p key={warning} className="flex gap-2 text-xs leading-relaxed text-amber-800">
               <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
@@ -252,7 +254,7 @@ export function ParamsPanel() {
               <Button
                 key={id}
                 variant="outline"
-                className="h-auto flex-col gap-1.5 py-3 font-normal"
+                className="h-auto flex-col gap-1.5 py-3 font-normal transition-all hover:-translate-y-0.5 hover:shadow-sm"
                 onClick={() => applyPreset(id as keyof typeof PRESETS)}
               >
                 <Icon className="size-5" />

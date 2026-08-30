@@ -67,11 +67,11 @@ function SectionLabel({ children }: { children: string }) {
 
 export function WebMCPPage() {
   return (
-    <div className="min-h-dvh bg-white text-stone-900 antialiased">
+    <div className="webmcp-page app-fade-in min-h-dvh bg-white text-stone-900 antialiased">
       {/* top bar */}
       <header className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
         <a href="/" className="flex items-center gap-2.5">
-          <LogoMark className="h-5 w-auto" />
+          <LogoMark animated className="h-5 w-auto" />
           <span className="text-base font-semibold tracking-tight">unfolded</span>
         </a>
         <a

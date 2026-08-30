@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react"
+import { cn } from "@/lib/utils"
+
 /**
  * The Unfolded logomark: three folded slabs in cobalt and blue-black.
  * Path data is shared with the PDF exporter (lib/export/pdf.ts) so the
@@ -13,18 +16,51 @@ export const LOGO_SLAB_PATHS: { d: string; fill: string }[] = [
 /** tight crop around the three slabs (source coordinate space) */
 export const LOGO_VIEWBOX = { x: 40, y: 48, w: 226, h: 186 }
 
+const FOLD_DURATION_MS = 3400 // a hair over the 3.2s CSS cycle
+const FOLD_MIN_GAP_MS = 6000
+const FOLD_RANDOM_MS = 9000
+
 export function LogoMark({
   className,
   animated = false,
 }: {
   className?: string
-  /** loop the fold/unfold animation (see index.css; respects reduced motion) */
+  /** every once in a while, fold shut and open back up (see index.css; respects reduced motion) */
   animated?: boolean
 }) {
+  const [folding, setFolding] = useState(false)
+
+  useEffect(() => {
+    if (!animated) return
+    if (typeof window === "undefined") return
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    let cancelled = false
+    let showTimer = 0
+    let hideTimer = 0
+    const schedule = (delay: number) => {
+      showTimer = window.setTimeout(() => {
+        if (cancelled) return
+        setFolding(true)
+        hideTimer = window.setTimeout(() => {
+          if (cancelled) return
+          setFolding(false)
+          schedule(FOLD_MIN_GAP_MS + Math.random() * FOLD_RANDOM_MS)
+        }, FOLD_DURATION_MS)
+      }, delay)
+    }
+    // one early fold as a hello, then random quiet intervals
+    schedule(2500 + Math.random() * 3000)
+    return () => {
+      cancelled = true
+      window.clearTimeout(showTimer)
+      window.clearTimeout(hideTimer)
+    }
+  }, [animated])
+
   return (
     <svg
       viewBox={`${LOGO_VIEWBOX.x} ${LOGO_VIEWBOX.y} ${LOGO_VIEWBOX.w} ${LOGO_VIEWBOX.h}`}
-      className={className}
+      className={cn(className, folding && "logo-folding")}
       aria-hidden="true"
     >
       {LOGO_SLAB_PATHS.map((p, i) => (

@@ -371,11 +371,28 @@ export async function exportTemplatesPdf(options: {
       const qrPng = await toDataURL(shareUrl, {
         margin: 0,
         width: 256,
-        errorCorrectionLevel: "M",
+        // H-level error correction leaves room for the logomark in the middle
+        errorCorrectionLevel: "H",
         color: { dark: "#1c1917", light: "#ffffff" },
       })
       const QR_MM = 22
-      doc.addImage(qrPng, "PNG", pageW - M - QR_MM, M - 2, QR_MM, QR_MM)
+      const qrX = pageW - M - QR_MM
+      const qrY = M - 2
+      doc.addImage(qrPng, "PNG", qrX, qrY, QR_MM, QR_MM)
+      // the unfolded mark, sitting on a small white pad at the QR's center
+      const markH = 4.6
+      const markW = (markH * LOGO_VIEWBOX.w) / LOGO_VIEWBOX.h
+      doc.setFillColor("#ffffff")
+      doc.roundedRect(
+        qrX + QR_MM / 2 - markW / 2 - 0.8,
+        qrY + QR_MM / 2 - markH / 2 - 0.8,
+        markW + 1.6,
+        markH + 1.6,
+        0.6,
+        0.6,
+        "F"
+      )
+      await placeLogo(markH, qrX + QR_MM / 2 - markW / 2, qrY + QR_MM / 2 - markH / 2, false)
       doc.setFontSize(7)
       doc.setTextColor(120)
       doc.text("scan to reopen", pageW - M - QR_MM / 2, M + QR_MM + 2, { align: "center" })

@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
-import { Canvas } from "@react-three/fiber"
+import { Canvas, useFrame } from "@react-three/fiber"
 import { Grid, Html, Line, OrbitControls } from "@react-three/drei"
 import { cn } from "@/lib/utils"
 import { registerPreviewCanvas } from "@/lib/previewCapture"
@@ -261,9 +261,27 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
     },
   ]
 
+  // One-time entrance: the vessel eases in from a slight extra yaw and a
+  // touch smaller, settling into its resting pose over ~1.1s. Pure
+  // delight — skipped entirely for reduced-motion users.
+  const vesselRef = useRef<THREE.Group>(null)
+  const introT = useRef(
+    typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? 1
+      : 0
+  )
+  useFrame((_, delta) => {
+    if (introT.current >= 1 || !vesselRef.current) return
+    introT.current = Math.min(1, introT.current + delta / 1.1)
+    const eased = 1 - (1 - introT.current) ** 3
+    vesselRef.current.rotation.y = startYaw + (1 - eased) * 0.5
+    vesselRef.current.scale.setScalar(0.92 + 0.08 * eased)
+  })
+
   return (
     <>
-      <group position={[0, bottomY, 0]} rotation={[0, startYaw, 0]}>
+      <group ref={vesselRef} position={[0, bottomY, 0]} rotation={[0, startYaw, 0]}>
         <mesh key={`outer-${meshKey}`}>
           <latheGeometry args={[outerPoints, radialSegments]} />
           <meshStandardMaterial
@@ -330,7 +348,7 @@ export function Viewport({
   measurementsMode?: MeasurementsMode
 }) {
   return (
-    <div className="relative h-full w-full">
+    <div className="viewport-in relative h-full w-full">
       <Canvas
         camera={{ position: [2.4, 1.6, 2.4], fov: 38 }}
         // preserveDrawingBuffer lets the get_preview_image WebMCP tool
