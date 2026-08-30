@@ -1,6 +1,8 @@
 import { create } from "zustand"
 import {
+  claySettingsSchema,
   DEFAULT_CLAY,
+  formParamsSchema,
   PRESETS,
   setClayInputSchema,
   updateFormInputSchema,
@@ -38,6 +40,25 @@ export function _resetHistoryCoalescing(): void {
   lastHistoryPushAt = 0
 }
 
+/* The pdf module is heavy (jsPDF + svg2pdf) and browser-only, so it's
+   loaded lazily — and through this seam so unit tests can swap it out
+   (vi.mock does not reliably intercept dynamic imports made from another
+   module). */
+interface PdfModule {
+  exportTemplatesPdf: (options: {
+    pieces: Piece[]
+    name: string
+    paper: PaperSize
+    scale: number
+  }) => Promise<ExportResult>
+}
+let importPdfModule: () => Promise<PdfModule> = () => import("@/lib/export/pdf")
+
+/** test-only: replace the pdf module loader */
+export function _setPdfModuleForTests(loader: () => Promise<PdfModule>): void {
+  importPdfModule = loader
+}
+
 function pushHistory(state: { history: Snapshot[]; form: FormParams; clay: ClaySettings; paperSize: PaperSize }): Snapshot[] {
   const now = Date.now()
   if (now - lastHistoryPushAt < HISTORY_COALESCE_MS && state.history.length > 0) {
@@ -57,8 +78,13 @@ interface ProjectState {
   paperSize: PaperSize
   agentStatus: AgentStatus
   lastAgentCall: AgentCall | null
-  isExporting: boolean
-  exportError: string | null
+  /**
+   * Number of PDF exports currently running. A counter, not a boolean:
+   * the human and the agent can export concurrently, and the first to
+   * finish must not re-enable the UI while the other is still running.
+   * `isExporting` is `exportsInFlight > 0`.
+   */
+  exportsInFlight: number
   /** undo stack — snapshots taken before each change, oldest first */
   history: Snapshot[]
 
@@ -72,9 +98,12 @@ interface ProjectState {
   undo: () => boolean
   setAgentStatus: (status: AgentStatus) => void
   recordAgentCall: (tool: string) => void
-  /** Dismiss a stale export failure (e.g. when re-opening the export dialog). */
-  clearExportError: () => void
-  /** Shared by the desktop template panel and the mobile sticky export bar. */
+  /**
+   * Shared by the export dialog and the WebMCP export tool. Rejects on
+   * failure — each caller surfaces the error to its own actor (the dialog
+   * locally to the human, the tool as an isError result to the agent), so
+   * one actor's failure never leaks into the other's UI.
+   */
   exportPdf: () => Promise<ExportResult>
 }
 
@@ -89,8 +118,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   paperSize: "A4",
   agentStatus: "unavailable",
   lastAgentCall: null,
-  isExporting: false,
-  exportError: null,
+  exportsInFlight: 0,
   history: [],
 
   updateForm: (patch) =>
@@ -167,25 +195,20 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   },
   setAgentStatus: (agentStatus) => set({ agentStatus }),
   recordAgentCall: (tool) => set({ lastAgentCall: { tool, at: Date.now() } }),
-  clearExportError: () => set({ exportError: null }),
-
   exportPdf: async () => {
-    set({ isExporting: true, exportError: null })
+    set((state) => ({ exportsInFlight: state.exportsInFlight + 1 }))
     try {
       const { form, clay, paperSize } = get()
       const pieces = buildPieces(form, clay)
-      const { exportTemplatesPdf } = await import("@/lib/export/pdf")
+      const { exportTemplatesPdf } = await importPdfModule()
       return await exportTemplatesPdf({
         pieces,
         name: form.name,
         paper: paperSize,
         scale: shrinkageScale(clay.shrinkagePct),
       })
-    } catch (error) {
-      set({ exportError: error instanceof Error ? error.message : String(error) })
-      throw error
     } finally {
-      set({ isExporting: false })
+      set((state) => ({ exportsInFlight: Math.max(0, state.exportsInFlight - 1) }))
     }
   },
 }))
@@ -221,6 +244,55 @@ export function describeState(): {
     printedPages: pages.totalPages,
     warnings: formWarnings(form, clay),
   }
+}
+
+/* ------------------------------------------------------- persistence */
+
+const STORAGE_KEY = "unfolded:project:v1"
+
+/**
+ * Restore the last session's design from localStorage — call at boot,
+ * BEFORE applyShareLinkFromLocation so an explicit share link always wins
+ * over what was left lying around. Anything invalid or corrupted is
+ * ignored field-by-field (schemas re-validate everything).
+ */
+export function loadPersistedProject(): void {
+  if (typeof window === "undefined") return
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (!raw) return
+    const data: unknown = JSON.parse(raw)
+    if (typeof data !== "object" || data === null) return
+    const record = data as Record<string, unknown>
+    const form = formParamsSchema.safeParse(record.form)
+    const clay = claySettingsSchema.safeParse(record.clay)
+    const paperSize =
+      record.paperSize === "A4" || record.paperSize === "Letter" ? record.paperSize : undefined
+    useProjectStore.setState({
+      ...(form.success ? { form: form.data } : {}),
+      ...(clay.success ? { clay: clay.data } : {}),
+      ...(paperSize ? { paperSize } : {}),
+    })
+  } catch {
+    // corrupted storage or blocked localStorage — start fresh
+  }
+}
+
+/** Save the design (debounced) so a mid-demo refresh doesn't lose work. */
+export function startProjectPersistence(): void {
+  if (typeof window === "undefined") return
+  let timer: number | undefined
+  useProjectStore.subscribe(() => {
+    window.clearTimeout(timer)
+    timer = window.setTimeout(() => {
+      try {
+        const { form, clay, paperSize } = useProjectStore.getState()
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, clay, paperSize }))
+      } catch {
+        // quota exceeded or private mode — persistence is best-effort
+      }
+    }, 400)
+  })
 }
 
 /**

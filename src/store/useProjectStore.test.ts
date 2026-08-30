@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
 import { DEFAULT_CLAY, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
-import { _resetHistoryCoalescing, useProjectStore } from "./useProjectStore"
+import { _resetHistoryCoalescing, _setPdfModuleForTests, useProjectStore } from "./useProjectStore"
 
 const reset = () => {
   useProjectStore.setState({
@@ -9,6 +9,7 @@ const reset = () => {
     clay: { ...DEFAULT_CLAY },
     paperSize: "A4",
     history: [],
+    exportsInFlight: 0,
   })
   _resetHistoryCoalescing()
 }
@@ -148,5 +149,43 @@ describe("undo", () => {
     updateForm({ heightMm: PRESETS["classic-mug"].heightMm })
     setClay({ shrinkagePct: DEFAULT_CLAY.shrinkagePct })
     expect(useProjectStore.getState().history).toHaveLength(0)
+  })
+})
+
+describe("export concurrency", () => {
+  beforeEach(reset)
+
+  it("counts overlapping exports instead of flipping a boolean", async () => {
+    const resolvers: (() => void)[] = []
+    const mocked = vi.fn(
+      () =>
+        new Promise<{ pages: number; cols: number; rows: number; paper: "A4" }>((resolve) => {
+          resolvers.push(() => resolve({ pages: 2, cols: 1, rows: 1, paper: "A4" }))
+        })
+    )
+    _setPdfModuleForTests(async () => ({ exportTemplatesPdf: mocked }))
+
+    const { exportPdf } = useProjectStore.getState()
+    const first = exportPdf() // e.g. the human
+    const second = exportPdf() // e.g. the agent, overlapping
+    expect(useProjectStore.getState().exportsInFlight).toBe(2)
+    await vi.waitFor(() => expect(resolvers).toHaveLength(2))
+
+    resolvers[0]()
+    await first
+    // the second export is still running — the UI must stay disabled
+    expect(useProjectStore.getState().exportsInFlight).toBe(1)
+
+    resolvers[1]()
+    await second
+    expect(useProjectStore.getState().exportsInFlight).toBe(0)
+  })
+
+  it("decrements on failure and rejects to the caller", async () => {
+    _setPdfModuleForTests(async () => ({
+      exportTemplatesPdf: () => Promise.reject(new Error("printer on fire")),
+    }))
+    await expect(useProjectStore.getState().exportPdf()).rejects.toThrow("printer on fire")
+    expect(useProjectStore.getState().exportsInFlight).toBe(0)
   })
 })

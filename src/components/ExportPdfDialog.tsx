@@ -23,14 +23,15 @@ import { selectPieces, useProjectStore } from "@/store/useProjectStore"
 export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
   const [open, setOpen] = useState(false)
   const [name, setName] = useState("")
+  // Error state is local to THIS dialog: an export the agent started (and
+  // failed) reports to the agent through its tool result, never here.
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const form = useProjectStore((s) => s.form)
   const clay = useProjectStore((s) => s.clay)
   const paperSize = useProjectStore((s) => s.paperSize)
-  const isExporting = useProjectStore((s) => s.isExporting)
-  const exportError = useProjectStore((s) => s.exportError)
+  const isExporting = useProjectStore((s) => s.exportsInFlight > 0)
   const updateForm = useProjectStore((s) => s.updateForm)
-  const clearExportError = useProjectStore((s) => s.clearExportError)
   const exportPdf = useProjectStore((s) => s.exportPdf)
 
   const pages = useMemo(
@@ -41,8 +42,7 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
   const handleOpenChange = (next: boolean) => {
     if (next) {
       setName(form.name)
-      // don't show a stale failure from an earlier attempt (or an agent's)
-      clearExportError()
+      setExportError(null)
     }
     setOpen(next)
   }
@@ -50,11 +50,13 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
   const handleExport = async () => {
     const trimmed = name.trim().slice(0, 60) || form.name
     if (trimmed !== form.name) updateForm({ name: trimmed })
+    setExportError(null)
     try {
       await exportPdf()
       setOpen(false)
-    } catch {
-      // exportError is surfaced from the store below; keep the dialog open to retry
+    } catch (error) {
+      // keep the dialog open to retry
+      setExportError(error instanceof Error ? error.message : String(error))
     }
   }
 
