@@ -112,7 +112,7 @@ without `registerTool`, and flips to active the moment any tool executes. For ma
 testing without an agent, registered tools are exposed on the console as
 `__unfoldedTools` (e.g. `__unfoldedTools.set_capacity.execute({capacityMl: 350})`).
 
-The in-app guide at [`/webmcp`](https://unfolded.carciofomobile.workers.dev/webmcp)
+The in-app guide at [`/webmcp`](https://tryunfolded.com/webmcp)
 explains all of this to visitors, with live connection status for their own browser.
 
 ## WebMCP tools
