@@ -1,3 +1,4 @@
+import { shallow } from "zustand/shallow"
 import { buildShareParams, parseShareParams } from "@/lib/model/shareLink"
 import { useProjectStore } from "./useProjectStore"
 
@@ -32,13 +33,18 @@ export function startShareLinkSync(): void {
   }
   let last = currentQs()
   let timer: number | undefined
-  useProjectStore.subscribe(() => {
-    window.clearTimeout(timer)
-    timer = window.setTimeout(() => {
-      const qs = currentQs()
-      if (qs === last) return
-      last = qs
-      window.history.replaceState(null, "", `${window.location.pathname}?${qs}`)
-    }, 350)
-  })
+  // only the design slice can change the link — agent-status churn is ignored
+  useProjectStore.subscribe(
+    (s) => [s.form, s.clay, s.paperSize, s.unit] as const,
+    () => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        const qs = currentQs()
+        if (qs === last) return
+        last = qs
+        window.history.replaceState(null, "", `${window.location.pathname}?${qs}`)
+      }, 350)
+    },
+    { equalityFn: shallow }
+  )
 }

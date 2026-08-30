@@ -3,6 +3,7 @@ import {
   formParamsSchema,
   normalizeLegacyFormPatch,
 } from "@/lib/model/schemas"
+import { shallow } from "zustand/shallow"
 import { PAPERS, type PaperSize } from "@/lib/export/svg"
 import { isUnit } from "@/lib/units"
 import { useProjectStore } from "./useProjectStore"
@@ -48,15 +49,20 @@ export function loadPersistedProject(): void {
 export function startProjectPersistence(): void {
   if (typeof window === "undefined") return
   let timer: number | undefined
-  useProjectStore.subscribe(() => {
-    window.clearTimeout(timer)
-    timer = window.setTimeout(() => {
-      try {
-        const { form, clay, paperSize, unit } = useProjectStore.getState()
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, clay, paperSize, unit }))
-      } catch {
-        // quota exceeded or private mode — persistence is best-effort
-      }
-    }, 400)
-  })
+  // subscribe to the persisted slice only — agent-status churn (badge
+  // updates, lastAgentCall) never schedules a write
+  useProjectStore.subscribe(
+    (s) => [s.form, s.clay, s.paperSize, s.unit] as const,
+    ([form, clay, paperSize, unit]) => {
+      window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        try {
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, clay, paperSize, unit }))
+        } catch {
+          // quota exceeded or private mode — persistence is best-effort
+        }
+      }, 400)
+    },
+    { equalityFn: shallow }
+  )
 }
