@@ -54,17 +54,8 @@ export function _resetHistoryCoalescing(): void {
 /* The pdf module is heavy (jsPDF + svg2pdf) and browser-only, so it's
    loaded lazily — and through this seam so unit tests can swap it out
    (vi.mock does not reliably intercept dynamic imports made from another
-   module). */
-interface PdfModule {
-  exportTemplatesPdf: (options: {
-    pieces: Piece[]
-    name: string
-    paper: PaperSize
-    scale: number
-    unit?: Unit
-    shareUrl?: string
-  }) => Promise<ExportResult>
-}
+   module). Derived from the real module so the two can never drift. */
+type PdfModule = Pick<typeof import("@/lib/export/pdf"), "exportTemplatesPdf">
 let importPdfModule: () => Promise<PdfModule> = () => import("@/lib/export/pdf")
 
 /** test-only: replace the pdf module loader */
