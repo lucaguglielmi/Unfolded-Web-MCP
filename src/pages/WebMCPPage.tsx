@@ -161,10 +161,46 @@ export function WebMCPPage() {
               </ol>
             </div>
           </div>
-          <p className="mt-4 text-sm text-stone-400">
-            The pill in the studio header shows a{" "}
-            <span className="font-medium text-emerald-600">pulsing green dot</span> whenever the
-            tools are registered and an agent can reach them.
+        </section>
+
+        {/* the three pill states */}
+        <section className="border-t border-stone-100 py-14">
+          <SectionLabel>What the pill in the header means</SectionLabel>
+          <ul className="mt-6 space-y-4">
+            <li className="flex items-start gap-3">
+              <span className="relative mt-1 flex size-2 shrink-0">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+              </span>
+              <p className="text-sm leading-relaxed text-stone-600">
+                <span className="font-semibold text-stone-900">WebMCP active</span> — the API is
+                available in this very tab and the tools registered. You and the agent share one
+                live session: every change either of you makes is visible to both.
+              </p>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1 inline-flex size-2 shrink-0 rounded-full bg-emerald-500" />
+              <p className="text-sm leading-relaxed text-stone-600">
+                <span className="font-semibold text-stone-900">Connected via ChatGPT</span> — this
+                tab has no direct WebMCP, but the design arrived through a link the agent minted,
+                so it is open in the internal browser of your ChatGPT conversation. Edits made
+                here aren't automatically shared — send your link back to the chat and the agent
+                syncs with <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-[0.8rem] text-stone-700">open_model</code>.
+              </p>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-1 inline-flex size-2 shrink-0 rounded-full bg-stone-300" />
+              <p className="text-sm leading-relaxed text-stone-600">
+                <span className="font-semibold text-stone-900">WebMCP unavailable</span> — neither
+                could be confirmed in this tab. Ask ChatGPT to open Unfolded in its internal
+                browser, or enable the Chrome flag above.
+              </p>
+            </li>
+          </ul>
+          <p className="mt-5 text-sm text-stone-400">
+            The states are honest by design: a ChatGPT connection is only ever shown on the
+            explicit signal of an agent-minted link — never guessed from your browser's user
+            agent or from being inside an in-app browser.
           </p>
         </section>
 

@@ -243,6 +243,49 @@ try {
   )
   await viaPage.close()
 
+  // -------------------------------------------------- Chrome flag nudge
+  // Real Chrome without WebMCP gets a one-time tip pointing at the flag.
+  // Headless/branded browsers are excluded, so simulate a real Chrome UA.
+  const chromeCtx = await browser.newContext({
+    viewport: { width: 1280, height: 800 },
+    userAgent:
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36",
+  })
+  const nudgePage = await chromeCtx.newPage()
+  await nudgePage.addInitScript(() => {
+    Object.defineProperty(navigator, "userAgentData", { get: () => undefined })
+  })
+  await nudgePage.goto(BASE, { waitUntil: "networkidle" })
+  await nudgePage.waitForTimeout(4200) // nudge waits 3s for a host to appear
+  const nudgeShown = await nudgePage.evaluate(
+    () => document.body.innerText.includes("chrome://flags/#enable-webmcp-testing")
+  )
+  check("Chrome without WebMCP gets the flag nudge", nudgeShown)
+  await nudgePage.getByRole("button", { name: "No thanks" }).click()
+  await nudgePage.reload({ waitUntil: "networkidle" })
+  await nudgePage.waitForTimeout(4200)
+  const nudgeAfterDismiss = await nudgePage.evaluate(
+    () => document.body.innerText.includes("chrome://flags/#enable-webmcp-testing")
+  )
+  check("dismissing the nudge is remembered across reloads", !nudgeAfterDismiss)
+  await nudgePage.close()
+
+  // Chrome WITH WebMCP never sees the nudge
+  const quietPage = await chromeCtx.newPage()
+  await quietPage.addInitScript(() => {
+    Object.defineProperty(navigator, "userAgentData", { get: () => undefined })
+    window.localStorage?.removeItem?.("unfolded:chrome-flag-nudge-dismissed")
+    document.modelContext = { registerTool: () => {} }
+  })
+  await quietPage.goto(BASE, { waitUntil: "networkidle" })
+  await quietPage.waitForTimeout(4200)
+  const nudgeWithHost = await quietPage.evaluate(
+    () => document.body.innerText.includes("chrome://flags/#enable-webmcp-testing")
+  )
+  check("Chrome with a WebMCP host never sees the nudge", !nudgeWithHost)
+  await quietPage.close()
+  await chromeCtx.close()
+
   // -------------------------------------- navigator.modelContext fallback
   const navPage = await ctx.newPage()
   await navPage.addInitScript(() => {

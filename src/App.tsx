@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from "react"
 import { Box, Check, Link2, Maximize2, Redo2, Scissors, Undo2, X } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
+import { ChromeFlagNudge } from "@/components/ChromeFlagNudge"
 import { LogoMark } from "@/components/LogoMark"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { IconOptionGroup } from "@/components/IconOptionGroup"
@@ -360,6 +361,9 @@ export default function App() {
             }
           />
         </div>
+
+        {/* Chrome-only tip: WebMCP is one documented flag away */}
+        <ChromeFlagNudge />
       </div>
     </TooltipProvider>
   )

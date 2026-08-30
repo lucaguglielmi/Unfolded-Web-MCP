@@ -26,11 +26,37 @@ npm run build    # type-check + production build
 
 Open the app in a WebMCP-capable browser:
 
-- **ChatGPT's in-app browser** — WebMCP works out of the box
-- **Google Chrome** — enable `chrome://flags/#enable-webmcp-testing`
+- **ChatGPT's internal browser** — WebMCP works out of the box (note: tapping a link
+  in the chat opens ChatGPT's *ordinary* in-app browser instead — a separate session
+  without WebMCP)
+- **Google Chrome (desktop & Android)** — enable `chrome://flags/#enable-webmcp-testing`;
+  when the app detects real Chrome without WebMCP it shows a one-time dismissible tip
+  with that address ready to copy
 
-The header badge shows whether WebMCP tools are registered and the last tool an agent
-called.
+## Agent connection states
+
+The header pill tells the truth about how (and whether) an agent is connected:
+
+| State | Dot | Meaning |
+|---|---|---|
+| **WebMCP active** | pulsing green | The API is available in *this* tab (`document`/`navigator`/`window.modelContext`) and tool registration succeeded — human and agent share one live session. |
+| **Connected via ChatGPT** | solid green | This tab has no direct WebMCP, but the design arrived through an agent-minted link (`?via=chatgpt` on tool-issued `shareUrl`s) — the explicit signal that it's open in the conversation's internal browser. Edits here aren't shared until synced back (`open_model`). |
+| **WebMCP unavailable** | grey | Neither could be confirmed. |
+
+A ChatGPT connection is shown **only** on that explicit link signal — never inferred
+from the user agent, referrer, screen size, or being inside an in-app browser. Direct
+registration (or any actual tool call) always upgrades the state to active.
+
+Detection is built for real agent hosts: it watches for the API forever (fast polling
+at first, then a slow heartbeat, plus focus/visibility re-checks) because hosts like
+ChatGPT inject `modelContext` only when the person engages the agent; it accepts the
+API on `document`, `navigator`, or `window`, falls back to `provideContext` for hosts
+without `registerTool`, and flips to active the moment any tool executes. For manual
+testing without an agent, registered tools are exposed on the console as
+`__unfoldedTools` (e.g. `__unfoldedTools.set_capacity.execute({capacityMl: 350})`).
+
+The in-app guide at [`/webmcp`](https://unfolded.carciofomobile.workers.dev/webmcp)
+explains all of this to visitors, with live connection status for their own browser.
 
 ## WebMCP tools
 
