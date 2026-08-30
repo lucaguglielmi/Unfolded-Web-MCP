@@ -63,7 +63,9 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent>
+      {/* Don't auto-focus the name field: most people keep the name, and on
+          mobile a focused input pops the keyboard over the dialog */}
+      <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Export template</DialogTitle>
           <DialogDescription>
@@ -79,7 +81,6 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
             value={name}
             maxLength={60}
             disabled={isExporting}
-            autoFocus
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && name.trim().length > 0) handleExport()
