@@ -87,6 +87,8 @@ interface ProjectState {
   exportsInFlight: number
   /** undo stack — snapshots taken before each change, oldest first */
   history: Snapshot[]
+  /** redo stack — filled by undo, cleared by any new change */
+  future: Snapshot[]
 
   updateForm: (patch: UpdateFormInput) => void
   setClay: (patch: SetClayInput) => void
@@ -96,6 +98,8 @@ interface ProjectState {
   setPaperSize: (paper: PaperSize) => void
   /** Revert the most recent change (form/clay/paper). Returns false when there is nothing to undo. */
   undo: () => boolean
+  /** Re-apply the most recently undone change. Returns false when there is nothing to redo. */
+  redo: () => boolean
   setAgentStatus: (status: AgentStatus) => void
   recordAgentCall: (tool: string) => void
   /**
@@ -120,6 +124,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   lastAgentCall: null,
   exportsInFlight: 0,
   history: [],
+  future: [],
 
   updateForm: (patch) =>
     set((state) => {
@@ -145,7 +150,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       if ((Object.keys(form) as (keyof FormParams)[]).every((k) => form[k] === state.form[k])) {
         return {}
       }
-      return { form, history: pushHistory(state) }
+      return { form, history: pushHistory(state), future: [] }
     }),
 
   setClay: (patch) =>
@@ -154,7 +159,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       if (clay.shrinkagePct === state.clay.shrinkagePct && clay.wallThicknessMm === state.clay.wallThicknessMm) {
         return {}
       }
-      return { clay, history: pushHistory(state) }
+      return { clay, history: pushHistory(state), future: [] }
     }),
 
   openModel: (patches) => {
@@ -171,10 +176,15 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       form: { ...PRESETS[presetId] },
       clay: { ...DEFAULT_CLAY },
       history: pushHistory(state),
+      future: [],
     })),
 
   setPaperSize: (paperSize) =>
-    set((state) => (paperSize === state.paperSize ? {} : { paperSize, history: pushHistory(state) })),
+    set((state) =>
+      paperSize === state.paperSize
+        ? {}
+        : { paperSize, history: pushHistory(state), future: [] }
+    ),
 
   undo: () => {
     let undone = false
@@ -189,9 +199,35 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
         clay: prev.clay,
         paperSize: prev.paperSize,
         history: state.history.slice(0, -1),
+        future: [
+          ...state.future,
+          { form: state.form, clay: state.clay, paperSize: state.paperSize },
+        ],
       }
     })
     return undone
+  },
+
+  redo: () => {
+    let redone = false
+    set((state) => {
+      const next = state.future[state.future.length - 1]
+      if (!next) return {}
+      redone = true
+      lastHistoryPushAt = 0
+      const history = [
+        ...state.history,
+        { form: state.form, clay: state.clay, paperSize: state.paperSize },
+      ]
+      return {
+        form: next.form,
+        clay: next.clay,
+        paperSize: next.paperSize,
+        future: state.future.slice(0, -1),
+        history: history.length > HISTORY_LIMIT ? history.slice(-HISTORY_LIMIT) : history,
+      }
+    })
+    return redone
   },
   setAgentStatus: (agentStatus) => set({ agentStatus }),
   recordAgentCall: (tool) => set({ lastAgentCall: { tool, at: Date.now() } }),

@@ -9,6 +9,7 @@ const reset = () => {
     clay: { ...DEFAULT_CLAY },
     paperSize: "A4",
     history: [],
+    future: [],
     exportsInFlight: 0,
   })
   _resetHistoryCoalescing()
@@ -149,6 +150,52 @@ describe("undo", () => {
     updateForm({ heightMm: PRESETS["classic-mug"].heightMm })
     setClay({ shrinkagePct: DEFAULT_CLAY.shrinkagePct })
     expect(useProjectStore.getState().history).toHaveLength(0)
+  })
+})
+
+describe("redo", () => {
+  beforeEach(reset)
+
+  it("re-applies an undone change, round-tripping cleanly", () => {
+    const { updateForm, undo, redo } = useProjectStore.getState()
+    updateForm({ heightMm: 200 })
+    expect(undo()).toBe(true)
+    expect(useProjectStore.getState().form.heightMm).toBe(PRESETS["classic-mug"].heightMm)
+    expect(redo()).toBe(true)
+    expect(useProjectStore.getState().form.heightMm).toBe(200)
+    // and back again — undo still works after a redo
+    expect(useProjectStore.getState().undo()).toBe(true)
+    expect(useProjectStore.getState().form.heightMm).toBe(PRESETS["classic-mug"].heightMm)
+  })
+
+  it("walks multiple steps in order", () => {
+    const { updateForm, setClay, undo, redo } = useProjectStore.getState()
+    updateForm({ heightMm: 200 })
+    _resetHistoryCoalescing()
+    setClay({ shrinkagePct: 15 })
+    expect(undo()).toBe(true)
+    expect(undo()).toBe(true)
+    expect(redo()).toBe(true)
+    expect(useProjectStore.getState().form.heightMm).toBe(200)
+    expect(useProjectStore.getState().clay.shrinkagePct).toBe(DEFAULT_CLAY.shrinkagePct)
+    expect(redo()).toBe(true)
+    expect(useProjectStore.getState().clay.shrinkagePct).toBe(15)
+    expect(redo()).toBe(false)
+  })
+
+  it("a new change clears the redo stack", () => {
+    const { updateForm, undo, redo } = useProjectStore.getState()
+    updateForm({ heightMm: 200 })
+    expect(undo()).toBe(true)
+    _resetHistoryCoalescing()
+    updateForm({ heightMm: 300 })
+    expect(useProjectStore.getState().future).toHaveLength(0)
+    expect(redo()).toBe(false)
+    expect(useProjectStore.getState().form.heightMm).toBe(300)
+  })
+
+  it("returns false when there is nothing to redo", () => {
+    expect(useProjectStore.getState().redo()).toBe(false)
   })
 })
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Box, Check, Link2, Maximize2, Scissors, Undo2, X } from "lucide-react"
+import { Box, Check, Link2, Maximize2, Redo2, Scissors, Undo2, X } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
 import { LogoMark } from "@/components/LogoMark"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
@@ -30,20 +30,43 @@ function useIsDesktop(): boolean {
   return isDesktop
 }
 
-function UndoButton() {
+/**
+ * Undo/redo, floating at the bottom-left of the preview — the thumbnail
+ * card on mobile, the 3D viewport when expanded or on desktop. Works on
+ * changes from the person and the agent alike.
+ */
+function UndoRedoControls() {
   const canUndo = useProjectStore((s) => s.history.length > 0)
+  const canRedo = useProjectStore((s) => s.future.length > 0)
   const undo = useProjectStore((s) => s.undo)
+  const redo = useProjectStore((s) => s.redo)
+
+  const buttonClass =
+    "bg-background/90 text-foreground flex size-8 items-center justify-center rounded-md border shadow-sm transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-40"
+
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label="Undo last change"
-      title="Undo last change"
-      disabled={!canUndo}
-      onClick={() => undo()}
-    >
-      <Undo2 className="size-4" />
-    </Button>
+    <div className="absolute bottom-2.5 left-2.5 z-20 flex gap-1.5">
+      <button
+        type="button"
+        aria-label="Undo last change"
+        title="Undo last change"
+        disabled={!canUndo}
+        onClick={() => undo()}
+        className={buttonClass}
+      >
+        <Undo2 className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        aria-label="Redo last undone change"
+        title="Redo"
+        disabled={!canRedo}
+        onClick={() => redo()}
+        className={buttonClass}
+      >
+        <Redo2 className="size-3.5" />
+      </button>
+    </div>
   )
 }
 
@@ -107,7 +130,6 @@ export default function App() {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <UndoButton />
             <CopyLinkButton />
             <AgentBadge />
           </div>
@@ -125,7 +147,9 @@ export default function App() {
               previewExpanded
                 ? "fixed inset-0 z-50 flex flex-col"
                 : "relative order-1 mx-4 mt-3 h-44 shrink-0 overflow-hidden rounded-xl border",
-              "bg-background lg:static lg:z-auto lg:order-2 lg:m-0 lg:flex lg:h-auto lg:min-h-0 lg:min-w-0 lg:flex-1 lg:flex-row lg:overflow-visible lg:rounded-none lg:border-0"
+              // lg:relative (not static) so UndoRedoControls anchors to the
+              // preview cluster on desktop too
+              "bg-background lg:relative lg:z-auto lg:order-2 lg:m-0 lg:flex lg:h-auto lg:min-h-0 lg:min-w-0 lg:flex-1 lg:flex-row lg:overflow-visible lg:rounded-none lg:border-0"
             )}
             style={previewExpanded ? { paddingTop: "env(safe-area-inset-top)" } : undefined}
           >
@@ -173,6 +197,8 @@ export default function App() {
             >
               <TemplatePanel />
             </div>
+
+            <UndoRedoControls />
 
             {/* Thumbnail tap targets: the whole card opens the 3D preview;
                 the chips open straight into either full-screen view */}
