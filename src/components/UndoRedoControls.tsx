@@ -1,5 +1,5 @@
 import { Redo2, Undo2 } from "lucide-react"
-import { tapFeedback } from "@/lib/feedback"
+import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 import { useProjectStore } from "@/store/useProjectStore"
 
@@ -24,7 +24,7 @@ export function UndoRedoControls({ className }: { className?: string }) {
         aria-label="Undo last change"
         title="Undo last change"
         disabled={!canUndo}
-        onClick={() => undo() && tapFeedback()}
+        onClick={() => undo() && feedback("tap")}
         className={buttonClass}
       >
         <Undo2 className="size-3.5" />
@@ -34,7 +34,7 @@ export function UndoRedoControls({ className }: { className?: string }) {
         aria-label="Redo last undone change"
         title="Redo"
         disabled={!canRedo}
-        onClick={() => redo() && tapFeedback()}
+        onClick={() => redo() && feedback("tap")}
         className={buttonClass}
       >
         <Redo2 className="size-3.5" />

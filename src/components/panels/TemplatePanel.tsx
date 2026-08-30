@@ -3,7 +3,7 @@ import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { InfoTip } from "@/components/InfoTip"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { tapFeedback } from "@/lib/feedback"
+import { feedback } from "@/lib/feedback"
 import { describePiece, shrinkageScale } from "@/lib/geometry/unroll"
 import {
   countPages,
@@ -57,7 +57,7 @@ export function TemplatePanel() {
           <Tabs
             value={paperSize}
             onValueChange={(v) => {
-              tapFeedback()
+              feedback("tap")
               setPaperSize(v as PaperSize)
             }}
           >

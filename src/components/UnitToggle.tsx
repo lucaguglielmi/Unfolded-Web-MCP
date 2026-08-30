@@ -1,4 +1,4 @@
-import { tapFeedback } from "@/lib/feedback"
+import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 import { useProjectStore } from "@/store/useProjectStore"
 
@@ -24,7 +24,7 @@ export function UnitToggle({ className }: { className?: string }) {
           role="radio"
           aria-checked={unit === u}
           onClick={() => {
-            if (u !== unit) tapFeedback()
+            if (u !== unit) feedback("tap")
             setUnit(u)
           }}
           className={

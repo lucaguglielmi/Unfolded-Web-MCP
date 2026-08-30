@@ -1,7 +1,7 @@
 import { useRef } from "react"
 import type { KeyboardEvent } from "react"
 import type { LucideIcon } from "lucide-react"
-import { selectFeedback } from "@/lib/feedback"
+import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 
 export interface IconOption<T extends string> {
@@ -43,7 +43,7 @@ export function IconOptionGroup<T extends string>({
   const tabbableIndex = selectedIndex >= 0 ? selectedIndex : 0
 
   const pick = (next: T) => {
-    if (next !== value) selectFeedback()
+    if (next !== value) feedback("select")
     onChange(next)
   }
 

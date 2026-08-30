@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
-import { selectFeedback, tapFeedback } from "@/lib/feedback"
+import { feedback } from "@/lib/feedback"
 import { capacityMl, formWarnings } from "@/lib/geometry/unroll"
 import { formatLength, formatVolume, type Unit } from "@/lib/units"
 import { PRESETS } from "@/lib/model/schemas"
@@ -113,7 +113,7 @@ function DimensionSlider({
         step={step}
         onValueChange={([v]) => onChange(v)}
         // one soft tick when the drag lands, not on every step
-        onValueCommit={() => tapFeedback()}
+        onValueCommit={() => feedback("tap")}
       />
     </div>
   )
@@ -273,7 +273,7 @@ export function ParamsPanel() {
                 variant="outline"
                 className="h-auto flex-col gap-1.5 py-3 font-normal transition-all hover:-translate-y-0.5 hover:shadow-sm"
                 onClick={() => {
-                  selectFeedback()
+                  feedback("select")
                   applyPreset(id as keyof typeof PRESETS)
                 }}
               >

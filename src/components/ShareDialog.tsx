@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { successFeedback } from "@/lib/feedback"
+import { feedback } from "@/lib/feedback"
 import { shareUrl } from "@/lib/model/shareLink"
 import { useProjectStore } from "@/store/useProjectStore"
 
@@ -57,7 +57,7 @@ export function ShareDialog() {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(url)
-      successFeedback()
+      feedback("success")
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
     } catch {
