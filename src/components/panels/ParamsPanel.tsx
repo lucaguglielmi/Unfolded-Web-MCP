@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
+import { selectFeedback, tapFeedback } from "@/lib/feedback"
 import { capacityMl, formWarnings } from "@/lib/geometry/unroll"
 import { formatLength, formatVolume, type Unit } from "@/lib/units"
 import { PRESETS } from "@/lib/model/schemas"
@@ -105,7 +106,15 @@ function DimensionSlider({
         </Label>
         <span className="text-foreground/80 text-sm tabular-nums">{shown}</span>
       </div>
-      <Slider value={[value]} min={min} max={max} step={step} onValueChange={([v]) => onChange(v)} />
+      <Slider
+        value={[value]}
+        min={min}
+        max={max}
+        step={step}
+        onValueChange={([v]) => onChange(v)}
+        // one soft tick when the drag lands, not on every step
+        onValueCommit={() => tapFeedback()}
+      />
     </div>
   )
 }
@@ -263,7 +272,10 @@ export function ParamsPanel() {
                 key={id}
                 variant="outline"
                 className="h-auto flex-col gap-1.5 py-3 font-normal transition-all hover:-translate-y-0.5 hover:shadow-sm"
-                onClick={() => applyPreset(id as keyof typeof PRESETS)}
+                onClick={() => {
+                  selectFeedback()
+                  applyPreset(id as keyof typeof PRESETS)
+                }}
               >
                 <Icon className="size-5" />
                 <span className="text-xs leading-tight">{preset.name}</span>

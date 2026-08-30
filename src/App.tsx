@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { successFeedback, tapFeedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 import { WebMCPPage } from "@/pages/WebMCPPage"
 import { shareUrl } from "@/lib/model/shareLink"
@@ -78,7 +79,7 @@ function UndoRedoControls({ className }: { className?: string }) {
         aria-label="Undo last change"
         title="Undo last change"
         disabled={!canUndo}
-        onClick={() => undo()}
+        onClick={() => undo() && tapFeedback()}
         className={buttonClass}
       >
         <Undo2 className="size-3.5" />
@@ -88,7 +89,7 @@ function UndoRedoControls({ className }: { className?: string }) {
         aria-label="Redo last undone change"
         title="Redo"
         disabled={!canRedo}
-        onClick={() => redo()}
+        onClick={() => redo() && tapFeedback()}
         className={buttonClass}
       >
         <Redo2 className="size-3.5" />
@@ -140,6 +141,7 @@ function ShareDialog() {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(url)
+      successFeedback()
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1500)
     } catch {

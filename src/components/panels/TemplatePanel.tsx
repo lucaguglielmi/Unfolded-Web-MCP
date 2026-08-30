@@ -3,6 +3,7 @@ import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { InfoTip } from "@/components/InfoTip"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { tapFeedback } from "@/lib/feedback"
 import { describePiece, shrinkageScale } from "@/lib/geometry/unroll"
 import {
   countPages,
@@ -53,7 +54,13 @@ export function TemplatePanel() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Tabs value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)}>
+          <Tabs
+            value={paperSize}
+            onValueChange={(v) => {
+              tapFeedback()
+              setPaperSize(v as PaperSize)
+            }}
+          >
             <TabsList>
               <TabsTrigger value="A4">A4</TabsTrigger>
               <TabsTrigger value="A3">A3</TabsTrigger>

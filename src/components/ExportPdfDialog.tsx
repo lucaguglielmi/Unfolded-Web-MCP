@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { countPages, layoutPieces } from "@/lib/export/svg"
+import { successFeedback } from "@/lib/feedback"
 import { selectPieces, useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -53,6 +54,7 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
     setExportError(null)
     try {
       await exportPdf()
+      successFeedback()
       setOpen(false)
     } catch (error) {
       // keep the dialog open to retry

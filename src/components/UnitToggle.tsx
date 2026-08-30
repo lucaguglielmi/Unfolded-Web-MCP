@@ -1,3 +1,4 @@
+import { tapFeedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 import { useProjectStore } from "@/store/useProjectStore"
 
@@ -22,7 +23,10 @@ export function UnitToggle({ className }: { className?: string }) {
           type="button"
           role="radio"
           aria-checked={unit === u}
-          onClick={() => setUnit(u)}
+          onClick={() => {
+            if (u !== unit) tapFeedback()
+            setUnit(u)
+          }}
           className={
             unit === u
               ? "bg-foreground text-background rounded px-2 py-0.5 text-[11px] font-medium"

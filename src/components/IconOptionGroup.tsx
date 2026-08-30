@@ -1,6 +1,7 @@
 import { useRef } from "react"
 import type { KeyboardEvent } from "react"
 import type { LucideIcon } from "lucide-react"
+import { selectFeedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 
 export interface IconOption<T extends string> {
@@ -41,9 +42,14 @@ export function IconOptionGroup<T extends string>({
   const selectedIndex = options.findIndex((o) => o.value === value)
   const tabbableIndex = selectedIndex >= 0 ? selectedIndex : 0
 
+  const pick = (next: T) => {
+    if (next !== value) selectFeedback()
+    onChange(next)
+  }
+
   const moveTo = (index: number) => {
     const next = (index + options.length) % options.length
-    onChange(options[next].value)
+    pick(options[next].value)
     buttonRefs.current[next]?.focus()
   }
 
@@ -89,7 +95,7 @@ export function IconOptionGroup<T extends string>({
             role="radio"
             aria-checked={selected}
             tabIndex={index === tabbableIndex ? 0 : -1}
-            onClick={() => onChange(option.value)}
+            onClick={() => pick(option.value)}
             onKeyDown={(e) => handleKeyDown(e, index)}
             className={cn(
               "flex items-center justify-center rounded-lg border text-sm font-medium transition-colors active:scale-[0.98]",
