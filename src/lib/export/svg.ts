@@ -27,6 +27,12 @@ export interface PieceGraphic {
   widthMm: number
   heightMm: number
   labelAt: Vec
+  /**
+   * Width available for text at the label position, when narrower than the
+   * bounding box (e.g. a trapezoid's mid-height width). Falls back to
+   * widthMm when absent.
+   */
+  textWidthMm?: number
 }
 
 const fmt = (n: number) => Number(n.toFixed(3)).toString()
@@ -41,6 +47,27 @@ function rectangleGraphic(widthMm: number, heightMm: number): PieceGraphic {
     widthMm,
     heightMm,
     labelAt: { x: widthMm / 2, y: heightMm / 2 },
+  }
+}
+
+function trapezoidGraphic(topWidthMm: number, bottomWidthMm: number, heightMm: number): PieceGraphic {
+  // isosceles trapezoid, centered; either edge may be the wider one
+  const w = Math.max(topWidthMm, bottomWidthMm)
+  const xTL = (w - topWidthMm) / 2
+  const xTR = (w + topWidthMm) / 2
+  const xBL = (w - bottomWidthMm) / 2
+  const xBR = (w + bottomWidthMm) / 2
+  return {
+    d: `M ${fmt(xTL)} 0 L ${fmt(xTR)} 0 L ${fmt(xBR)} ${fmt(heightMm)} L ${fmt(xBL)} ${fmt(heightMm)} Z`,
+    seams: [
+      { x1: xTL, y1: 0, x2: xBL, y2: heightMm },
+      { x1: xTR, y1: 0, x2: xBR, y2: heightMm },
+    ],
+    widthMm: w,
+    heightMm,
+    labelAt: { x: w / 2, y: heightMm / 2 },
+    // text sits at mid-height, where the panel is its average width
+    textWidthMm: (topWidthMm + bottomWidthMm) / 2,
   }
 }
 
@@ -135,6 +162,8 @@ export function pieceGraphic(piece: Piece): PieceGraphic {
   switch (piece.kind) {
     case "rectangle":
       return rectangleGraphic(piece.widthMm, piece.heightMm)
+    case "trapezoid":
+      return trapezoidGraphic(piece.topWidthMm, piece.bottomWidthMm, piece.heightMm)
     case "annularSector":
       return sectorGraphic(piece.innerRadiusMm, piece.outerRadiusMm, piece.angleRad)
     case "disc":

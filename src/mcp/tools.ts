@@ -48,7 +48,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "open_model",
       description:
-        "Open a pottery design from an Unfolded share link. Pass the full URL (any domain — the deployment host may change) or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Recognized parameters: type (cylinder, tapered, triangle, square, pentagon, hexagon, heptagon, octagon), height / bottom / top (fired mm), name, shrinkage (percent), wall (mm), paper (A4 or Letter). Parameters missing from the link keep their current values; out-of-range values are clamped. The same link opens the design directly in a browser, and every state snapshot includes shareUrl — give that to the potter to save or share the current design. Returns the full new state, ready for further update_form / set_clay edits.",
+        "Open a pottery design from an Unfolded share link. Pass the full URL (any domain — the deployment host may change) or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Recognized parameters: type (cylinder, tapered, triangle, square, pentagon, hexagon, heptagon, octagon), height / bottom / top (fired mm; a 'top' value marks the form as tapered — works for faceted shapes too, e.g. 'type=hexagon&top=120'), name, shrinkage (percent), wall (mm), paper (A4 or Letter). Parameters missing from the link keep their current values; out-of-range values are clamped. The same link opens the design directly in a browser, and every state snapshot includes shareUrl — give that to the potter to save or share the current design. Returns the full new state, ready for further update_form / set_clay edits.",
       inputSchema: z.toJSONSchema(
         z.object({
           url: z.string().min(1).describe("Share link URL, or just its query string"),
@@ -74,7 +74,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "update_form",
       description:
-        "Update the pottery form. Any subset of: type ('cylinder' = straight round wall, 'tapered' = cone frustum, 'faceted' = straight prism with flat sides), facets (side count for faceted forms: 3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon), name, heightMm, topDiameterMm, bottomDiameterMm (for faceted forms this is the width across corners). Dimensions are FIRED sizes in millimeters — shrinkage compensation is applied automatically to the templates. The 3D preview and the flat templates the potter sees update immediately. Returns the full new state, including capacityMl (approximate fired interior volume) — for a target like 'a 350 ml mug', adjust dimensions and check capacityMl until it matches.",
+        "Update the pottery form. Any subset of: type ('round' = circular wall, 'faceted' = prism with flat sides), tapered (boolean — its own axis, so ANY shape can taper: true makes the top differ from the bottom, a cone frustum for round or a pyramid frustum for faceted, and topDiameterMm applies; false keeps the wall straight with top mirroring bottom), facets (side count for faceted forms: 3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon), name, heightMm, topDiameterMm, bottomDiameterMm (for faceted forms widths are across corners). Legacy type values 'cylinder' and 'tapered' are still accepted. Dimensions are FIRED sizes in millimeters — shrinkage compensation is applied automatically to the templates. The 3D preview and the flat templates the potter sees update immediately. Returns the full new state, including capacityMl (approximate fired interior volume) — for a target like 'a 350 ml mug', adjust dimensions and check capacityMl until it matches.",
       inputSchema: z.toJSONSchema(updateFormInputSchema),
       annotations: { title: "Update form dimensions", idempotentHint: true },
       execute: (input) =>
@@ -115,7 +115,7 @@ export function buildTools(): ToolDescriptor[] {
         run("get_preview_image", () => {
           const state = describeState()
           const summary =
-            `3D preview of "${state.form.name}": ${state.form.type}` +
+            `3D preview of "${state.form.name}": ${state.form.tapered ? "tapered " : ""}${state.form.type}` +
             (state.form.type === "faceted" ? ` (${state.form.facets} sides)` : "") +
             `, ${state.form.heightMm} mm tall x ${state.form.bottomDiameterMm} mm wide (fired), ` +
             `holds ~${state.capacityMl} ml.`

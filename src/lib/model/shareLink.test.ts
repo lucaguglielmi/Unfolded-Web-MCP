@@ -8,7 +8,8 @@ describe("parseShareParams", () => {
       "https://unfolded.example.com/?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5"
     )
     expect(patches.form).toEqual({
-      type: "tapered",
+      type: "round",
+      tapered: true,
       heightMm: 600,
       bottomDiameterMm: 300,
       topDiameterMm: 100,
@@ -27,6 +28,15 @@ describe("parseShareParams", () => {
   it("maps friendly shape names to faceted forms", () => {
     expect(parseShareParams("type=triangle").form).toEqual({ type: "faceted", facets: 3 })
     expect(parseShareParams("type=octagon").form).toEqual({ type: "faceted", facets: 8 })
+  })
+
+  it("marks any shape tapered when the link carries a top size", () => {
+    expect(parseShareParams("type=pentagon&top=120").form).toEqual({
+      type: "faceted",
+      facets: 5,
+      tapered: true,
+      topDiameterMm: 120,
+    })
   })
 
   it("lets an explicit facets parameter override the alias", () => {

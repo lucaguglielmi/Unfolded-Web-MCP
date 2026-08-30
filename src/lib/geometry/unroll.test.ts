@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildPieces, capacityMl, describePiece, formWarnings, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
+import { buildPieces, capacityMl, describePiece, facetBevelDeg, formWarnings, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
 import type { ClaySettings, FormParams } from "@/lib/model/schemas"
 
 const clay: ClaySettings = { shrinkagePct: 0, wallThicknessMm: 5 }
@@ -48,7 +48,8 @@ describe("unrollFrustum", () => {
 
 describe("buildPieces", () => {
   const mug: FormParams = {
-    type: "cylinder",
+    type: "round",
+    tapered: false,
     name: "test",
     heightMm: 100,
     topDiameterMm: 85,
@@ -77,13 +78,13 @@ describe("buildPieces", () => {
   })
 
   it("produces a sector wall for tapered forms", () => {
-    const tumbler: FormParams = { ...mug, type: "tapered", topDiameterMm: 90, bottomDiameterMm: 65 }
+    const tumbler: FormParams = { ...mug, tapered: true, topDiameterMm: 90, bottomDiameterMm: 65 }
     const [wall] = buildPieces(tumbler, clay)
     expect(wall.kind).toBe("annularSector")
   })
 
   it("treats sub-tolerance taper as straight instead of a degenerate sector", () => {
-    const nearly: FormParams = { ...mug, type: "tapered", topDiameterMm: 85.01, bottomDiameterMm: 85 }
+    const nearly: FormParams = { ...mug, tapered: true, topDiameterMm: 85.01, bottomDiameterMm: 85 }
     const [wall] = buildPieces(nearly, clay)
     expect(wall.kind).toBe("rectangle")
   })
@@ -148,7 +149,8 @@ describe("buildPieces", () => {
 
 describe("formWarnings", () => {
   const mug: FormParams = {
-    type: "cylinder",
+    type: "round",
+    tapered: false,
     name: "test",
     heightMm: 100,
     topDiameterMm: 85,
@@ -171,7 +173,7 @@ describe("formWarnings", () => {
 
   it("flags a nearly-straight taper as unwieldy", () => {
     const warnings = formWarnings(
-      { ...mug, type: "tapered", topDiameterMm: 86, bottomDiameterMm: 85, heightMm: 200 },
+      { ...mug, tapered: true, topDiameterMm: 86, bottomDiameterMm: 85, heightMm: 200 },
       clay
     )
     expect(warnings.join(" ")).toMatch(/taper/i)
@@ -195,7 +197,8 @@ describe("describePiece", () => {
 
 describe("capacityMl", () => {
   const mug: FormParams = {
-    type: "cylinder",
+    type: "round",
+    tapered: false,
     name: "Mug",
     heightMm: 100,
     topDiameterMm: 85,
@@ -211,7 +214,7 @@ describe("capacityMl", () => {
   })
 
   it("a flared tapered form holds more than the straight cylinder", () => {
-    const flared: FormParams = { ...mug, type: "tapered", topDiameterMm: 120 }
+    const flared: FormParams = { ...mug, tapered: true, topDiameterMm: 120 }
     const c = { shrinkagePct: 12, wallThicknessMm: 5 }
     expect(capacityMl(flared, c)).toBeGreaterThan(capacityMl(mug, c))
   })
@@ -226,5 +229,53 @@ describe("capacityMl", () => {
   it("degenerates to zero instead of going negative", () => {
     const tiny: FormParams = { ...mug, bottomDiameterMm: 20, topDiameterMm: 20 }
     expect(capacityMl(tiny, { shrinkagePct: 0, wallThicknessMm: 15 })).toBe(0)
+  })
+})
+
+describe("tapered faceted prisms", () => {
+  const base: FormParams = {
+    type: "faceted",
+    tapered: true,
+    name: "test",
+    heightMm: 120,
+    topDiameterMm: 140,
+    bottomDiameterMm: 100,
+    facets: 6,
+  }
+  const clay0: ClaySettings = { shrinkagePct: 0, wallThicknessMm: 5 }
+
+  it("side panels become trapezoids with polygon side lengths at each end", () => {
+    const [side] = buildPieces(base, clay0)
+    if (side.kind !== "trapezoid") throw new Error("expected trapezoid side")
+    expect(side.topWidthMm).toBeCloseTo(2 * 70 * Math.sin(Math.PI / 6), 5)
+    expect(side.bottomWidthMm).toBeCloseTo(2 * 50 * Math.sin(Math.PI / 6), 5)
+  })
+
+  it("panel height is the slant, longer than the vessel height", () => {
+    const [side] = buildPieces(base, clay0)
+    if (side.kind !== "trapezoid") throw new Error("expected trapezoid side")
+    const dApothem = (70 - 50) * Math.cos(Math.PI / 6)
+    expect(side.heightMm).toBeCloseTo(Math.hypot(120, dApothem), 5)
+    expect(side.heightMm).toBeGreaterThan(120)
+  })
+
+  it("taper shallows the miter bevel below the straight-prism angle", () => {
+    const straight = facetBevelDeg(6, 50, 50, 120)
+    expect(straight).toBeCloseTo(30, 8)
+    const tapered = facetBevelDeg(6, 70 * Math.cos(Math.PI / 6), 50 * Math.cos(Math.PI / 6), 120)
+    expect(tapered).toBeLessThan(30)
+    expect(tapered).toBeGreaterThan(25)
+  })
+
+  it("a sub-tolerance taper still cuts rectangles", () => {
+    const nearly: FormParams = { ...base, topDiameterMm: 100.01, bottomDiameterMm: 100 }
+    const [side] = buildPieces(nearly, clay0)
+    expect(side.kind).toBe("rectangle")
+  })
+
+  it("a flared tapered hexagon holds more than the straight one", () => {
+    const straight: FormParams = { ...base, tapered: false, topDiameterMm: 100 }
+    const c = { shrinkagePct: 12, wallThicknessMm: 5 }
+    expect(capacityMl(base, c)).toBeGreaterThan(capacityMl(straight, c))
   })
 })

@@ -25,9 +25,10 @@ export interface SharePatches {
 }
 
 /** friendly names accepted (and emitted) for the `type` parameter */
-const TYPE_ALIASES: Record<string, { type: FormType; facets?: number }> = {
-  cylinder: { type: "cylinder" },
-  tapered: { type: "tapered" },
+const TYPE_ALIASES: Record<string, { type: FormType; tapered?: boolean; facets?: number }> = {
+  round: { type: "round" },
+  cylinder: { type: "round", tapered: false },
+  tapered: { type: "round", tapered: true },
   faceted: { type: "faceted" },
   triangle: { type: "faceted", facets: 3 },
   square: { type: "faceted", facets: 4 },
@@ -77,6 +78,7 @@ export function parseShareParams(input: string | URLSearchParams): SharePatches 
   if (typeRaw && TYPE_ALIASES[typeRaw]) {
     const alias = TYPE_ALIASES[typeRaw]
     form.type = alias.type
+    if (alias.tapered !== undefined) form.tapered = alias.tapered
     if (alias.facets !== undefined) form.facets = alias.facets
   }
   const facets = num("facets")
@@ -86,7 +88,14 @@ export function parseShareParams(input: string | URLSearchParams): SharePatches 
   const bottom = num("bottom")
   if (bottom !== undefined) form.bottomDiameterMm = clamp(bottom, 20, 500)
   const top = num("top")
-  if (top !== undefined) form.topDiameterMm = clamp(top, 20, 500)
+  if (top !== undefined) {
+    form.topDiameterMm = clamp(top, 20, 500)
+    // an explicit top means a tapered form (e.g. type=hexagon&top=120)
+    form.tapered = true
+  }
+  const taperedRaw = params.get("tapered")?.trim().toLowerCase()
+  if (taperedRaw === "1" || taperedRaw === "true") form.tapered = true
+  else if (taperedRaw === "0" || taperedRaw === "false") form.tapered = false
   const name = params.get("name")?.trim().slice(0, 60)
   if (name) form.name = name
 
@@ -119,10 +128,19 @@ export function buildShareParams(
   paperSize: PaperSize
 ): URLSearchParams {
   const params = new URLSearchParams()
-  params.set("type", form.type === "faceted" ? (FACET_NAMES[form.facets] ?? "faceted") : form.type)
+  // keep the friendly legacy vocabulary: cylinder/tapered for round forms,
+  // shape names for faceted (where `top` alone marks the taper)
+  params.set(
+    "type",
+    form.type === "faceted"
+      ? (FACET_NAMES[form.facets] ?? "faceted")
+      : form.tapered
+        ? "tapered"
+        : "cylinder"
+  )
   params.set("height", fmtNum(form.heightMm))
   params.set("bottom", fmtNum(form.bottomDiameterMm))
-  if (form.type === "tapered") params.set("top", fmtNum(form.topDiameterMm))
+  if (form.tapered) params.set("top", fmtNum(form.topDiameterMm))
   if (form.name) params.set("name", form.name)
   params.set("shrinkage", fmtNum(clay.shrinkagePct))
   params.set("wall", fmtNum(clay.wallThicknessMm))

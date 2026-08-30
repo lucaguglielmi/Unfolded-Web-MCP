@@ -12,7 +12,7 @@ import { useProjectStore } from "@/store/useProjectStore"
 
 const TOOLS: [string, string][] = [
   ["describe_project", "Read the whole design: form, clay, template pieces, capacity in ml, and its share link."],
-  ["update_form", "Change shape, facets, height and diameters — fired sizes, in millimeters."],
+  ["update_form", "Change shape, taper, facets, height and diameters — fired sizes, in millimeters."],
   ["set_clay", "Set shrinkage % and slab thickness for the potter's clay body."],
   ["get_template_summary", "Template layout, per-piece dimensions, and the exact PDF page count."],
   ["get_preview_image", "See the live 3D preview as an image — exactly what the potter sees."],

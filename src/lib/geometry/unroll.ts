@@ -24,6 +24,21 @@ export interface RectanglePiece {
   notes: string[]
 }
 
+export interface TrapezoidPiece {
+  kind: "trapezoid"
+  id: string
+  label: string
+  /** width of the top edge (the rim end of the panel) */
+  topWidthMm: number
+  /** width of the bottom edge (the base end of the panel) */
+  bottomWidthMm: number
+  /** slant height of the panel (its true cut height, not the vessel height) */
+  heightMm: number
+  /** short instruction printed on the piece itself (e.g. "cut 6 · bevel 28°") */
+  stamp?: string
+  notes: string[]
+}
+
 export interface AnnularSectorPiece {
   kind: "annularSector"
   id: string
@@ -57,7 +72,7 @@ export interface PolygonPiece {
   notes: string[]
 }
 
-export type Piece = RectanglePiece | AnnularSectorPiece | DiscPiece | PolygonPiece
+export type Piece = RectanglePiece | TrapezoidPiece | AnnularSectorPiece | DiscPiece | PolygonPiece
 
 export function shrinkageScale(shrinkagePct: number): number {
   if (shrinkagePct < 0 || shrinkagePct >= 100) {
@@ -106,6 +121,27 @@ export function unrollFrustum(
 }
 
 /**
+ * Miter bevel for the edges between adjacent flat panels, in degrees: half
+ * the angle between the two faces' outward normals. For a straight prism
+ * this is exactly 180/n; taper leans the faces (tilt φ from vertical, with
+ * tan φ = Δapothem / height), which shrinks the angle between normals —
+ * n1·n2 = cos²φ·cos(2π/n) + sin²φ — so tapered corners need a shallower
+ * bevel than straight ones.
+ */
+export function facetBevelDeg(
+  n: number,
+  apothemTopMm: number,
+  apothemBottomMm: number,
+  heightMm: number
+): number {
+  const phi = Math.atan2(Math.abs(apothemBottomMm - apothemTopMm), heightMm)
+  const cosNormals =
+    Math.cos(phi) ** 2 * Math.cos((2 * Math.PI) / n) + Math.sin(phi) ** 2
+  const normalsAngle = Math.acos(Math.min(1, Math.max(-1, cosNormals)))
+  return (normalsAngle * 90) / Math.PI // half of it, in degrees
+}
+
+/**
  * Build the full wet-clay template piece list for a form.
  *
  * The base disc is sized to the INNER wall diameter so the wall slab wraps
@@ -116,33 +152,56 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
   const t = clay.wallThicknessMm
 
   if (form.type === "faceted") {
-    // Straight-walled N-sided prism: N identical flat side panels joined with
-    // mitered corners, plus a polygon base. Flat panels do not bend, so no
-    // mid-surface correction applies — panels are cut to the outer face size
-    // and the corner bevel absorbs the thickness.
+    // N-sided prism (straight) or pyramid frustum (tapered): N identical flat
+    // side panels joined with mitered corners, plus a polygon base. Flat
+    // panels do not bend, so no mid-surface correction applies — panels are
+    // cut to the outer face size and the corner bevel absorbs the thickness.
     const n = form.facets
-    const outerR = form.bottomDiameterMm / 2 // across corners (circumscribed)
-    const sideOut = 2 * outerR * Math.sin(Math.PI / n)
-    const apothemOut = outerR * Math.cos(Math.PI / n)
-    const bevelDeg = 180 / n
+    const outerRBot = form.bottomDiameterMm / 2 // across corners (circumscribed)
+    const outerRTop = (form.tapered ? form.topDiameterMm : form.bottomDiameterMm) / 2
+    const sideBot = 2 * outerRBot * Math.sin(Math.PI / n)
+    const sideTop = 2 * outerRTop * Math.sin(Math.PI / n)
+    const apothemBot = outerRBot * Math.cos(Math.PI / n)
+    const apothemTop = outerRTop * Math.cos(Math.PI / n)
+    const bevelDeg = facetBevelDeg(n, apothemTop, apothemBot, form.heightMm)
+    const bevelText = `${Number(bevelDeg.toFixed(1))}°`
+    // the panel's true cut height is its slant, not the vessel height
+    const slant = Math.hypot(form.heightMm, apothemBot - apothemTop)
 
-    const pieces: Piece[] = [
-      {
+    const pieces: Piece[] = []
+    if (Math.abs(sideTop - sideBot) < 0.05) {
+      pieces.push({
         kind: "rectangle",
         id: "side",
         label: "Side",
-        widthMm: sideOut * scale,
+        widthMm: sideBot * scale,
         heightMm: form.heightMm * scale,
-        stamp: `cut ${n} · bevel ${bevelDeg.toFixed(0)}°`,
+        stamp: `cut ${n} · bevel ${bevelText}`,
         notes: [
           `Cut ${n} copies — one per side`,
-          `Bevel both vertical edges at ${bevelDeg.toFixed(0)}° for mitered corners`,
+          `Bevel both vertical edges at ${bevelText} for mitered corners`,
           "Flat panels don't bend, so no mid-surface correction is applied",
         ],
-      },
-    ]
+      })
+    } else {
+      pieces.push({
+        kind: "trapezoid",
+        id: "side",
+        label: "Side",
+        topWidthMm: sideTop * scale,
+        bottomWidthMm: sideBot * scale,
+        heightMm: slant * scale,
+        stamp: `cut ${n} · bevel ${bevelText}`,
+        notes: [
+          `Cut ${n} copies — one per side (the ${sideTop > sideBot ? "wider" : "narrower"} edge is the rim)`,
+          `Bevel both slanted edges at ${bevelText} for mitered corners`,
+          "Panel height is the slant height — the leaning face's true length",
+          "Flat panels don't bend, so no mid-surface correction is applied",
+        ],
+      })
+    }
 
-    const apothemIn = Math.max(0, apothemOut - t)
+    const apothemIn = Math.max(0, apothemBot - t)
     pieces.push({
       kind: "polygon",
       id: "base",
@@ -154,7 +213,7 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
     return pieces
   }
 
-  const outerTopR = (form.type === "cylinder" ? form.bottomDiameterMm : form.topDiameterMm) / 2
+  const outerTopR = (form.tapered ? form.topDiameterMm : form.bottomDiameterMm) / 2
   const outerBottomR = form.bottomDiameterMm / 2
   const midTopR = outerTopR - t / 2
   const midBottomR = outerBottomR - t / 2
@@ -214,16 +273,24 @@ export function capacityMl(form: FormParams, clay: ClaySettings): number {
   const hIn = Math.max(0, form.heightMm - firedWall)
   if (hIn === 0) return 0
 
+  const topOuter = form.tapered ? form.topDiameterMm : form.bottomDiameterMm
+
   let volumeMm3 = 0
   if (form.type === "faceted") {
-    const apothemIn = (form.bottomDiameterMm / 2) * Math.cos(Math.PI / form.facets) - firedWall
-    if (apothemIn <= 0) return 0
-    const area = form.facets * apothemIn * apothemIn * Math.tan(Math.PI / form.facets)
-    volumeMm3 = area * hIn
+    // frustum of a pyramid: V = h/3 (A1 + A2 + sqrt(A1 A2)); straight prisms
+    // fall out naturally with A1 == A2
+    const cosN = Math.cos(Math.PI / form.facets)
+    const tanN = Math.tan(Math.PI / form.facets)
+    const area = (outerAcross: number) => {
+      const apothemIn = Math.max(0, (outerAcross / 2) * cosN - firedWall)
+      return form.facets * apothemIn * apothemIn * tanN
+    }
+    const aBot = area(form.bottomDiameterMm)
+    const aTop = area(topOuter)
+    volumeMm3 = (hIn * (aBot + aTop + Math.sqrt(aBot * aTop))) / 3
   } else {
     const rBot = Math.max(0, form.bottomDiameterMm / 2 - firedWall)
-    const rTop =
-      form.type === "tapered" ? Math.max(0, form.topDiameterMm / 2 - firedWall) : rBot
+    const rTop = Math.max(0, topOuter / 2 - firedWall)
     volumeMm3 = (Math.PI * hIn * (rBot * rBot + rBot * rTop + rTop * rTop)) / 3
   }
   return Math.round(volumeMm3 / 1000)
@@ -238,10 +305,13 @@ export function formWarnings(form: FormParams, clay: ClaySettings): string[] {
   const warnings: string[] = []
   const t = clay.wallThicknessMm
 
+  const topOuter = form.tapered ? form.topDiameterMm : form.bottomDiameterMm
+
   if (form.type === "faceted") {
     // For a prism the base sits inside the flat faces, so room for it is
     // measured across flats (apothem), not across corners.
-    const apothemOut = (form.bottomDiameterMm / 2) * Math.cos(Math.PI / form.facets)
+    const cosN = Math.cos(Math.PI / form.facets)
+    const apothemOut = (form.bottomDiameterMm / 2) * cosN
     const innerAcrossFlats = 2 * (apothemOut - t)
     if (innerAcrossFlats <= 0) {
       warnings.push(
@@ -252,10 +322,15 @@ export function formWarnings(form: FormParams, clay: ClaySettings): string[] {
         `The base is only ${innerAcrossFlats.toFixed(0)} mm across the flats — joining the sides to it will be fiddly.`
       )
     }
+    if (form.tapered && (topOuter / 2) * cosN - t <= 0) {
+      warnings.push(
+        `Wall thickness (${t} mm) closes off the ${topOuter} mm opening at the rim entirely.`
+      )
+    }
     return warnings
   }
 
-  const topD = form.type === "cylinder" ? form.bottomDiameterMm : form.topDiameterMm
+  const topD = topOuter
   const innerBottomD = form.bottomDiameterMm - 2 * t
 
   if (innerBottomD <= 0) {
@@ -273,7 +348,7 @@ export function formWarnings(form: FormParams, clay: ClaySettings): string[] {
     )
   }
   const taper = Math.abs(topD - form.bottomDiameterMm)
-  if (form.type === "tapered" && taper > 0.05 && taper < form.heightMm * 0.06) {
+  if (form.tapered && taper > 0.05 && taper < form.heightMm * 0.06) {
     warnings.push(
       "Very slight taper: the unrolled arc is nearly straight and unwieldy to print — consider a cylinder, or increase the taper."
     )
@@ -304,6 +379,11 @@ export function describePiece(piece: Piece, scale = 1): string {
   switch (piece.kind) {
     case "rectangle":
       return `${piece.label}: rectangle ${dim(piece.widthMm)} x ${dim(piece.heightMm)}`
+    case "trapezoid":
+      return (
+        `${piece.label}: trapezoid, top ${dim(piece.topWidthMm)}, bottom ${dim(piece.bottomWidthMm)}, ` +
+        `slant height ${dim(piece.heightMm)}`
+      )
     case "annularSector":
       return (
         `${piece.label}: annular sector, radii ${dim(piece.innerRadiusMm)}-${dim(piece.outerRadiusMm)}, ` +

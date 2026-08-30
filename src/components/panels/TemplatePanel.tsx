@@ -73,7 +73,7 @@ export function TemplatePanel() {
           viewBox={`${-PAD} ${-PAD} ${layout.widthMm + 2 * PAD} ${layout.heightMm + 2 * PAD}`}
         >
           {layout.placed.map(({ piece, graphic, dx, dy }) => {
-            const availableWidth = graphic.widthMm
+            const availableWidth = graphic.textWidthMm ?? graphic.widthMm
             // uppercase runs wider than the mixed-case average, hence 1.15
             const showName = textFits(form.name, NAME_FONT_MM * 1.15, availableWidth)
             const showLabel = textFits(piece.label, LABEL_FONT_MM, availableWidth)
@@ -121,7 +121,7 @@ export function TemplatePanel() {
                     {piece.label}
                   </text>
                 )}
-                {piece.kind === "rectangle" &&
+                {(piece.kind === "rectangle" || piece.kind === "trapezoid") &&
                   piece.stamp &&
                   textFits(piece.stamp, STAMP_FONT_MM, availableWidth) && (
                     <text

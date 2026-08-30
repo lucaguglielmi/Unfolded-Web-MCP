@@ -7,32 +7,57 @@ import { z } from "zod"
  */
 
 export const formTypeSchema = z
-  .enum(["cylinder", "tapered", "faceted"])
+  .enum(["round", "faceted"])
   .describe(
-    "Form construction type. 'cylinder' is a straight round wall; 'tapered' is a cone frustum with different top and bottom diameters; 'faceted' is a straight-walled prism with `facets` flat sides (3 = triangular, 4 = square, 5 = pentagonal, 6 = hexagonal)."
+    "Base geometry of the wall. 'round' is a circular wall (a cylinder, or a cone frustum when tapered); 'faceted' is a prism with `facets` flat sides (a pyramid frustum when tapered). Taper is a separate flag — any shape can be straight or tapered."
   )
 
 export const formParamsSchema = z.object({
   type: formTypeSchema,
+  tapered: z
+    .boolean()
+    .describe(
+      "When true, the top and bottom sizes differ (cone frustum for round, pyramid frustum for faceted) and topDiameterMm applies. When false the wall is straight and the top mirrors bottomDiameterMm."
+    ),
   name: z.string().min(1).max(60).describe("Display name of the piece, e.g. 'Classic mug'"),
   heightMm: z.number().min(20).max(600).describe("Fired height of the wall in millimeters"),
   topDiameterMm: z
     .number()
     .min(20)
     .max(500)
-    .describe("Fired outer diameter at the rim in millimeters (only used by type 'tapered'; cylinder and faceted forms use bottomDiameterMm)"),
+    .describe(
+      "Fired outer size at the rim in millimeters (used when tapered is true; straight forms mirror bottomDiameterMm). For 'faceted' forms this is measured across corners."
+    ),
   bottomDiameterMm: z
     .number()
     .min(20)
     .max(500)
-    .describe("Fired outer diameter at the base in millimeters. For 'faceted' forms this is measured across corners (the circumscribed circle)."),
+    .describe("Fired outer size at the base in millimeters. For 'faceted' forms this is measured across corners (the circumscribed circle)."),
   facets: z
     .number()
     .int()
     .min(3)
     .max(8)
-    .describe("Number of flat sides for type 'faceted' (3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon). Ignored for cylinder and tapered forms."),
+    .describe("Number of flat sides for type 'faceted' (3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon). Ignored for round forms."),
 })
+
+/**
+ * Accept the pre-taper-split vocabulary from old share links, persisted
+ * sessions, and agents that read earlier tool docs: type 'cylinder' means
+ * round+straight, type 'tapered' means round+tapered. An explicit `tapered`
+ * in the same patch wins over what the legacy type implies.
+ */
+export function normalizeLegacyFormPatch(patch: Record<string, unknown>): Record<string, unknown> {
+  const p = { ...patch }
+  if (p.type === "cylinder") {
+    p.type = "round"
+    if (p.tapered === undefined) p.tapered = false
+  } else if (p.type === "tapered") {
+    p.type = "round"
+    if (p.tapered === undefined) p.tapered = true
+  }
+  return p
+}
 
 export const claySettingsSchema = z.object({
   shrinkagePct: z
@@ -59,7 +84,8 @@ export type SetClayInput = z.infer<typeof setClayInputSchema>
 
 export const PRESETS: Record<string, FormParams> = {
   "classic-mug": {
-    type: "cylinder",
+    type: "round",
+    tapered: false,
     name: "Classic mug",
     heightMm: 100,
     topDiameterMm: 85,
@@ -67,7 +93,8 @@ export const PRESETS: Record<string, FormParams> = {
     facets: 4,
   },
   tumbler: {
-    type: "tapered",
+    type: "round",
+    tapered: true,
     name: "Tapered tumbler",
     heightMm: 130,
     topDiameterMm: 90,
@@ -75,7 +102,8 @@ export const PRESETS: Record<string, FormParams> = {
     facets: 4,
   },
   "bud-vase": {
-    type: "tapered",
+    type: "round",
+    tapered: true,
     name: "Bud vase",
     heightMm: 180,
     topDiameterMm: 45,
@@ -84,6 +112,7 @@ export const PRESETS: Record<string, FormParams> = {
   },
   "hex-planter": {
     type: "faceted",
+    tapered: false,
     name: "Hex planter",
     heightMm: 110,
     topDiameterMm: 140,

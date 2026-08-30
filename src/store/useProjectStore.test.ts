@@ -18,16 +18,16 @@ const reset = () => {
 describe("updateForm type switching", () => {
   beforeEach(reset)
 
-  it("flares the top when switching to tapered from a straight form", () => {
+  it("flares the top when turning taper on from a straight form", () => {
     const { updateForm } = useProjectStore.getState()
     const before = useProjectStore.getState().form
-    expect(before.type).toBe("cylinder")
+    expect(before.tapered).toBe(false)
     expect(before.topDiameterMm).toBe(before.bottomDiameterMm)
 
-    updateForm({ type: "tapered" })
+    updateForm({ tapered: true })
 
     const form = useProjectStore.getState().form
-    expect(form.type).toBe("tapered")
+    expect(form.tapered).toBe(true)
     expect(form.topDiameterMm).toBeGreaterThan(form.bottomDiameterMm)
     expect(form.topDiameterMm).toBe(
       Math.min(300, Math.round(before.bottomDiameterMm * 1.4))
@@ -36,29 +36,50 @@ describe("updateForm type switching", () => {
 
   it("respects an explicit top diameter supplied with the switch", () => {
     const { updateForm } = useProjectStore.getState()
-    updateForm({ type: "tapered", topDiameterMm: 60 })
+    updateForm({ tapered: true, topDiameterMm: 60 })
     expect(useProjectStore.getState().form.topDiameterMm).toBe(60)
   })
 
   it("does not re-flare when already tapered", () => {
     const { updateForm } = useProjectStore.getState()
-    updateForm({ type: "tapered" })
+    updateForm({ tapered: true })
     updateForm({ topDiameterMm: 85 }) // potter narrows it back to straight-ish
-    updateForm({ type: "tapered", heightMm: 120 })
+    updateForm({ tapered: true, heightMm: 120 })
     expect(useProjectStore.getState().form.topDiameterMm).toBe(85)
+  })
+
+  it("understands the legacy type vocabulary from old agents and links", () => {
+    const { updateForm } = useProjectStore.getState()
+    updateForm({ type: "tapered" } as never)
+    let form = useProjectStore.getState().form
+    expect(form.type).toBe("round")
+    expect(form.tapered).toBe(true)
+    updateForm({ type: "cylinder" } as never)
+    form = useProjectStore.getState().form
+    expect(form.type).toBe("round")
+    expect(form.tapered).toBe(false)
+  })
+
+  it("supports tapered faceted forms — taper is its own axis", () => {
+    const { updateForm } = useProjectStore.getState()
+    updateForm({ type: "faceted", facets: 5, tapered: true, topDiameterMm: 120 })
+    const form = useProjectStore.getState().form
+    expect(form.type).toBe("faceted")
+    expect(form.tapered).toBe(true)
+    expect(form.topDiameterMm).toBe(120)
   })
 
   it("caps the auto-flare at the schema maximum", () => {
     const { updateForm } = useProjectStore.getState()
     updateForm({ bottomDiameterMm: 280 })
-    updateForm({ type: "tapered" })
+    updateForm({ tapered: true })
     expect(useProjectStore.getState().form.topDiameterMm).toBe(300)
   })
 
-  it("keeps top mirroring bottom for non-tapered forms", () => {
+  it("keeps top mirroring bottom for straight forms", () => {
     const { updateForm } = useProjectStore.getState()
-    updateForm({ type: "tapered" })
-    updateForm({ type: "faceted", facets: 3 })
+    updateForm({ tapered: true })
+    updateForm({ type: "faceted", facets: 3, tapered: false })
     const form = useProjectStore.getState().form
     expect(form.topDiameterMm).toBe(form.bottomDiameterMm)
   })
@@ -74,7 +95,8 @@ describe("openModel (share links)", () => {
         parseShareParams("?type=tapered&height=600&bottom=300&top=100&shrinkage=14&wall=6&paper=letter")
       )
     const { form, clay, paperSize } = useProjectStore.getState()
-    expect(form.type).toBe("tapered")
+    expect(form.type).toBe("round")
+    expect(form.tapered).toBe(true)
     expect(form.heightMm).toBe(600)
     expect(form.bottomDiameterMm).toBe(300)
     expect(form.topDiameterMm).toBe(100)

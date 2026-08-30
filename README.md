@@ -42,7 +42,7 @@ fallback for browsers that expose the API there — see
 |---|---|
 | `describe_project` | Read the current design, clay, template pieces, capacity (ml), and its share link |
 | `open_model` | Open a design from a share link the user pastes in chat, then keep editing it |
-| `update_form` | Change form type / facets / height / diameters (fired mm) |
+| `update_form` | Change shape / taper / facets / height / diameters (fired mm) — any shape can be straight or tapered |
 | `set_clay` | Change shrinkage % and wall thickness |
 | `get_template_summary` | Template layout, per-piece dimensions, exact PDF page count |
 | `get_preview_image` | PNG snapshot of the live 3D preview — the agent sees what the potter sees |
@@ -80,7 +80,9 @@ origin-independent — they survive domain changes.
 ## How the math works
 
 Slab-built forms are developable surfaces, so templates come from closed-form
-unrolling (no mesh solver): cylinders → rectangles, cone frustums → annular sectors.
+unrolling (no mesh solver): cylinders → rectangles, cone frustums → annular sectors,
+prisms → flat panels, tapered prisms (pyramid frustums) → trapezoid panels with the
+miter bevel recomputed for the lean of the faces.
 Two pottery-specific corrections are applied — clay shrinkage scaling (`1/(1−s)`) and
 mid-surface development (`r − t/2`). See
 [`src/lib/geometry/unroll.ts`](./src/lib/geometry/unroll.ts).

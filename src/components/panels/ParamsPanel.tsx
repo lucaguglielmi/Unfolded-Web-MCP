@@ -7,6 +7,7 @@ import {
   Cylinder,
   Hexagon,
   Pentagon,
+  RectangleVertical,
   Square,
   Triangle,
   TriangleAlert,
@@ -18,7 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { formWarnings } from "@/lib/geometry/unroll"
-import { PRESETS, type FormType } from "@/lib/model/schemas"
+import { PRESETS } from "@/lib/model/schemas"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -27,18 +28,30 @@ import { useProjectStore } from "@/store/useProjectStore"
  * as "f<N>" in the picker value and decoded back to {type, facets}.
  */
 const SHAPE_OPTIONS = [
-  { value: "cylinder", label: "Cylinder", icon: Cylinder },
-  { value: "tapered", label: "Tapered", icon: Cone },
+  { value: "round", label: "Round", icon: Cylinder },
   { value: "f3", label: "Triangle", icon: Triangle },
   { value: "f4", label: "Square", icon: Square },
   { value: "f5", label: "Pentagon", icon: Pentagon },
   { value: "f6", label: "Hexagon", icon: Hexagon },
 ]
 
-const SHAPE_DESCRIPTIONS: Record<string, string> = {
-  cylinder: "Straight round wall — unrolls to a rectangle.",
-  tapered: "Cone-shaped wall — unrolls to an arc.",
-  faceted: "Flat sides joined at mitered corners — unrolls to identical panels + a polygon base.",
+/** taper is its own axis: any shape can be straight or tapered */
+const PROFILE_OPTIONS = [
+  { value: "straight", label: "Straight", icon: RectangleVertical },
+  { value: "tapered", label: "Tapered", icon: Cone },
+]
+
+const SHAPE_DESCRIPTIONS: Record<string, Record<string, string>> = {
+  round: {
+    straight: "Straight round wall — unrolls to a rectangle.",
+    tapered: "Cone-shaped wall — unrolls to an arc.",
+  },
+  faceted: {
+    straight:
+      "Flat sides joined at mitered corners — unrolls to identical panels + a polygon base.",
+    tapered:
+      "Flat sides leaning in or out — unrolls to identical trapezoid panels + a polygon base.",
+  },
 }
 
 const PRESET_ICONS: Record<string, typeof Coffee> = {
@@ -112,17 +125,25 @@ export function ParamsPanel() {
             links, agent tools) — it's just not edited here anymore */}
 
         <IconOptionGroup
-          value={form.type === "faceted" ? `f${form.facets}` : form.type}
+          value={form.type === "faceted" ? `f${form.facets}` : "round"}
           onChange={(v) =>
             v.startsWith("f")
               ? updateForm({ type: "faceted", facets: Number(v.slice(1)) })
-              : updateForm({ type: v as FormType })
+              : updateForm({ type: "round" })
           }
           options={SHAPE_OPTIONS}
           columns={3}
         />
+
+        <IconOptionGroup
+          value={form.tapered ? "tapered" : "straight"}
+          onChange={(v) => updateForm({ tapered: v === "tapered" })}
+          options={PROFILE_OPTIONS}
+          orientation="horizontal"
+        />
         <p className="text-muted-foreground text-xs leading-relaxed">
-          {SHAPE_DESCRIPTIONS[form.type]} Curved profiles are coming next.
+          {SHAPE_DESCRIPTIONS[form.type][form.tapered ? "tapered" : "straight"]} Curved profiles
+          are coming next.
         </p>
 
         <DimensionSlider
@@ -134,10 +155,12 @@ export function ParamsPanel() {
         />
         <DimensionSlider
           label={
-            form.type === "tapered"
-              ? "Bottom diameter"
-              : form.type === "faceted"
-                ? "Width (across corners)"
+            form.type === "faceted"
+              ? form.tapered
+                ? "Bottom width (across corners)"
+                : "Width (across corners)"
+              : form.tapered
+                ? "Bottom diameter"
                 : "Diameter"
           }
           tip={
@@ -150,9 +173,9 @@ export function ParamsPanel() {
           max={300}
           onChange={(v) => updateForm({ bottomDiameterMm: v })}
         />
-        {form.type === "tapered" && (
+        {form.tapered && (
           <DimensionSlider
-            label="Top diameter"
+            label={form.type === "faceted" ? "Top width (across corners)" : "Top diameter"}
             value={form.topDiameterMm}
             min={20}
             max={300}

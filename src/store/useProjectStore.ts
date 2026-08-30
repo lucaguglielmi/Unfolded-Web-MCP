@@ -3,6 +3,7 @@ import {
   claySettingsSchema,
   DEFAULT_CLAY,
   formParamsSchema,
+  normalizeLegacyFormPatch,
   PRESETS,
   setClayInputSchema,
   updateFormInputSchema,
@@ -128,22 +129,24 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
 
   updateForm: (patch) =>
     set((state) => {
-      const parsed = updateFormInputSchema.parse(patch)
+      const parsed = updateFormInputSchema.parse(
+        normalizeLegacyFormPatch(patch as Record<string, unknown>)
+      )
       const form = { ...state.form, ...parsed }
-      // Switching to 'tapered' from a straight form would otherwise start
-      // with top === bottom — i.e. a preview that doesn't look tapered at
-      // all. Unless the caller set an explicit top, flare it so the change
-      // is immediately visible.
-      const switchedToTapered = parsed.type === "tapered" && state.form.type !== "tapered"
+      // Turning taper on from a straight form would otherwise start with
+      // top === bottom — i.e. a preview that doesn't look tapered at all.
+      // Unless the caller set an explicit top, flare it so the change is
+      // immediately visible.
+      const becameTapered = parsed.tapered === true && !state.form.tapered
       if (
-        switchedToTapered &&
+        becameTapered &&
         parsed.topDiameterMm === undefined &&
         Math.abs(form.topDiameterMm - form.bottomDiameterMm) < 0.05
       ) {
         form.topDiameterMm = Math.min(300, Math.round(form.bottomDiameterMm * 1.4))
       }
-      // Cylinder and faceted forms have one width: keep top mirroring bottom.
-      if (form.type !== "tapered") {
+      // Straight forms have one width: keep top mirroring bottom.
+      if (!form.tapered) {
         form.topDiameterMm = form.bottomDiameterMm
       }
       // no-op patches shouldn't burn an undo step
@@ -300,7 +303,11 @@ export function loadPersistedProject(): void {
     const data: unknown = JSON.parse(raw)
     if (typeof data !== "object" || data === null) return
     const record = data as Record<string, unknown>
-    const form = formParamsSchema.safeParse(record.form)
+    const form = formParamsSchema.safeParse(
+      typeof record.form === "object" && record.form !== null
+        ? normalizeLegacyFormPatch(record.form as Record<string, unknown>)
+        : record.form
+    )
     const clay = claySettingsSchema.safeParse(record.clay)
     const paperSize =
       record.paperSize === "A4" || record.paperSize === "Letter" ? record.paperSize : undefined

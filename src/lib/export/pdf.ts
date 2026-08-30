@@ -175,7 +175,7 @@ function layoutSvg(
       }
     }
 
-    const availableWidth = graphic.widthMm
+    const availableWidth = graphic.textWidthMm ?? graphic.widthMm
 
     // uppercase runs wider than the mixed-case average, hence the 1.15 factor
     if (textFits(projectName, NAME_FONT_MM * 1.15, availableWidth)) {
@@ -207,7 +207,7 @@ function layoutSvg(
     }
 
     if (
-      piece.kind === "rectangle" &&
+      (piece.kind === "rectangle" || piece.kind === "trapezoid") &&
       piece.stamp &&
       textFits(piece.stamp, STAMP_FONT_MM, availableWidth)
     ) {

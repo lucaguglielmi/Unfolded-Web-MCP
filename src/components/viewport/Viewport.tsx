@@ -162,7 +162,8 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
   const radialSegments = isFaceted ? form.facets : 96
 
   const { outerPoints, innerPoints, rimInnerR, rimOuterR, height, bottomY, halfBot, maxHalf } = useMemo(() => {
-    const topR = (form.type === "tapered" ? form.topDiameterMm : form.bottomDiameterMm) / 2
+    // straight forms keep topDiameterMm mirrored to bottom (store invariant)
+    const topR = form.topDiameterMm / 2
     const bottomR = form.bottomDiameterMm / 2
     const maxDim = Math.max(form.heightMm, 2 * Math.max(topR, bottomR))
     const s = TARGET_SIZE / maxDim
@@ -238,7 +239,7 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
       ],
     },
     // top width only when it can differ from the bottom
-    ...(form.type === "tapered"
+    ...(form.tapered
       ? [
           {
             key: "top",
