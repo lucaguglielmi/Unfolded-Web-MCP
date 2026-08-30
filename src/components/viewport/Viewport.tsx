@@ -261,7 +261,7 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
   // shading makes the facets read as crisp planes instead of a low-poly bug.
   const isFaceted = form.type === "faceted"
   const radialSegments = isFaceted ? form.facets : 96
-  const grain = useMemo(getClayGrain, [])
+  const grain = useMemo(() => getClayGrain(), [])
 
   // Rebuilds on every slider step (~60 Hz during a drag): r3f disposes the
   // replaced lathe geometries correctly, so this is allocation churn, not a
