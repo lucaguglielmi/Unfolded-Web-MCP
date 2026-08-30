@@ -1,6 +1,7 @@
 import type { ClaySettings, FormParams, FormType, SetClayInput, UpdateFormInput } from "./schemas"
 import { setClayInputSchema, updateFormInputSchema } from "./schemas"
 import type { PaperSize } from "@/lib/export/svg"
+import type { Unit } from "@/lib/units"
 
 /**
  * Share links: the whole design encoded as URL query parameters, e.g.
@@ -22,6 +23,8 @@ export interface SharePatches {
   form?: UpdateFormInput
   clay?: SetClayInput
   paperSize?: PaperSize
+  /** preferred display unit riding along with the design */
+  unit?: Unit
 }
 
 /** friendly names accepted (and emitted) for the `type` parameter */
@@ -109,6 +112,14 @@ export function parseShareParams(input: string | URLSearchParams): SharePatches 
   const paperSize: PaperSize | undefined =
     paperRaw === "a4" ? "A4" : paperRaw === "a3" ? "A3" : paperRaw === "letter" ? "Letter" : undefined
 
+  const unitRaw = params.get("units")?.trim().toLowerCase() ?? params.get("unit")?.trim().toLowerCase()
+  const unit: Unit | undefined =
+    unitRaw === "in" || unitRaw === "inch" || unitRaw === "inches"
+      ? "in"
+      : unitRaw === "cm" || unitRaw === "metric"
+        ? "cm"
+        : undefined
+
   const out: SharePatches = {}
   // clamped values are in range, but run the schemas anyway so nothing
   // out-of-contract can ever reach the store
@@ -117,6 +128,7 @@ export function parseShareParams(input: string | URLSearchParams): SharePatches 
   const clayParsed = setClayInputSchema.safeParse(clay)
   if (clayParsed.success && Object.keys(clayParsed.data).length > 0) out.clay = clayParsed.data
   if (paperSize) out.paperSize = paperSize
+  if (unit) out.unit = unit
   return out
 }
 
@@ -125,7 +137,8 @@ const fmtNum = (n: number) => String(Number(n.toFixed(1)))
 export function buildShareParams(
   form: FormParams,
   clay: ClaySettings,
-  paperSize: PaperSize
+  paperSize: PaperSize,
+  unit: Unit = "cm"
 ): URLSearchParams {
   const params = new URLSearchParams()
   // keep the friendly legacy vocabulary: cylinder/tapered for round forms,
@@ -145,6 +158,7 @@ export function buildShareParams(
   params.set("shrinkage", fmtNum(clay.shrinkagePct))
   params.set("wall", fmtNum(clay.wallThicknessMm))
   params.set("paper", paperSize)
+  params.set("units", unit)
   return params
 }
 
@@ -153,6 +167,7 @@ export function shareUrl(
   form: FormParams,
   clay: ClaySettings,
   paperSize: PaperSize,
+  unit: Unit = "cm",
   opts?: {
     /**
      * Tag the link as minted by an agent session (?via=chatgpt). A tab that
@@ -163,7 +178,7 @@ export function shareUrl(
     viaChatGpt?: boolean
   }
 ): string {
-  const params = buildShareParams(form, clay, paperSize)
+  const params = buildShareParams(form, clay, paperSize, unit)
   if (opts?.viaChatGpt) params.set("via", "chatgpt")
   const qs = params.toString()
   if (typeof window === "undefined") return `?${qs}`

@@ -1,4 +1,5 @@
 import type { ClaySettings, FormParams } from "@/lib/model/schemas"
+import { formatLength, type Unit } from "@/lib/units"
 
 /**
  * Pure unrolling math for slab pottery templates.
@@ -328,9 +329,10 @@ export function heightForCapacityMl(
  * the UI and returned to agents so impossible combinations are caught before
  * anything is printed.
  */
-export function formWarnings(form: FormParams, clay: ClaySettings): string[] {
+export function formWarnings(form: FormParams, clay: ClaySettings, unit: Unit = "cm"): string[] {
   const warnings: string[] = []
   const t = clay.wallThicknessMm
+  const len = (mm: number) => formatLength(mm, unit)
 
   const topOuter = form.tapered ? form.topDiameterMm : form.bottomDiameterMm
 
@@ -342,16 +344,16 @@ export function formWarnings(form: FormParams, clay: ClaySettings): string[] {
     const innerAcrossFlats = 2 * (apothemOut - t)
     if (innerAcrossFlats <= 0) {
       warnings.push(
-        `Wall thickness (${t} mm) leaves no room for a base inside a ${form.bottomDiameterMm} mm ${form.facets}-sided form — thin the walls or widen it.`
+        `Wall thickness (${len(t)}) leaves no room for a base inside a ${len(form.bottomDiameterMm)} ${form.facets}-sided form — thin the walls or widen it.`
       )
     } else if (innerAcrossFlats < 15) {
       warnings.push(
-        `The base is only ${innerAcrossFlats.toFixed(0)} mm across the flats — joining the sides to it will be fiddly.`
+        `The base is only ${len(innerAcrossFlats)} across the flats — joining the sides to it will be fiddly.`
       )
     }
     if (form.tapered && (topOuter / 2) * cosN - t <= 0) {
       warnings.push(
-        `Wall thickness (${t} mm) closes off the ${topOuter} mm opening at the rim entirely.`
+        `Wall thickness (${len(t)}) closes off the ${len(topOuter)} opening at the rim entirely.`
       )
     }
     return warnings
@@ -362,11 +364,11 @@ export function formWarnings(form: FormParams, clay: ClaySettings): string[] {
 
   if (innerBottomD <= 0) {
     warnings.push(
-      `Wall thickness (${t} mm) leaves no room for a base inside a ${form.bottomDiameterMm} mm bottom — thin the walls or widen the base.`
+      `Wall thickness (${len(t)}) leaves no room for a base inside a ${len(form.bottomDiameterMm)} bottom — thin the walls or widen the base.`
     )
   } else if (innerBottomD < 15) {
     warnings.push(
-      `The base disc is only ${innerBottomD.toFixed(0)} mm across — joining the wall to it will be fiddly.`
+      `The base disc is only ${len(innerBottomD)} across — joining the wall to it will be fiddly.`
     )
   }
   if (topD - 2 * t <= 0) {
@@ -384,15 +386,16 @@ export function formWarnings(form: FormParams, clay: ClaySettings): string[] {
 }
 
 /**
- * Formats one printed (wet-clay) dimension, with the corresponding fired
- * size alongside it whenever shrinkage actually changes the number — e.g.
- * "40.0 mm (35.2 mm fired)". scale=1 (no shrinkage configured) collapses to
- * plain "40.0 mm" since the parenthetical would just repeat the same value.
+ * Formats one printed (wet-clay) dimension in the potter's preferred unit,
+ * with the corresponding fired size alongside it whenever shrinkage
+ * actually changes the number — e.g. "4 cm (3.52 cm fired)". scale=1 (no
+ * shrinkage configured) collapses to the plain value since the
+ * parenthetical would just repeat it.
  */
-function fmtFired(wetMm: number, scale: number): string {
-  const wet = `${wetMm.toFixed(1)} mm`
+function fmtFired(wetMm: number, scale: number, unit: Unit): string {
+  const wet = formatLength(wetMm, unit)
   if (scale === 1) return wet
-  return `${wet} (${(wetMm / scale).toFixed(1)} mm fired)`
+  return `${wet} (${formatLength(wetMm / scale, unit)} fired)`
 }
 
 /**
@@ -401,8 +404,8 @@ function fmtFired(wetMm: number, scale: number): string {
  * printed dimension with its fired size; omit it for plain wet-clay-only
  * output (e.g. internal length estimates).
  */
-export function describePiece(piece: Piece, scale = 1): string {
-  const dim = (v: number) => fmtFired(v, scale)
+export function describePiece(piece: Piece, scale = 1, unit: Unit = "cm"): string {
+  const dim = (v: number) => fmtFired(v, scale, unit)
   switch (piece.kind) {
     case "rectangle":
       return `${piece.label}: rectangle ${dim(piece.widthMm)} x ${dim(piece.heightMm)}`

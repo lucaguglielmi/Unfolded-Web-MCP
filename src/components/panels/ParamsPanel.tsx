@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { capacityMl, formWarnings } from "@/lib/geometry/unroll"
+import { formatLength, formatVolume, type Unit } from "@/lib/units"
 import { PRESETS } from "@/lib/model/schemas"
 import { useProjectStore } from "@/store/useProjectStore"
 
@@ -61,11 +62,6 @@ const PRESET_ICONS: Record<string, typeof Coffee> = {
   "hex-planter": Hexagon,
 }
 
-function formatCapacity(ml: number): string {
-  if (ml >= 1000) return `${(ml / 1000).toFixed(ml >= 10000 ? 0 : 1)} L`
-  return `${ml} ml`
-}
-
 function SectionTitle({ children, tip }: { children: ReactNode; tip?: ReactNode }) {
   return (
     <h3 className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium tracking-wider uppercase">
@@ -82,7 +78,8 @@ function DimensionSlider({
   min,
   max,
   step = 1,
-  unit = "mm",
+  unit,
+  display,
   onChange,
 }: {
   label: string
@@ -91,9 +88,13 @@ function DimensionSlider({
   min: number
   max: number
   step?: number
+  /** literal suffix for non-length values (e.g. "%", "mm") */
   unit?: string
+  /** preferred display unit for length values (value stays mm internally) */
+  display?: Unit
   onChange: (value: number) => void
 }) {
+  const shown = display ? formatLength(value, display) : `${value} ${unit ?? "mm"}`
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -101,9 +102,7 @@ function DimensionSlider({
           {label}
           {tip && <InfoTip>{tip}</InfoTip>}
         </Label>
-        <span className="text-foreground/80 text-sm tabular-nums">
-          {value} {unit}
-        </span>
+        <span className="text-foreground/80 text-sm tabular-nums">{shown}</span>
       </div>
       <Slider value={[value]} min={min} max={max} step={step} onValueChange={([v]) => onChange(v)} />
     </div>
@@ -117,15 +116,38 @@ export function ParamsPanel() {
   const setClay = useProjectStore((s) => s.setClay)
   const applyPreset = useProjectStore((s) => s.applyPreset)
 
-  const warnings = formWarnings(form, clay)
+  const unit = useProjectStore((s) => s.unit)
+  const setUnit = useProjectStore((s) => s.setUnit)
+  const warnings = formWarnings(form, clay, unit)
   const capacity = capacityMl(form, clay)
 
   return (
     <div className="space-y-6">
       <section className="space-y-4">
-        <SectionTitle tip="All dimensions are the fired result you want. The printable templates are automatically scaled up to compensate for clay shrinkage.">
-          Form
-        </SectionTitle>
+        <div className="flex items-center justify-between">
+          <SectionTitle tip="All dimensions are the fired result you want. The printable templates are automatically scaled up to compensate for clay shrinkage.">
+            Form
+          </SectionTitle>
+          {/* display preference only — the model stays metric (mm) */}
+          <div role="radiogroup" aria-label="Measurement units" className="flex rounded-md border p-0.5">
+            {(["cm", "in"] as const).map((u) => (
+              <button
+                key={u}
+                type="button"
+                role="radio"
+                aria-checked={unit === u}
+                onClick={() => setUnit(u)}
+                className={
+                  unit === u
+                    ? "bg-foreground text-background rounded px-2 py-0.5 text-[11px] font-medium"
+                    : "text-muted-foreground hover:text-foreground rounded px-2 py-0.5 text-[11px] font-medium transition-colors"
+                }
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {/* form.name stays in the model (export dialog, PDF stamps, share
             links, agent tools) — it's just not edited here anymore */}
@@ -157,6 +179,7 @@ export function ParamsPanel() {
           value={form.heightMm}
           min={20}
           max={400}
+          display={unit}
           onChange={(v) => updateForm({ heightMm: v })}
         />
         <DimensionSlider
@@ -177,6 +200,7 @@ export function ParamsPanel() {
           value={form.bottomDiameterMm}
           min={20}
           max={300}
+          display={unit}
           onChange={(v) => updateForm({ bottomDiameterMm: v })}
         />
         {form.tapered && (
@@ -186,6 +210,7 @@ export function ParamsPanel() {
               value={form.topDiameterMm}
               min={20}
               max={300}
+              display={unit}
               onChange={(v) => updateForm({ topDiameterMm: v })}
             />
           </div>
@@ -194,7 +219,7 @@ export function ParamsPanel() {
         <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
           Holds about{" "}
           <span className="text-foreground font-medium tabular-nums">
-            {formatCapacity(capacity)}
+            {formatVolume(capacity, unit)}
           </span>
           <InfoTip>
             Approximate fired interior volume — the outer size minus the fired wall
@@ -228,6 +253,7 @@ export function ParamsPanel() {
           min={2}
           max={15}
           step={0.5}
+          display={unit}
           onChange={(v) => setClay({ wallThicknessMm: v })}
         />
       </section>

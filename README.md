@@ -71,6 +71,7 @@ fallback for browsers that expose the API there — see
 | `update_form` | Change shape / taper / facets / height / diameters (fired mm) — any shape can be straight or tapered |
 | `set_clay` | Change shrinkage % and wall thickness |
 | `set_capacity` | Solve the height for a target interior volume ("make it 350 ml") |
+| `set_units` | Switch display units between cm and inches — UI, warnings, and the printed PDF |
 | `get_template_summary` | Template layout, per-piece dimensions, exact PDF page count |
 | `get_preview_image` | PNG snapshot of the live 3D preview — the agent sees what the potter sees |
 | `export_templates` | Generate and download the multi-page PDF (A4 / A3 / Letter) |
@@ -99,7 +100,9 @@ https://<deployment-host>/?type=tapered&height=600&bottom=300&top=100&shrinkage=
 ```
 
 opens the app with that exact form (`type` also accepts `triangle`, `square`,
-`pentagon`, `hexagon`; `name` and `paper=A4|A3|Letter` work too). After the first edit
+`pentagon`, `hexagon`; `name`, `paper=A4|A3|Letter`, and `units=cm|in` work too — the
+model itself stays metric, `units` only sets how measurements are displayed and
+printed). After the first edit
 the address bar live-tracks the design, the header's link button copies it, and the
 `open_model` tool lets an agent continue from any pasted link. Links are
 origin-independent — they survive domain changes.

@@ -184,14 +184,21 @@ describe("describePiece", () => {
   const disc = { kind: "disc" as const, id: "base", label: "Base", diameterMm: 100, notes: [] }
 
   it("omits the fired parenthetical when there is no shrinkage (scale=1, the default)", () => {
-    expect(describePiece(disc)).toBe("Base: disc, diameter 100.0 mm")
+    expect(describePiece(disc)).toBe("Base: disc, diameter 10 cm")
   })
 
   it("shows the fired size alongside the printed size when scale != 1", () => {
     const scale = shrinkageScale(12) // wet 100mm -> fired 88mm
     const text = describePiece(disc, scale)
-    expect(text).toContain("100.0 mm")
-    expect(text).toContain("88.0 mm fired")
+    expect(text).toContain("10 cm")
+    expect(text).toContain("8.8 cm fired")
+  })
+
+  it("renders in inches when asked", () => {
+    expect(describePiece(disc, 1, "in")).toBe("Base: disc, diameter 3.94 in")
+    const text = describePiece(disc, shrinkageScale(12), "in")
+    expect(text).toContain("3.94 in")
+    expect(text).toContain("3.46 in fired")
   })
 })
 

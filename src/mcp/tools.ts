@@ -98,6 +98,23 @@ export function buildTools(): ToolDescriptor[] {
         }),
     },
     {
+      name: "set_units",
+      description:
+        "Set the potter's preferred measurement units: 'cm' (default) or 'in'. This is a display preference — it changes every human-facing measurement (sliders, 3D callouts, template annotations, warnings, the capacity readout, and the printed PDF, including its scale-check bar: 3 cm vs 1 in). Tool inputs and outputs stay in millimeters regardless. The choice is remembered in the potter's browser and rides on share links (?units=in). Returns the full new state.",
+      inputSchema: z.toJSONSchema(
+        z.object({
+          units: z.enum(["cm", "in"]).describe("Preferred display units: 'cm' or 'in'"),
+        })
+      ),
+      annotations: { title: "Set measurement units", idempotentHint: true },
+      execute: (input) =>
+        run("set_units", () => {
+          const { units } = z.object({ units: z.enum(["cm", "in"]) }).parse(input ?? {})
+          useProjectStore.getState().setUnit(units)
+          return textResult(stateText(`Measurement units set to ${units === "in" ? "inches" : "centimeters"}.`))
+        }),
+    },
+    {
       name: "set_capacity",
       description:
         "Set the vessel's interior capacity directly, in milliliters. Interior volume is linear in height, so this solves for the exact height that yields the target while keeping the shape, diameters, taper, and clay unchanged. If the needed height falls outside the buildable 20-600 mm range it is clamped and the response reports the actually achievable capacity — widen or narrow the form with update_form and call again to get closer. Returns the full new state.",

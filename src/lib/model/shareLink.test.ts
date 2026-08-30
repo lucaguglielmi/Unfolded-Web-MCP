@@ -68,6 +68,16 @@ describe("parseShareParams", () => {
     expect(parseShareParams("paper=A4").paperSize).toBe("A4")
     expect(parseShareParams("paper=A5").paperSize).toBeUndefined()
   })
+
+  it("parses the display-unit preference, accepting friendly spellings", () => {
+    expect(parseShareParams("units=in").unit).toBe("in")
+    expect(parseShareParams("units=INCHES").unit).toBe("in")
+    expect(parseShareParams("unit=inch").unit).toBe("in")
+    expect(parseShareParams("units=cm").unit).toBe("cm")
+    expect(parseShareParams("units=metric").unit).toBe("cm")
+    expect(parseShareParams("units=furlongs").unit).toBeUndefined()
+    expect(parseShareParams("height=110").unit).toBeUndefined()
+  })
 })
 
 describe("buildShareParams / shareUrl", () => {
@@ -84,6 +94,13 @@ describe("buildShareParams / shareUrl", () => {
     })
     expect(patches.clay).toEqual(DEFAULT_CLAY)
     expect(patches.paperSize).toBe("Letter")
+    expect(patches.unit).toBe("cm")
+  })
+
+  it("round-trips the unit preference", () => {
+    const params = buildShareParams(PRESETS["classic-mug"], DEFAULT_CLAY, "A4", "in")
+    expect(params.get("units")).toBe("in")
+    expect(parseShareParams(params).unit).toBe("in")
   })
 
   it("emits friendly shape names and only includes top for tapered forms", () => {
@@ -102,7 +119,7 @@ describe("buildShareParams / shareUrl", () => {
   })
 
   it("tags agent-minted links with via=chatgpt, which parsing ignores", () => {
-    const url = shareUrl(PRESETS["classic-mug"], DEFAULT_CLAY, "A4", { viaChatGpt: true })
+    const url = shareUrl(PRESETS["classic-mug"], DEFAULT_CLAY, "A4", "cm", { viaChatGpt: true })
     expect(url).toContain("via=chatgpt")
     // the marker is a connection signal, not a design parameter
     const patches = parseShareParams(url)

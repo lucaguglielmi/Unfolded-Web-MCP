@@ -3,6 +3,7 @@ import "svg2pdf.js"
 import { LOGO_SLAB_PATHS, LOGO_VIEWBOX } from "@/components/LogoMark"
 import type { Piece } from "@/lib/geometry/unroll"
 import { describePiece } from "@/lib/geometry/unroll"
+import { MM_PER_INCH, type Unit } from "@/lib/units"
 import {
   contentTiles,
   layoutPieces,
@@ -106,12 +107,15 @@ function logoSvg(iconMm: number, withWordmark = true, monochrome = false): [SVGS
 }
 
 /**
- * A 30mm scale-check bar ("3 cm") drawn with plain jsPDF lines. One goes on
- * every printed page so any page can be validated against a ruler — if the
- * bar measures 3 cm, that page printed at true size.
+ * A scale-check bar drawn with plain jsPDF lines — 3 cm in metric mode,
+ * 1 inch in imperial. One goes on every printed page so any page can be
+ * validated against a ruler: if the bar measures true, that page printed
+ * at true size.
  */
-function draw3cmCheck(doc: jsPDF, xRight: number, y: number): void {
-  const x0 = xRight - 30
+function drawScaleCheck(doc: jsPDF, xRight: number, y: number, unit: Unit): void {
+  const lengthMm = unit === "in" ? MM_PER_INCH : 30
+  const label = unit === "in" ? "1 in check" : "3 cm check"
+  const x0 = xRight - lengthMm
   doc.setDrawColor(0)
   doc.setLineWidth(0.4)
   doc.line(x0, y, xRight, y)
@@ -119,7 +123,7 @@ function draw3cmCheck(doc: jsPDF, xRight: number, y: number): void {
   doc.line(xRight, y - 1.5, xRight, y + 1.5)
   doc.setFontSize(7)
   doc.setTextColor(60)
-  doc.text("3 cm check", x0 - 2, y + 1, { align: "right" })
+  doc.text(label, x0 - 2, y + 1, { align: "right" })
   doc.setTextColor(0)
 }
 
@@ -135,7 +139,8 @@ function layoutSvg(
   widthMm: number,
   heightMm: number,
   scale: number,
-  projectName: string
+  projectName: string,
+  unit: Unit
 ): SVGSVGElement {
   const svg = el("svg", {
     xmlns: SVG_NS,
@@ -223,7 +228,7 @@ function layoutSvg(
       g.appendChild(stamp)
     }
 
-    const dimsText = describePiece(piece, scale).replace(`${piece.label}: `, "")
+    const dimsText = describePiece(piece, scale, unit).replace(`${piece.label}: `, "")
     if (textFits(dimsText, ANNOTATION_FONT_MM, availableWidth)) {
       const dims = el("text", {
         x: graphic.widthMm / 2,
@@ -331,10 +336,12 @@ export async function exportTemplatesPdf(options: {
   paper: PaperSize
   /** shrinkageScale(clay.shrinkagePct) — used to print fired dimensions alongside wet ones */
   scale: number
+  /** display unit for every printed dimension and the per-page scale check */
+  unit?: Unit
   /** deep link to this exact design — printed as a QR on the overview so the paper can reopen the model */
   shareUrl?: string
 }): Promise<ExportResult> {
-  const { pieces, name, paper, scale, shareUrl } = options
+  const { pieces, name, paper, scale, shareUrl, unit = "cm" } = options
   const layout = layoutPieces(pieces, paper)
   const pg = paginate(layout.widthMm, layout.heightMm, paper)
   const { widthMm: pageW, heightMm: pageH } = PAPERS[paper]
@@ -413,7 +420,7 @@ export async function exportTemplatesPdf(options: {
   doc.setFontSize(10)
   const instructions = [
     "1. Print ALL pages at 100% scale (no 'fit to page').",
-    "2. Check the calibration bars below with a ruler — every template page also carries a 3 cm check.",
+    `2. Check the calibration bars below with a ruler — every template page also carries a ${unit === "in" ? "1 in" : "3 cm"} check.`,
     "3. Tape pages following the map; edges overlap by the glue strip (10 mm).",
     "4. Cut along solid outlines. Dashed edges are seams: bevel at the angle stamped on the piece, score and slip.",
     "5. Tick marks across seams are registration marks — align them when wrapping.",
@@ -515,7 +522,8 @@ export async function exportTemplatesPdf(options: {
         pg.printWidthMm,
         pg.printHeightMm,
         scale,
-        name
+        name,
+        unit
       )
       document.body.appendChild(tileSvg)
       try {
@@ -553,7 +561,7 @@ export async function exportTemplatesPdf(options: {
         pageH - 5
       )
       doc.setTextColor(0)
-      draw3cmCheck(doc, pageW - M, pageH - 6)
+      drawScaleCheck(doc, pageW - M, pageH - 6, unit)
   }
 
   doc.save(`unfolded-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${paper.toLowerCase()}.pdf`)

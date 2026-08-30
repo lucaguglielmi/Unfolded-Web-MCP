@@ -4,6 +4,7 @@ import { Canvas, useFrame } from "@react-three/fiber"
 import { Grid, Html, Line, OrbitControls } from "@react-three/drei"
 import { cn } from "@/lib/utils"
 import { registerPreviewCanvas } from "@/lib/previewCapture"
+import { formatLength, type Unit } from "@/lib/units"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -25,8 +26,6 @@ const CLAY_RIM = "#a37e5f"
 const MEASURE_LINE = "#c6c1bb"
 const TICK = 0.045
 const DIM_GAP = 0.18
-
-const fmtCm = (mm: number) => `${Math.round(mm / 10 * 10) / 10} cm`
 
 export type MeasurementsMode = "static" | "cycle"
 
@@ -155,6 +154,8 @@ function Measurements({ entries, mode }: { entries: MeasureEntry[]; mode: Measur
 function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
   const form = useProjectStore((s) => s.form)
   const wallThicknessMm = useProjectStore((s) => s.clay.wallThicknessMm)
+  const unit: Unit = useProjectStore((s) => s.unit)
+  const fmtLen = (mm: number) => formatLength(mm, unit)
 
   // A faceted form is a lathe with exactly N revolution segments; flat
   // shading makes the facets read as crisp planes instead of a low-poly bug.
@@ -220,7 +221,7 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
   const measureEntries: MeasureEntry[] = [
     {
       key: "height",
-      label: fmtCm(form.heightMm),
+      label: fmtLen(form.heightMm),
       labelPos: [dimX + 0.16, height / 2, 0],
       lines: [
         [[dimX, 0, 0], [dimX, height, 0]],
@@ -230,7 +231,7 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
     },
     {
       key: "bottom",
-      label: fmtCm(form.bottomDiameterMm),
+      label: fmtLen(form.bottomDiameterMm),
       labelPos: [0, 0, dimZ + 0.2],
       lines: [
         [[-halfBot, 0, dimZ], [halfBot, 0, dimZ]],
@@ -243,7 +244,7 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
       ? [
           {
             key: "top",
-            label: fmtCm(form.topDiameterMm),
+            label: fmtLen(form.topDiameterMm),
             labelPos: [0, topDimY + 0.14, 0] as Vec3,
             lines: [
               [[-rimOuterR, topDimY, 0], [rimOuterR, topDimY, 0]] as Vec3[],
@@ -255,7 +256,7 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
       : []),
     {
       key: "wall",
-      label: `wall ${fmtCm(wallThicknessMm)}`,
+      label: `wall ${fmtLen(wallThicknessMm)}`,
       labelPos: [-rimMid, height + 0.3, rimMid],
       lines: [[[-rimMid, height, rimMid], [-rimMid, height + 0.2, rimMid]]],
     },

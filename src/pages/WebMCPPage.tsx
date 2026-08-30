@@ -15,6 +15,7 @@ const TOOLS: [string, string][] = [
   ["update_form", "Change shape, taper, facets, height and diameters — fired sizes, in millimeters."],
   ["set_clay", "Set shrinkage % and slab thickness for the potter's clay body."],
   ["set_capacity", "Solve the height for a target interior volume — 'make it hold 350 ml'."],
+  ["set_units", "Switch the potter's display units between centimeters and inches — UI and PDF alike."],
   ["get_template_summary", "Template layout, per-piece dimensions, and the exact PDF page count."],
   ["get_preview_image", "See the live 3D preview as an image — exactly what the potter sees."],
   ["export_templates", "Generate and download the true-scale, multi-page template PDF."],
@@ -109,7 +110,7 @@ export function WebMCPPage() {
           <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
             WebMCP is a browser API that lets a web page hand real, typed tools to the AI agent
             browsing alongside you. Instead of the agent guessing at pixels or filling forms, the
-            page says: <em>here is exactly what you can do</em>. This app registers ten tools on{" "}
+            page says: <em>here is exactly what you can do</em>. This app registers eleven tools on{" "}
             <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[0.85em] text-stone-700">
               document.modelContext
             </code>{" "}

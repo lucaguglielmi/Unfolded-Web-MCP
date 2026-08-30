@@ -11,6 +11,7 @@ const reset = () => {
     history: [],
     future: [],
     exportsInFlight: 0,
+    unit: "cm",
   })
   _resetHistoryCoalescing()
 }
@@ -117,6 +118,30 @@ describe("openModel (share links)", () => {
     const before = useProjectStore.getState().form
     useProjectStore.getState().openModel(parseShareParams("utm_source=chat&foo=1"))
     expect(useProjectStore.getState().form).toEqual(before)
+  })
+
+  it("applies the unit preference riding on a link", () => {
+    useProjectStore.getState().openModel(parseShareParams("type=hexagon&units=in"))
+    expect(useProjectStore.getState().unit).toBe("in")
+  })
+})
+
+describe("display units", () => {
+  beforeEach(reset)
+
+  it("setUnit changes the preference without touching undo history", () => {
+    useProjectStore.getState().setUnit("in")
+    expect(useProjectStore.getState().unit).toBe("in")
+    expect(useProjectStore.getState().history).toHaveLength(0)
+    expect(useProjectStore.getState().undo()).toBe(false)
+  })
+
+  it("undo never reverts a unit switch made between edits", () => {
+    const { updateForm, setUnit, undo } = useProjectStore.getState()
+    updateForm({ heightMm: 200 })
+    setUnit("in")
+    expect(undo()).toBe(true)
+    expect(useProjectStore.getState().unit).toBe("in")
   })
 })
 

@@ -24,6 +24,7 @@ export function TemplatePanel() {
   const form = useProjectStore((s) => s.form)
   const clay = useProjectStore((s) => s.clay)
   const paperSize = useProjectStore((s) => s.paperSize)
+  const unit = useProjectStore((s) => s.unit)
   const setPaperSize = useProjectStore((s) => s.setPaperSize)
 
   const pieces = useMemo(() => selectPieces(form, clay), [form, clay])
@@ -78,7 +79,7 @@ export function TemplatePanel() {
             // uppercase runs wider than the mixed-case average, hence 1.15
             const showName = textFits(form.name, NAME_FONT_MM * 1.15, availableWidth)
             const showLabel = textFits(piece.label, LABEL_FONT_MM, availableWidth)
-            const dimsText = describePiece(piece, scale).replace(`${piece.label}: `, "")
+            const dimsText = describePiece(piece, scale, unit).replace(`${piece.label}: `, "")
             const showDims = textFits(dimsText, ANNOTATION_FONT_MM, availableWidth)
 
             return (

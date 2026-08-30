@@ -19,6 +19,7 @@ const EXPECTED_TOOLS = [
   "update_form",
   "set_clay",
   "set_capacity",
+  "set_units",
   "get_template_summary",
   "get_preview_image",
   "export_templates",
@@ -125,6 +126,18 @@ try {
     !cap.isError && Math.abs(capState.capacityMl - 500) <= 2,
     `capacity after: ${capState.capacityMl}`
   )
+
+  // --------------------------------------------------------------- set_units
+  const inches = stateFrom(await callTool(page, "set_units", { units: "in" }))
+  check(
+    "set_units switches every human-facing measurement to inches",
+    inches.units === "in" &&
+      inches.shareUrl.includes("units=in") &&
+      inches.pieces.every((p) => p.includes(" in")),
+    JSON.stringify({ units: inches.units, piece: inches.pieces[0] })
+  )
+  const metric = stateFrom(await callTool(page, "set_units", { units: "cm" }))
+  check("set_units switches back to centimeters", metric.units === "cm" && metric.shareUrl.includes("units=cm"))
 
   // ---------------------------------------------------- legacy + taper model
   const legacy = stateFrom(await callTool(page, "update_form", { type: "tapered" }))

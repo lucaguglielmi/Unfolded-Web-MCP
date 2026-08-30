@@ -16,6 +16,7 @@ import { buildPieces, capacityMl, describePiece, formWarnings, shrinkageScale, t
 import { countPages, layoutPieces, PAGE_OVERLAP_MM, PAPERS, type PaperSize } from "@/lib/export/svg"
 import type { ExportResult } from "@/lib/export/pdf"
 import { buildShareParams, parseShareParams, shareUrl, type SharePatches } from "@/lib/model/shareLink"
+import { isUnit, type Unit } from "@/lib/units"
 
 /**
  * How this tab relates to an agent:
@@ -60,6 +61,7 @@ interface PdfModule {
     name: string
     paper: PaperSize
     scale: number
+    unit?: Unit
     shareUrl?: string
   }) => Promise<ExportResult>
 }
@@ -87,6 +89,8 @@ interface ProjectState {
   form: FormParams
   clay: ClaySettings
   paperSize: PaperSize
+  /** preferred DISPLAY unit — the model and tool I/O stay in millimeters */
+  unit: Unit
   agentStatus: AgentStatus
   /** where the host exposed the WebMCP API (shown on /webmcp), or null */
   agentApiLocation: string | null
@@ -109,6 +113,8 @@ interface ProjectState {
   openModel: (patches: SharePatches) => void
   applyPreset: (presetId: keyof typeof PRESETS) => void
   setPaperSize: (paper: PaperSize) => void
+  /** display preference only — not part of the undo history */
+  setUnit: (unit: Unit) => void
   /** Revert the most recent change (form/clay/paper). Returns false when there is nothing to undo. */
   undo: () => boolean
   /** Re-apply the most recently undone change. Returns false when there is nothing to redo. */
@@ -134,6 +140,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   form: PRESETS["classic-mug"],
   clay: DEFAULT_CLAY,
   paperSize: "A4",
+  unit: "cm",
   agentStatus: "unavailable",
   agentApiLocation: null,
   lastAgentCall: null,
@@ -180,12 +187,14 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     }),
 
   openModel: (patches) => {
-    // the three nested actions land within the coalescing window, so a
-    // whole opened link reverts as one undo step
-    const { updateForm, setClay, setPaperSize } = get()
+    // the nested actions land within the coalescing window, so a whole
+    // opened link reverts as one undo step (the unit preference is a
+    // display setting and stays out of history entirely)
+    const { updateForm, setClay, setPaperSize, setUnit } = get()
     if (patches.form) updateForm(patches.form)
     if (patches.clay) setClay(patches.clay)
     if (patches.paperSize) setPaperSize(patches.paperSize)
+    if (patches.unit) setUnit(patches.unit)
   },
 
   applyPreset: (presetId) =>
@@ -202,6 +211,8 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
         ? {}
         : { paperSize, history: pushHistory(state), future: [] }
     ),
+
+  setUnit: (unit) => set({ unit }),
 
   undo: () => {
     let undone = false
@@ -255,7 +266,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   exportPdf: async () => {
     set((state) => ({ exportsInFlight: state.exportsInFlight + 1 }))
     try {
-      const { form, clay, paperSize } = get()
+      const { form, clay, paperSize, unit } = get()
       const pieces = buildPieces(form, clay)
       const { exportTemplatesPdf } = await importPdfModule()
       return await exportTemplatesPdf({
@@ -263,8 +274,9 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
         name: form.name,
         paper: paperSize,
         scale: shrinkageScale(clay.shrinkagePct),
+        unit,
         // deliberately untagged: the printed QR outlives any chat session
-        shareUrl: shareUrl(form, clay, paperSize),
+        shareUrl: shareUrl(form, clay, paperSize, unit),
       })
     } finally {
       set((state) => ({ exportsInFlight: Math.max(0, state.exportsInFlight - 1) }))
@@ -281,6 +293,8 @@ export function describeState(): {
   form: FormParams
   clay: ClaySettings
   paperSize: PaperSize
+  /** the potter's preferred display unit; all numeric fields stay in mm */
+  units: Unit
   /** deep link that reopens exactly this design — share it with the potter */
   shareUrl: string
   /** approximate fired interior volume in milliliters */
@@ -289,7 +303,7 @@ export function describeState(): {
   printedPages: number
   warnings: string[]
 } {
-  const { form, clay, paperSize } = useProjectStore.getState()
+  const { form, clay, paperSize, unit } = useProjectStore.getState()
   const pieces = buildPieces(form, clay)
   const pages = countPages(layoutPieces(pieces, paperSize), paperSize)
   const scale = shrinkageScale(clay.shrinkagePct)
@@ -297,15 +311,16 @@ export function describeState(): {
     form,
     clay,
     paperSize,
+    units: unit,
     // agent snapshots tag the link so a tab that opens it can show it is
     // connected through the agent's session (see AgentStatus)
-    shareUrl: shareUrl(form, clay, paperSize, {
+    shareUrl: shareUrl(form, clay, paperSize, unit, {
       viaChatGpt: useProjectStore.getState().agentStatus === "native",
     }),
     capacityMl: capacityMl(form, clay),
-    pieces: pieces.map((p) => describePiece(p, scale)),
+    pieces: pieces.map((p) => describePiece(p, scale, unit)),
     printedPages: pages.totalPages,
-    warnings: formWarnings(form, clay),
+    warnings: formWarnings(form, clay, unit),
   }
 }
 
@@ -341,6 +356,7 @@ export function loadPersistedProject(): void {
       ...(form.success ? { form: form.data } : {}),
       ...(clay.success ? { clay: clay.data } : {}),
       ...(paperSize ? { paperSize } : {}),
+      ...(isUnit(record.unit) ? { unit: record.unit } : {}),
     })
   } catch {
     // corrupted storage or blocked localStorage — start fresh
@@ -355,8 +371,8 @@ export function startProjectPersistence(): void {
     window.clearTimeout(timer)
     timer = window.setTimeout(() => {
       try {
-        const { form, clay, paperSize } = useProjectStore.getState()
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, clay, paperSize }))
+        const { form, clay, paperSize, unit } = useProjectStore.getState()
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, clay, paperSize, unit }))
       } catch {
         // quota exceeded or private mode — persistence is best-effort
       }
@@ -390,8 +406,8 @@ export function applyShareLinkFromLocation(): void {
 export function startShareLinkSync(): void {
   if (typeof window === "undefined") return
   const currentQs = () => {
-    const { form, clay, paperSize } = useProjectStore.getState()
-    return buildShareParams(form, clay, paperSize).toString()
+    const { form, clay, paperSize, unit } = useProjectStore.getState()
+    return buildShareParams(form, clay, paperSize, unit).toString()
   }
   let last = currentQs()
   let timer: number | undefined
@@ -415,7 +431,7 @@ export function describeTemplates(): {
   pieces: { label: string; kind: Piece["kind"]; dimensions: string; notes: string[] }[]
   warnings: string[]
 } {
-  const { form, clay, paperSize } = useProjectStore.getState()
+  const { form, clay, paperSize, unit } = useProjectStore.getState()
   const pieces = buildPieces(form, clay)
   const layout = layoutPieces(pieces, paperSize)
   const pages = countPages(layout, paperSize)
@@ -436,7 +452,7 @@ export function describeTemplates(): {
     pieces: pieces.map((p) => ({
       label: p.label,
       kind: p.kind,
-      dimensions: describePiece(p, scale).replace(`${p.label}: `, ""),
+      dimensions: describePiece(p, scale, unit).replace(`${p.label}: `, ""),
       notes: p.notes,
     })),
     warnings: formWarnings(form, clay),
