@@ -1,12 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { DEFAULT_CLAY, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
-import {
-  _resetHistoryCoalescing,
-  _setPdfModuleForTests,
-  describeTemplates,
-  useProjectStore,
-} from "./useProjectStore"
+import { describeTemplates } from "@/mcp/describe"
+import { _resetHistoryCoalescing, _setPdfModuleForTests, useProjectStore } from "./useProjectStore"
 
 const reset = () => {
   useProjectStore.setState({

@@ -1,8 +1,6 @@
 import { create } from "zustand"
 import {
-  claySettingsSchema,
   DEFAULT_CLAY,
-  formParamsSchema,
   normalizeLegacyFormPatch,
   PRESETS,
   setClayInputSchema,
@@ -12,11 +10,11 @@ import {
   type SetClayInput,
   type UpdateFormInput,
 } from "@/lib/model/schemas"
-import { buildPieces, capacityMl, describePiece, formWarnings, shrinkageScale, type Piece } from "@/lib/geometry/unroll"
-import { countPages, layoutPieces, PAGE_OVERLAP_MM, PAPERS, type PaperSize } from "@/lib/export/svg"
+import { buildPieces, shrinkageScale, type Piece } from "@/lib/geometry/unroll"
+import type { PaperSize } from "@/lib/export/svg"
 import type { ExportResult } from "@/lib/export/pdf"
-import { buildShareParams, parseShareParams, shareUrl, type SharePatches } from "@/lib/model/shareLink"
-import { isUnit, type Unit } from "@/lib/units"
+import { shareUrl, type SharePatches } from "@/lib/model/shareLink"
+import type { Unit } from "@/lib/units"
 
 /**
  * How this tab relates to an agent:
@@ -277,176 +275,4 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
 
 export function selectPieces(form: FormParams, clay: ClaySettings): Piece[] {
   return buildPieces(form, clay)
-}
-
-/** Structured snapshot returned by read tools and after every mutation. */
-export function describeState(): {
-  form: FormParams
-  clay: ClaySettings
-  paperSize: PaperSize
-  /** the potter's preferred display unit; all numeric fields stay in mm */
-  units: Unit
-  /** deep link that reopens exactly this design — share it with the potter */
-  shareUrl: string
-  /** approximate fired interior volume in milliliters */
-  capacityMl: number
-  pieces: string[]
-  printedPages: number
-  warnings: string[]
-} {
-  const { form, clay, paperSize, unit } = useProjectStore.getState()
-  const pieces = buildPieces(form, clay)
-  const pages = countPages(layoutPieces(pieces, paperSize), paperSize)
-  const scale = shrinkageScale(clay.shrinkagePct)
-  return {
-    form,
-    clay,
-    paperSize,
-    units: unit,
-    // agent snapshots tag the link so a tab that opens it can show it is
-    // connected through the agent's session (see AgentStatus)
-    shareUrl: shareUrl(form, clay, paperSize, {
-      unit,
-      viaChatGpt: useProjectStore.getState().agentStatus === "native",
-    }),
-    capacityMl: capacityMl(form, clay),
-    pieces: pieces.map((p) => describePiece(p, scale, unit)),
-    printedPages: pages.totalPages,
-    warnings: formWarnings(form, clay, unit),
-  }
-}
-
-/* ------------------------------------------------------- persistence */
-
-const STORAGE_KEY = "unfolded:project:v1"
-
-/**
- * Restore the last session's design from localStorage — call at boot,
- * BEFORE applyShareLinkFromLocation so an explicit share link always wins
- * over what was left lying around. Anything invalid or corrupted is
- * ignored field-by-field (schemas re-validate everything).
- */
-export function loadPersistedProject(): void {
-  if (typeof window === "undefined") return
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return
-    const data: unknown = JSON.parse(raw)
-    if (typeof data !== "object" || data === null) return
-    const record = data as Record<string, unknown>
-    const form = formParamsSchema.safeParse(
-      typeof record.form === "object" && record.form !== null
-        ? normalizeLegacyFormPatch(record.form as Record<string, unknown>)
-        : record.form
-    )
-    const clay = claySettingsSchema.safeParse(record.clay)
-    const paperSize =
-      typeof record.paperSize === "string" && record.paperSize in PAPERS
-        ? (record.paperSize as PaperSize)
-        : undefined
-    useProjectStore.setState({
-      ...(form.success ? { form: form.data } : {}),
-      ...(clay.success ? { clay: clay.data } : {}),
-      ...(paperSize ? { paperSize } : {}),
-      ...(isUnit(record.unit) ? { unit: record.unit } : {}),
-    })
-  } catch {
-    // corrupted storage or blocked localStorage — start fresh
-  }
-}
-
-/** Save the design (debounced) so a mid-demo refresh doesn't lose work. */
-export function startProjectPersistence(): void {
-  if (typeof window === "undefined") return
-  let timer: number | undefined
-  useProjectStore.subscribe(() => {
-    window.clearTimeout(timer)
-    timer = window.setTimeout(() => {
-      try {
-        const { form, clay, paperSize, unit } = useProjectStore.getState()
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, clay, paperSize, unit }))
-      } catch {
-        // quota exceeded or private mode — persistence is best-effort
-      }
-    }, 400)
-  })
-}
-
-/**
- * Apply a share link from the address bar — call once at boot, before
- * first render, so a deep-linked design never flashes the default.
- */
-export function applyShareLinkFromLocation(): void {
-  if (typeof window === "undefined" || !window.location.search) return
-  const search = window.location.search
-  useProjectStore.getState().openModel(parseShareParams(search))
-  // Agent-minted links carry via=chatgpt: an explicit signal that this
-  // design is open in the internal browser of a ChatGPT conversation.
-  // Direct WebMCP registration ("native") always outranks it.
-  if (new URLSearchParams(search).get("via") === "chatgpt") {
-    useProjectStore.setState((state) =>
-      state.agentStatus === "native" ? {} : { agentStatus: "chatgpt" }
-    )
-  }
-}
-
-/**
- * Keep the address bar in sync with the design (debounced replaceState),
- * so the URL is always a live share link. A clean URL stays clean until
- * the first actual edit — visitors aren't surprised by a growing URL.
- */
-export function startShareLinkSync(): void {
-  if (typeof window === "undefined") return
-  const currentQs = () => {
-    const { form, clay, paperSize, unit } = useProjectStore.getState()
-    return buildShareParams(form, clay, paperSize, unit).toString()
-  }
-  let last = currentQs()
-  let timer: number | undefined
-  useProjectStore.subscribe(() => {
-    window.clearTimeout(timer)
-    timer = window.setTimeout(() => {
-      const qs = currentQs()
-      if (qs === last) return
-      last = qs
-      window.history.replaceState(null, "", `${window.location.pathname}?${qs}`)
-    }, 350)
-  })
-}
-
-/** Template-focused snapshot for get_template_summary — layout, pieces, paging. */
-export function describeTemplates(): {
-  paperSize: PaperSize
-  pages: { overview: number; template: number; total: number; grid: string }
-  layoutMm: { width: number; height: number }
-  glueOverlapMm: number
-  pieces: { label: string; kind: Piece["kind"]; dimensions: string; notes: string[] }[]
-  warnings: string[]
-} {
-  const { form, clay, paperSize, unit } = useProjectStore.getState()
-  const pieces = buildPieces(form, clay)
-  const layout = layoutPieces(pieces, paperSize)
-  const pages = countPages(layout, paperSize)
-  const scale = shrinkageScale(clay.shrinkagePct)
-  return {
-    paperSize,
-    pages: {
-      overview: 1,
-      template: pages.templatePages,
-      total: pages.totalPages,
-      grid: `${pages.pagination.rows}x${pages.pagination.cols}`,
-    },
-    layoutMm: {
-      width: Number(layout.widthMm.toFixed(1)),
-      height: Number(layout.heightMm.toFixed(1)),
-    },
-    glueOverlapMm: PAGE_OVERLAP_MM,
-    pieces: pieces.map((p) => ({
-      label: p.label,
-      kind: p.kind,
-      dimensions: describePiece(p, scale, unit).replace(`${p.label}: `, ""),
-      notes: p.notes,
-    })),
-    warnings: formWarnings(form, clay, unit),
-  }
 }

@@ -2,12 +2,8 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
-import {
-  applyShareLinkFromLocation,
-  loadPersistedProject,
-  startProjectPersistence,
-  startShareLinkSync,
-} from '@/store/useProjectStore'
+import { loadPersistedProject, startProjectPersistence } from '@/store/persistence'
+import { applyShareLinkFromLocation, startShareLinkSync } from '@/store/urlSync'
 
 // Boot order matters: restore the last session first, then let an explicit
 // share link (?type=tapered&height=600&...) override it. Afterwards the URL
