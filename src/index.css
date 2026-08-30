@@ -114,8 +114,17 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* web-app feel on phones: no double-tap zoom (touch-action), no rubber-band
+     pull-to-refresh (overscroll), no grey tap flash, no landscape font boosts */
+  html {
+    touch-action: manipulation;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-background text-foreground;
+    overscroll-behavior: none;
   }
 }
 
