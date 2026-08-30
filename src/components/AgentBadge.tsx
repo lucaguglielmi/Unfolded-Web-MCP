@@ -1,10 +1,16 @@
-import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 import { useProjectStore } from "@/store/useProjectStore"
 
+/**
+ * The WebMCP status pill: always reads "WebMCP", with a status dot that
+ * turns green and softly pulses while agent tools are registered in this
+ * browser. Links to /webmcp, the page that explains the whole story.
+ */
 export function AgentBadge() {
   const agentStatus = useProjectStore((s) => s.agentStatus)
   const lastAgentCall = useProjectStore((s) => s.lastAgentCall)
+  const active = agentStatus === "native"
 
   return (
     <div className="flex min-w-0 items-center gap-2.5">
@@ -15,24 +21,29 @@ export function AgentBadge() {
       )}
       <Tooltip>
         <TooltipTrigger asChild>
-          {agentStatus === "native" ? (
-            <Badge className="cursor-help gap-1.5 bg-emerald-600 text-white">
-              <span className="relative flex size-1.5">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-white/70" />
-                <span className="relative inline-flex size-1.5 rounded-full bg-white" />
-              </span>
-              WebMCP active
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-muted-foreground cursor-help font-normal">
-              WebMCP not detected
-            </Badge>
-          )}
+          <a
+            href="/webmcp"
+            aria-label={active ? "WebMCP active — learn more" : "WebMCP — learn more"}
+            className="border-border text-foreground hover:bg-accent inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium transition-colors"
+          >
+            <span className="relative flex size-2">
+              {active && (
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              )}
+              <span
+                className={cn(
+                  "relative inline-flex size-2 rounded-full",
+                  active ? "bg-emerald-500" : "bg-stone-300"
+                )}
+              />
+            </span>
+            WebMCP
+          </a>
         </TooltipTrigger>
         <TooltipContent className="max-w-72 leading-relaxed">
-          {agentStatus === "native"
-            ? "This page registered its editing tools on document.modelContext (WebMCP). An AI agent in your browser can read and edit this design with you — try asking it to change the shape or export the templates."
-            : "WebMCP lets an AI agent use this app with you. Open this page in ChatGPT's in-app browser, or in Chrome with chrome://flags/#enable-webmcp-testing enabled."}
+          {active
+            ? "Agent tools are live in this browser: the AI you're chatting with can read and edit this design with you — try asking it to change the shape or export the templates. Click for the full story."
+            : "WebMCP lets an AI agent use this app with you. Open this page in ChatGPT's in-app browser, or in Chrome with the WebMCP flag enabled — then just ask for the pot you want. Click to learn how."}
         </TooltipContent>
       </Tooltip>
     </div>

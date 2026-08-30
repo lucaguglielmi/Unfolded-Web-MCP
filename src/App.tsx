@@ -10,6 +10,7 @@ import { Viewport } from "@/components/viewport/Viewport"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { WebMCPPage } from "@/pages/WebMCPPage"
 import { shareUrl } from "@/lib/model/shareLink"
 import { useProjectStore } from "@/store/useProjectStore"
 import { useWebMCP } from "@/mcp/useWebMCP"
@@ -117,6 +118,14 @@ export default function App() {
   const [previewExpanded, setPreviewExpanded] = useState(false)
   const [previewView, setPreviewView] = useState<PreviewView>("3d")
   const isDesktop = useIsDesktop()
+
+  // /webmcp: the explainer page the header's WebMCP pill links to. The
+  // Worker serves index.html for every path (SPA fallback), so this one
+  // check is all the routing the app needs. Tools register on this page
+  // too (useWebMCP above), so it can show the live connection status.
+  if (window.location.pathname.replace(/\/+$/, "") === "/webmcp") {
+    return <WebMCPPage />
+  }
 
   return (
     <TooltipProvider>
