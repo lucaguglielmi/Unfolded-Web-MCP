@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useEffect, useMemo, useState } from "react"
 import * as THREE from "three"
 import { Canvas } from "@react-three/fiber"
 import { Grid, Html, Line, OrbitControls } from "@react-three/drei"
@@ -28,20 +28,131 @@ const DIM_GAP = 0.18
 
 const fmtCm = (mm: number) => `${Math.round(mm / 10 * 10) / 10} cm`
 
-function MeasureLabel({ position, children }: { position: [number, number, number]; children: string }) {
+export type MeasurementsMode = "static" | "cycle"
+
+function MeasureLabel({
+  position,
+  opacity = 1,
+  children,
+}: {
+  position: [number, number, number]
+  opacity?: number
+  children: string
+}) {
   return (
     <Html
       position={position}
       center
       zIndexRange={[1, 0]}
       className="text-muted-foreground/80 pointer-events-none text-[10px] font-medium whitespace-nowrap select-none"
+      style={{ opacity }}
     >
       {children}
     </Html>
   )
 }
 
-function Scene() {
+type Vec3 = [number, number, number]
+
+interface MeasureEntry {
+  key: string
+  label: string
+  labelPos: Vec3
+  lines: Vec3[][]
+}
+
+const CYCLE_FADE_MS = 700
+const CYCLE_HOLD_MS = 2200
+
+/**
+ * Ping-pong through the measurement entries with a slow crossfade: fade
+ * one in, hold, fade out, step to the neighbor, reverse at the ends.
+ * Re-renders only during the fades. Inactive (static mode) => everything
+ * fully visible.
+ */
+function useMeasurementCycler(count: number, active: boolean): { index: number; opacity: number } {
+  const [state, setState] = useState({ index: 0, opacity: 1 })
+
+  useEffect(() => {
+    if (!active || count <= 1) return
+    let index = 0
+    let direction = 1
+    let raf = 0
+    let timer = 0
+    let cancelled = false
+
+    const fade = (from: number, to: number, done: () => void) => {
+      const t0 = performance.now()
+      const step = (t: number) => {
+        if (cancelled) return
+        const p = Math.min(1, (t - t0) / CYCLE_FADE_MS)
+        // ease-in-out
+        const eased = p < 0.5 ? 2 * p * p : 1 - (-2 * p + 2) ** 2 / 2
+        setState({ index, opacity: from + (to - from) * eased })
+        if (p < 1) raf = requestAnimationFrame(step)
+        else done()
+      }
+      raf = requestAnimationFrame(step)
+    }
+
+    const cycle = () => {
+      fade(0, 1, () => {
+        timer = window.setTimeout(() => {
+          fade(1, 0, () => {
+            if (index + direction >= count || index + direction < 0) direction = -direction
+            index += direction
+            cycle()
+          })
+        }, CYCLE_HOLD_MS)
+      })
+    }
+    cycle()
+
+    return () => {
+      cancelled = true
+      cancelAnimationFrame(raf)
+      window.clearTimeout(timer)
+    }
+  }, [active, count])
+
+  return active && count > 1 ? state : { index: 0, opacity: 1 }
+}
+
+/**
+ * The dimension callouts. Static mode (main preview) shows them all at
+ * once; cycle mode (the small mobile thumbnail, where they'd clutter)
+ * shows one at a time, slowly crossfading back and forth through the
+ * set — which follows the shape: a tapered form also cycles its top
+ * width.
+ */
+function Measurements({ entries, mode }: { entries: MeasureEntry[]; mode: MeasurementsMode }) {
+  const { index, opacity } = useMeasurementCycler(entries.length, mode === "cycle")
+  const shown = mode === "cycle" ? [entries[Math.min(index, entries.length - 1)]] : entries
+  const o = mode === "cycle" ? opacity : 1
+  return (
+    <>
+      {shown.map((entry) => (
+        <group key={entry.key}>
+          {entry.lines.map((points, i) => (
+            <Line
+              key={i}
+              points={points}
+              color={MEASURE_LINE}
+              lineWidth={1}
+              transparent
+              opacity={o}
+            />
+          ))}
+          <MeasureLabel position={entry.labelPos} opacity={o}>
+            {entry.label}
+          </MeasureLabel>
+        </group>
+      ))}
+    </>
+  )
+}
+
+function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
   const form = useProjectStore((s) => s.form)
   const wallThicknessMm = useProjectStore((s) => s.clay.wallThicknessMm)
 
@@ -105,6 +216,50 @@ function Scene() {
   const rimMid = ((rimInnerR + rimOuterR) / 2) * Math.SQRT1_2
   const topDimY = height + 0.14
 
+  const measureEntries: MeasureEntry[] = [
+    {
+      key: "height",
+      label: fmtCm(form.heightMm),
+      labelPos: [dimX + 0.16, height / 2, 0],
+      lines: [
+        [[dimX, 0, 0], [dimX, height, 0]],
+        [[dimX - TICK, 0, 0], [dimX + TICK, 0, 0]],
+        [[dimX - TICK, height, 0], [dimX + TICK, height, 0]],
+      ],
+    },
+    {
+      key: "bottom",
+      label: fmtCm(form.bottomDiameterMm),
+      labelPos: [0, 0, dimZ + 0.2],
+      lines: [
+        [[-halfBot, 0, dimZ], [halfBot, 0, dimZ]],
+        [[-halfBot, 0, dimZ - TICK], [-halfBot, 0, dimZ + TICK]],
+        [[halfBot, 0, dimZ - TICK], [halfBot, 0, dimZ + TICK]],
+      ],
+    },
+    // top width only when it can differ from the bottom
+    ...(form.type === "tapered"
+      ? [
+          {
+            key: "top",
+            label: fmtCm(form.topDiameterMm),
+            labelPos: [0, topDimY + 0.14, 0] as Vec3,
+            lines: [
+              [[-rimOuterR, topDimY, 0], [rimOuterR, topDimY, 0]] as Vec3[],
+              [[-rimOuterR, topDimY - TICK, 0], [-rimOuterR, topDimY + TICK, 0]] as Vec3[],
+              [[rimOuterR, topDimY - TICK, 0], [rimOuterR, topDimY + TICK, 0]] as Vec3[],
+            ],
+          },
+        ]
+      : []),
+    {
+      key: "wall",
+      label: `wall ${fmtCm(wallThicknessMm)}`,
+      labelPos: [-rimMid, height + 0.3, rimMid],
+      lines: [[[-rimMid, height, rimMid], [-rimMid, height + 0.2, rimMid]]],
+    },
+  ]
+
   return (
     <>
       <group position={[0, bottomY, 0]} rotation={[0, startYaw, 0]}>
@@ -142,66 +297,11 @@ function Scene() {
       {/*
         Subtle dimension callouts in cm — the design (fired-target) sizes the
         potter set. A sibling of the vessel group, not a child, so they stay
-        axis-aligned when faceted forms get their starting yaw.
+        axis-aligned when faceted forms get their starting yaw. In the small
+        mobile thumbnail they cycle one at a time instead of all at once.
       */}
       <group position={[0, bottomY, 0]}>
-        {/* height, on the right */}
-        <Line points={[[dimX, 0, 0], [dimX, height, 0]]} color={MEASURE_LINE} lineWidth={1} />
-        <Line points={[[dimX - TICK, 0, 0], [dimX + TICK, 0, 0]]} color={MEASURE_LINE} lineWidth={1} />
-        <Line
-          points={[[dimX - TICK, height, 0], [dimX + TICK, height, 0]]}
-          color={MEASURE_LINE}
-          lineWidth={1}
-        />
-        <MeasureLabel position={[dimX + 0.16, height / 2, 0]}>{fmtCm(form.heightMm)}</MeasureLabel>
-
-        {/* width across the base, laid flat on the grid in front */}
-        <Line points={[[-halfBot, 0, dimZ], [halfBot, 0, dimZ]]} color={MEASURE_LINE} lineWidth={1} />
-        <Line
-          points={[[-halfBot, 0, dimZ - TICK], [-halfBot, 0, dimZ + TICK]]}
-          color={MEASURE_LINE}
-          lineWidth={1}
-        />
-        <Line
-          points={[[halfBot, 0, dimZ - TICK], [halfBot, 0, dimZ + TICK]]}
-          color={MEASURE_LINE}
-          lineWidth={1}
-        />
-        <MeasureLabel position={[0, 0, dimZ + 0.2]}>{fmtCm(form.bottomDiameterMm)}</MeasureLabel>
-
-        {/* top width, only when it can differ from the bottom */}
-        {form.type === "tapered" && (
-          <>
-            <Line
-              points={[[-rimOuterR, topDimY, 0], [rimOuterR, topDimY, 0]]}
-              color={MEASURE_LINE}
-              lineWidth={1}
-            />
-            <Line
-              points={[[-rimOuterR, topDimY - TICK, 0], [-rimOuterR, topDimY + TICK, 0]]}
-              color={MEASURE_LINE}
-              lineWidth={1}
-            />
-            <Line
-              points={[[rimOuterR, topDimY - TICK, 0], [rimOuterR, topDimY + TICK, 0]]}
-              color={MEASURE_LINE}
-              lineWidth={1}
-            />
-            <MeasureLabel position={[0, topDimY + 0.14, 0]}>
-              {fmtCm(form.topDiameterMm)}
-            </MeasureLabel>
-          </>
-        )}
-
-        {/* wall thickness: a short leader off the front-left rim edge */}
-        <Line
-          points={[[-rimMid, height, rimMid], [-rimMid, height + 0.2, rimMid]]}
-          color={MEASURE_LINE}
-          lineWidth={1}
-        />
-        <MeasureLabel position={[-rimMid, height + 0.3, rimMid]}>
-          {`wall ${fmtCm(wallThicknessMm)}`}
-        </MeasureLabel>
+        <Measurements mode={measurementsMode} entries={measureEntries} />
       </group>
 
       <Grid
@@ -220,7 +320,14 @@ function Scene() {
   )
 }
 
-export function Viewport({ showHintOnMobile = true }: { showHintOnMobile?: boolean }) {
+export function Viewport({
+  showHintOnMobile = true,
+  measurementsMode = "static",
+}: {
+  showHintOnMobile?: boolean
+  /** "static" shows all dimension callouts; "cycle" (small thumbnail) fades through them one at a time */
+  measurementsMode?: MeasurementsMode
+}) {
   return (
     <div className="relative h-full w-full">
       <Canvas
@@ -234,7 +341,7 @@ export function Viewport({ showHintOnMobile = true }: { showHintOnMobile?: boole
         <ambientLight intensity={0.65} />
         <directionalLight position={[4, 6, 3]} intensity={1.05} />
         <directionalLight position={[-3, 2, -4]} intensity={0.35} />
-        <Scene />
+        <Scene measurementsMode={measurementsMode} />
         <OrbitControls
           makeDefault
           enableDamping

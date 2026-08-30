@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Box, Check, Link2, Maximize2, Scissors, Undo2, X } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
 import { LogoMark } from "@/components/LogoMark"
@@ -15,6 +15,20 @@ import { useProjectStore } from "@/store/useProjectStore"
 import { useWebMCP } from "@/mcp/useWebMCP"
 
 type PreviewView = "3d" | "template"
+
+/** Tailwind's lg breakpoint — where the preview stops being a thumbnail. */
+function useIsDesktop(): boolean {
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 64rem)").matches
+  )
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 64rem)")
+    const onChange = () => setIsDesktop(mq.matches)
+    mq.addEventListener("change", onChange)
+    return () => mq.removeEventListener("change", onChange)
+  }, [])
+  return isDesktop
+}
 
 function UndoButton() {
   const canUndo = useProjectStore((s) => s.history.length > 0)
@@ -79,6 +93,7 @@ export default function App() {
   // thumbnail card up top and expands to a full-screen overlay on tap.
   const [previewExpanded, setPreviewExpanded] = useState(false)
   const [previewView, setPreviewView] = useState<PreviewView>("3d")
+  const isDesktop = useIsDesktop()
 
   return (
     <TooltipProvider>
@@ -142,7 +157,12 @@ export default function App() {
                 "lg:block lg:h-auto lg:flex-1 lg:border-r"
               )}
             >
-              <Viewport showHintOnMobile={previewExpanded} />
+              {/* In the small thumbnail all callouts at once would clutter —
+                  cycle them one at a time; the main preview shows them all. */}
+              <Viewport
+                showHintOnMobile={previewExpanded}
+                measurementsMode={previewExpanded || isDesktop ? "static" : "cycle"}
+              />
             </div>
             <div
               className={cn(
