@@ -15,6 +15,63 @@ stoneware at 12% shrinkage"* — while the 3D preview and templates update live.
 Built for the [WebMCP Challenge](https://webmcp.devpost.com). See [PLAN.md](./PLAN.md)
 for the full project plan.
 
+## Why this exists
+
+Slab building is the most common hand-building technique in ceramics, and its
+paper step is still manual: potters draw templates on cereal boxes, wrap paper
+around forms, and do the sizing math by hand. Two errors are endemic to that
+math, and both ruin pieces only after the firing:
+
+- **Shrinkage is scaled the wrong way.** Clay shrinks ~10–13% from wet to fired,
+  so a template must be scaled up by `1/(1−s)` — but the intuitive `1+s` is what
+  most people reach for, and at 12% shrinkage it leaves every dimension ~1.6%
+  short. A lid that no longer fits, a set of mugs that don't match.
+- **Walls are measured on the wrong surface.** A slab bends along its middle, so
+  a wrapped wall must be developed on the mid-surface (`r − t/2`); using the
+  outer dimension makes the wall come out too long and the seam overlap.
+
+Unfolded encodes both corrections and adds the math no one does by hand at all:
+exact interior capacity (volume is linear in height, so *"make it hold 350 ml"*
+has a closed-form answer) and true miter bevels for tapered faceted forms. The
+audience is specific — hand-builders, ceramics teachers, studio classes — and
+the output is physical: a PDF that prints at 100% scale, with a calibration
+ruler to prove it, that gets cut out and laid on clay.
+
+The agent is not a gimmick on top: sizing questions are exactly what potters
+ask in words (*"a mug that holds a full pour-over"*, *"my new clay shrinks
+14%, fix my templates"*) and exactly what the geometry can answer precisely.
+WebMCP is the bridge between those two facts.
+
+## The non-trivial WebMCP parts
+
+The short list of what makes this more than tools bolted onto a page
+(everything below is in [`src/mcp/`](./src/mcp/) and covered by the
+committed e2e suite):
+
+- **Eleven tools with real contracts** — zod-validated inputs exported as JSON
+  Schema, honest annotations (`readOnlyHint` / `idempotentHint` /
+  `destructiveHint`), and graceful `isError` results that include the unchanged
+  state.
+- **Every mutation returns the full new state**, so the agent never needs a
+  follow-up read — and every state snapshot carries `shareUrl`, which doubles
+  as the *return channel*: a page can't push text into a chat, but the agent
+  can always hand the potter a link that reopens the exact design.
+- **A solver, not just setters** — `set_capacity` computes the exact height for
+  a target volume in one call instead of letting the agent iterate.
+- **The agent sees what the potter sees** — `get_preview_image` returns the
+  live WebGL canvas as image content.
+- **Never-give-up registration** — hosts inject `modelContext` at wildly
+  different times (ChatGPT only when the person engages the agent), so the app
+  watches forever: fast polling, then a heartbeat (paused in hidden tabs), plus
+  focus/visibility re-checks, across `document`/`navigator`/`window`, with a
+  `provideContext` fallback for hosts without `registerTool`.
+- **An honest connection model** — the three-state pill never guesses: direct
+  registration, an explicit agent-minted link signal, or nothing. No user-agent
+  sniffing, ever.
+- **Human and agent are true peers** — same store, same validation, shared
+  undo/redo over both actors' edits, and concurrent PDF exports counted, not
+  flag-locked.
+
 ## Run it
 
 ```bash
