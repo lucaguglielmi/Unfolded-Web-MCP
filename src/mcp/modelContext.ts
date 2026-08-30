@@ -49,7 +49,7 @@ export interface ToolRegistration {
 }
 
 export interface ModelContext {
-  registerTool: (tool: ToolDescriptor) => ToolRegistration | unknown
+  registerTool?: (tool: ToolDescriptor) => ToolRegistration | unknown
   provideContext?: (context: { tools: ToolDescriptor[] }) => void
 }
 
@@ -60,11 +60,27 @@ declare global {
   interface Navigator {
     modelContext?: ModelContext
   }
+  interface Window {
+    modelContext?: ModelContext
+  }
 }
 
-export function getModelContext(): ModelContext | undefined {
-  if (typeof document !== "undefined" && document.modelContext) return document.modelContext
-  if (typeof navigator !== "undefined" && navigator.modelContext) return navigator.modelContext
+export interface ModelContextInfo {
+  ctx: ModelContext
+  /** where the host exposed the API — shown on /webmcp for debugging */
+  location: "document.modelContext" | "navigator.modelContext" | "window.modelContext"
+}
+
+export function getModelContextInfo(): ModelContextInfo | undefined {
+  if (typeof document !== "undefined" && document.modelContext) {
+    return { ctx: document.modelContext, location: "document.modelContext" }
+  }
+  if (typeof navigator !== "undefined" && navigator.modelContext) {
+    return { ctx: navigator.modelContext, location: "navigator.modelContext" }
+  }
+  if (typeof window !== "undefined" && window.modelContext) {
+    return { ctx: window.modelContext, location: "window.modelContext" }
+  }
   return undefined
 }
 

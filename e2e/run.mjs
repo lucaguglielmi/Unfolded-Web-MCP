@@ -183,6 +183,32 @@ try {
   check("the address bar live-tracks agent edits", liveUrl.includes("height=200"), liveUrl)
   await page.close()
 
+  // ------------------------------------ late injection (agent browsers)
+  // ChatGPT-style hosts may inject modelContext only when the person first
+  // engages the agent — long after load. The app must catch it anyway.
+  const latePage = await ctx.newPage()
+  await latePage.goto(BASE, { waitUntil: "networkidle" })
+  await latePage.waitForTimeout(2000) // well past initial registration attempts
+  await latePage.evaluate(() => {
+    window.__mcpToolsLate = {}
+    document.modelContext = { registerTool: (t) => (window.__mcpToolsLate[t.name] = t) }
+  })
+  await latePage.waitForTimeout(4500) // slow-poll heartbeat is 3s
+  const lateCount = await latePage.evaluate(() => Object.keys(window.__mcpToolsLate).length)
+  const lateBadge = await latePage.evaluate(
+    () => !!document.querySelector('a[href="/webmcp"] .animate-ping')
+  )
+  check(
+    "tools register and the pill lights even when the API is injected late",
+    lateCount === EXPECTED_TOOLS.length && lateBadge,
+    `tools: ${lateCount}, badge green: ${lateBadge}`
+  )
+  const consoleHook = await latePage.evaluate(
+    () => typeof window.__unfoldedTools?.describe_project?.execute === "function"
+  )
+  check("__unfoldedTools console hook is exposed for manual testing", consoleHook)
+  await latePage.close()
+
   // -------------------------------------- navigator.modelContext fallback
   const navPage = await ctx.newPage()
   await navPage.addInitScript(() => {

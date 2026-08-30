@@ -32,6 +32,7 @@ const PROMPTS = [
 
 function StatusPill() {
   const active = useProjectStore((s) => s.agentStatus) === "native"
+  const location = useProjectStore((s) => s.agentApiLocation)
   return (
     <span
       className={cn(
@@ -53,8 +54,8 @@ function StatusPill() {
         />
       </span>
       {active
-        ? "WebMCP is active in this browser — your agent is connected"
-        : "WebMCP is not active in this browser yet"}
+        ? `WebMCP is active${location ? ` via ${location}` : ""} — your agent is connected`
+        : "WebMCP is not active in this browser yet — it lights up the moment a host injects the API or an agent calls a tool"}
     </span>
   )
 }
@@ -127,17 +128,25 @@ export function WebMCPPage() {
               </ol>
             </div>
             <div className="rounded-2xl border border-stone-200 p-6">
-              <h3 className="font-semibold tracking-tight">Google Chrome</h3>
+              <h3 className="font-semibold tracking-tight">Google Chrome (desktop &amp; Android)</h3>
               <p className="mt-1 text-sm text-stone-400">Behind an experimental flag.</p>
               <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-stone-600">
                 <li>
                   1. Open{" "}
                   <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[0.8rem] break-all text-stone-700">
                     chrome://flags/#enable-webmcp-testing
+                  </code>{" "}
+                  (on Android too; if it's missing, try Chrome Canary).
+                </li>
+                <li>2. Enable it and relaunch Chrome — the pill here turns green.</li>
+                <li>
+                  3. No agent attached? Drive the tools yourself from the DevTools console
+                  (desktop, or via <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-[0.8rem] text-stone-700">chrome://inspect</code> for
+                  a phone):{" "}
+                  <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-[0.8rem] break-all text-stone-700">
+                    __unfoldedTools.set_capacity.execute({"{"}capacityMl: 350{"}"})
                   </code>
                 </li>
-                <li>2. Enable it and relaunch Chrome.</li>
-                <li>3. Come back here with an agent that speaks WebMCP.</li>
               </ol>
             </div>
           </div>

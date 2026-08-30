@@ -79,6 +79,8 @@ interface ProjectState {
   clay: ClaySettings
   paperSize: PaperSize
   agentStatus: AgentStatus
+  /** where the host exposed the WebMCP API (shown on /webmcp), or null */
+  agentApiLocation: string | null
   lastAgentCall: AgentCall | null
   /**
    * Number of PDF exports currently running. A counter, not a boolean:
@@ -103,6 +105,7 @@ interface ProjectState {
   /** Re-apply the most recently undone change. Returns false when there is nothing to redo. */
   redo: () => boolean
   setAgentStatus: (status: AgentStatus) => void
+  setAgentApiLocation: (location: string | null) => void
   recordAgentCall: (tool: string) => void
   /**
    * Shared by the export dialog and the WebMCP export tool. Rejects on
@@ -123,6 +126,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   clay: DEFAULT_CLAY,
   paperSize: "A4",
   agentStatus: "unavailable",
+  agentApiLocation: null,
   lastAgentCall: null,
   exportsInFlight: 0,
   history: [],
@@ -234,7 +238,11 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     return redone
   },
   setAgentStatus: (agentStatus) => set({ agentStatus }),
-  recordAgentCall: (tool) => set({ lastAgentCall: { tool, at: Date.now() } }),
+  setAgentApiLocation: (agentApiLocation) => set({ agentApiLocation }),
+  // A tool actually executing is definitive proof an agent is connected —
+  // flip the badge too, regardless of how/when the host injected the API.
+  recordAgentCall: (tool) =>
+    set({ lastAgentCall: { tool, at: Date.now() }, agentStatus: "native" }),
   exportPdf: async () => {
     set((state) => ({ exportsInFlight: state.exportsInFlight + 1 }))
     try {
