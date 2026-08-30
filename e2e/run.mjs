@@ -13,6 +13,9 @@ import { chromium } from "playwright"
 
 const PORT = 4199
 const BASE = `http://localhost:${PORT}`
+// Deliberately hand-written, NOT derived from src/mcp/tools.ts: this list is
+// the independent contract check. A new tool must be added here on purpose —
+// e2e failing on an unexpected surface change is the feature.
 const EXPECTED_TOOLS = [
   "describe_project",
   "open_model",

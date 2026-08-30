@@ -64,6 +64,8 @@ Registered via `document.modelContext.registerTool` (with a `navigator.modelCont
 fallback for browsers that expose the API there — see
 [`src/mcp/tools.ts`](./src/mcp/tools.ts)):
 
+<!-- keep in sync with TOOL_SUMMARIES in src/mcp/tools.ts (the single source
+     the /webmcp page renders) — README can't import, so this table is manual -->
 | Tool | What it does |
 |---|---|
 | `describe_project` | Read the current design, clay, template pieces, capacity (ml), and its share link |

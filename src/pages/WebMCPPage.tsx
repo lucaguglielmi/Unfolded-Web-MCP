@@ -1,6 +1,8 @@
 import { ArrowLeft, ArrowUpRight } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
 import { cn } from "@/lib/utils"
+// the tool list renders from its single source next to the registrations
+import { TOOL_SUMMARIES } from "@/mcp/tools"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -10,19 +12,8 @@ import { useProjectStore } from "@/store/useProjectStore"
  * browser (the same tools register here too).
  */
 
-const TOOLS: [string, string][] = [
-  ["describe_project", "Read the whole design: form, clay, template pieces, capacity in ml, and its share link."],
-  ["update_form", "Change shape, taper, facets, height and diameters — fired sizes, in millimeters."],
-  ["set_clay", "Set shrinkage % and slab thickness for the potter's clay body."],
-  ["set_capacity", "Solve the height for a target interior volume — 'make it hold 350 ml'."],
-  ["set_units", "Switch the potter's display units between centimeters and inches — UI and PDF alike."],
-  ["get_template_summary", "Template layout, per-piece dimensions, and the exact PDF page count."],
-  ["get_preview_image", "See the live 3D preview as an image — exactly what the potter sees."],
-  ["export_templates", "Generate and download the true-scale, multi-page template PDF."],
-  ["open_model", "Open a design from a pasted share link and keep editing it."],
-  ["apply_preset", "Start from a classic mug, tumbler, bud vase, or hex planter."],
-  ["undo_last_change", "Revert the last change — the agent's or the potter's."],
-]
+const COUNT_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen"]
+const TOOL_COUNT = COUNT_WORDS[TOOL_SUMMARIES.length] ?? String(TOOL_SUMMARIES.length)
 
 const PROMPTS = [
   "What am I designing right now?",
@@ -110,7 +101,7 @@ export function WebMCPPage() {
           <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
             WebMCP is a browser API that lets a web page hand real, typed tools to the AI agent
             browsing alongside you. Instead of the agent guessing at pixels or filling forms, the
-            page says: <em>here is exactly what you can do</em>. This app registers eleven tools on{" "}
+            page says: <em>here is exactly what you can do</em>. This app registers {TOOL_COUNT} tools on{" "}
             <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[0.85em] text-stone-700">
               document.modelContext
             </code>{" "}
@@ -209,10 +200,10 @@ export function WebMCPPage() {
         <section className="border-t border-stone-100 py-14">
           <SectionLabel>What your agent can do</SectionLabel>
           <dl className="mt-6 grid gap-x-10 gap-y-5 sm:grid-cols-2">
-            {TOOLS.map(([name, description]) => (
+            {TOOL_SUMMARIES.map(({ name, blurb }) => (
               <div key={name}>
                 <dt className="font-mono text-[13px] font-medium text-[#0646CC]">{name}</dt>
-                <dd className="mt-1 text-sm leading-relaxed text-stone-500">{description}</dd>
+                <dd className="mt-1 text-sm leading-relaxed text-stone-500">{blurb}</dd>
               </div>
             ))}
           </dl>

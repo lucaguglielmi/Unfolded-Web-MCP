@@ -16,6 +16,27 @@ import { textResult, type ToolDescriptor, type ToolResult } from "./modelContext
  *  - all mutations go through the same store actions the UI uses
  */
 
+/**
+ * One-line human summaries of the tool surface, in registration order —
+ * the single source the /webmcp page renders (and counts). A unit test
+ * asserts this list matches buildTools() name-for-name, so adding a tool
+ * without its summary fails the build. The e2e suite's EXPECTED_TOOLS is
+ * deliberately NOT derived from here: it is the independent contract check.
+ */
+export const TOOL_SUMMARIES: { name: string; blurb: string }[] = [
+  { name: "describe_project", blurb: "Read the whole design: form, clay, template pieces, capacity in ml, and its share link." },
+  { name: "open_model", blurb: "Open a design from a pasted share link and keep editing it." },
+  { name: "update_form", blurb: "Change shape, taper, facets, height and diameters — fired sizes, in millimeters." },
+  { name: "set_clay", blurb: "Set shrinkage % and slab thickness for the potter's clay body." },
+  { name: "set_units", blurb: "Switch the potter's display units between centimeters and inches — UI and PDF alike." },
+  { name: "set_capacity", blurb: "Solve the height for a target interior volume — 'make it hold 350 ml'." },
+  { name: "get_template_summary", blurb: "Template layout, per-piece dimensions, and the exact PDF page count." },
+  { name: "get_preview_image", blurb: "See the live 3D preview as an image — exactly what the potter sees." },
+  { name: "export_templates", blurb: "Generate and download the true-scale, multi-page template PDF." },
+  { name: "apply_preset", blurb: "Start from a classic mug, tumbler, bud vase, or hex planter." },
+  { name: "undo_last_change", blurb: "Revert the last change — the agent's or the potter's." },
+]
+
 function stateText(prefix?: string): string {
   const state = describeState()
   return (prefix ? `${prefix}\n` : "") + JSON.stringify(state, null, 2)
