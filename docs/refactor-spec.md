@@ -99,11 +99,15 @@ list, the README table, and e2e `EXPECTED_TOOLS`. Every new tool touches all
 four.
 - **Change:** export `TOOL_SUMMARIES: { name, blurb }[]` from `src/mcp/tools.ts`
   (blurb = the short human line; descriptions stay as-is for agents).
-  `WebMCPPage` renders it; e2e imports it for `EXPECTED_TOOLS`; README keeps its
-  table but gains a comment pointing at the source (README can't import).
-  The "registers eleven tools" copy derives its count from the array.
-- **Accept:** adding a dummy tool in `tools.ts` makes `/webmcp` and e2e pick it
-  up with zero further edits; deleting it restores green.
+  `WebMCPPage` renders it and derives the "registers eleven tools" count from
+  it; README keeps its table with a comment pointing at the source (README
+  can't import). **e2e's `EXPECTED_TOOLS` stays hand-written on purpose**: it
+  is the independent contract check, and deriving it from the code under test
+  would make it tautological (it also can't — `run.mjs` is plain Node, no TS).
+  Add a comment there saying exactly that.
+- **Accept:** adding a dummy tool in `tools.ts` makes `/webmcp` pick it up with
+  zero further edits — and e2e FAILS until `EXPECTED_TOOLS` is deliberately
+  updated. That failure is the feature.
 
 ### 8. Decompose the preview cluster in `App.tsx`
 The morphing preview div branches on `previewExpanded × previewCollapsed × lg:`
@@ -179,7 +183,9 @@ drei `Line` geometries rebuild more often than needed.
 Both subscribers wake on every store change, including `lastAgentCall`
 churn from tool calls, then debounce away the no-ops.
 - **Change:** use zustand's `subscribeWithSelector` middleware and subscribe to
-  `(form, clay, paperSize, unit)` with shallow equality.
+  `(form, clay, paperSize, unit)` with shallow equality. **Land this in the
+  same commit as item 6** — both touch the store's `create()` call, and doing
+  them separately churns the same lines twice.
 - **Accept:** a `recordAgentCall` no longer schedules a persistence write
   (assert via a spy in a store test); persistence/URL behavior otherwise
   unchanged.
@@ -216,13 +222,20 @@ A WebGL context loss or three.js exception currently unmounts the whole shell.
 
 ## Sequencing
 
-1. **Day 1:** all of P0 (four small commits), then items 5–7. These are the
-   changes a code reviewer sees first: boundaries, no duplicated contracts, no
-   `_test` exports.
-2. **Day 2:** items 8–10, then P2 in order 11 → 12 → 13 → 14 → 15 (each is
-   independent; stop wherever the clock says stop).
-3. **Last day before submission:** item 17 if time allows, final e2e + manual
-   phone pass, delete this file, tag the submission commit.
+The demo video and the Devpost submission share these same days — the refactor
+never outranks them. Work in tiers and stop at any tier boundary with a clean
+repo:
+
+1. **Tier A (high value, low risk — do these):** all of P0, then items 5, 7,
+   11, 12. These are what a code reviewer sees first: boundaries, no duplicated
+   contracts, smaller shell — and none of them change behavior.
+2. **Tier B (worthwhile, more churn):** items 6+14 (one commit), 8, 10, 13,
+   15, 17 — each independent; stop wherever the clock says stop.
+3. **Tier C (only if everything above is done and green):** item 9. It is the
+   riskiest behavior change on the list with the least reviewer-visible payoff;
+   the current 800 ms coalescing is defensible as-is.
+4. **Last day before submission:** final e2e + manual phone pass, delete this
+   file, tag the submission commit.
 
 ## Explicitly out of scope
 
