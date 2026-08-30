@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { setClayInputSchema, updateFormInputSchema, PRESETS } from "@/lib/model/schemas"
+import { parseShareParams } from "@/lib/model/shareLink"
 import { describeState, describeTemplates, useProjectStore } from "@/store/useProjectStore"
 import type { SetClayInput, UpdateFormInput } from "@/lib/model/schemas"
 import { textResult, type ToolDescriptor, type ToolResult } from "./modelContext"
@@ -38,10 +39,36 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "describe_project",
       description:
-        "Get the current pottery design: form type and dimensions (fired sizes, in mm), clay settings (shrinkage, wall thickness), and the flat template pieces the design unrolls into (wet-clay sizes, already scaled up for shrinkage). Call this first to see what the potter is working on.",
+        "Get the current pottery design: form type and dimensions (fired sizes, in mm), clay settings (shrinkage, wall thickness), the flat template pieces the design unrolls into (wet-clay sizes, already scaled up for shrinkage), and shareUrl — a deep link that reopens exactly this design. Call this first to see what the potter is working on.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true, title: "Describe current design" },
       execute: () => run("describe_project", () => textResult(stateText())),
+    },
+    {
+      name: "open_model",
+      description:
+        "Open a pottery design from an Unfolded share link. Pass the full URL (any domain — the deployment host may change) or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Recognized parameters: type (cylinder, tapered, triangle, square, pentagon, hexagon, heptagon, octagon), height / bottom / top (fired mm), name, shrinkage (percent), wall (mm), paper (A4 or Letter). Parameters missing from the link keep their current values; out-of-range values are clamped. The same link opens the design directly in a browser, and every state snapshot includes shareUrl — give that to the potter to save or share the current design. Returns the full new state, ready for further update_form / set_clay edits.",
+      inputSchema: z.toJSONSchema(
+        z.object({
+          url: z.string().min(1).describe("Share link URL, or just its query string"),
+        })
+      ),
+      annotations: { title: "Open model from link" },
+      execute: (input) =>
+        run("open_model", () => {
+          const { url } = z.object({ url: z.string().min(1) }).parse(input ?? {})
+          const patches = parseShareParams(url)
+          if (!patches.form && !patches.clay && !patches.paperSize) {
+            return textResult(
+              "No recognizable design parameters in that link. Expected query parameters " +
+                "like type, height, bottom, top, name, shrinkage, wall, paper.\n\n" +
+                `Current state unchanged:\n${stateText()}`,
+              true
+            )
+          }
+          useProjectStore.getState().openModel(patches)
+          return textResult(stateText("Model opened from link."))
+        }),
     },
     {
       name: "update_form",

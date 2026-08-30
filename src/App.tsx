@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Amphora, Box, Maximize2, Scissors, X } from "lucide-react"
+import { Amphora, Box, Check, Link2, Maximize2, Scissors, X } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { IconOptionGroup } from "@/components/IconOptionGroup"
@@ -9,9 +9,45 @@ import { Viewport } from "@/components/viewport/Viewport"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { shareUrl } from "@/lib/model/shareLink"
+import { useProjectStore } from "@/store/useProjectStore"
 import { useWebMCP } from "@/mcp/useWebMCP"
 
 type PreviewView = "3d" | "template"
+
+/**
+ * Copies the current design's deep link. The address bar already tracks the
+ * design live (see startShareLinkSync), this is just the one-tap way to
+ * grab it — especially inside in-app browsers that hide the URL bar.
+ */
+function CopyLinkButton() {
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    const { form, clay, paperSize } = useProjectStore.getState()
+    const url = shareUrl(form, clay, paperSize)
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard can be unavailable (permissions, older webviews)
+      window.prompt("Copy this link to share the design:", url)
+    }
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Copy share link"
+      title="Copy a link to this design"
+      onClick={copy}
+    >
+      {copied ? <Check className="size-4 text-emerald-600" /> : <Link2 className="size-4" />}
+    </Button>
+  )
+}
 
 const PREVIEW_VIEW_OPTIONS = [
   { value: "3d" as const, label: "3D preview", icon: Box },
@@ -37,7 +73,10 @@ export default function App() {
               slab pottery templates — design in 3D, print flat, build in clay
             </p>
           </div>
-          <AgentBadge />
+          <div className="flex shrink-0 items-center gap-1.5">
+            <CopyLinkButton />
+            <AgentBadge />
+          </div>
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col lg:flex-row">

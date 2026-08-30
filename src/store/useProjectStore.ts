@@ -12,6 +12,7 @@ import {
 import { buildPieces, describePiece, formWarnings, shrinkageScale, type Piece } from "@/lib/geometry/unroll"
 import { countPages, layoutPieces, PAGE_OVERLAP_MM, type PaperSize } from "@/lib/export/svg"
 import type { ExportResult } from "@/lib/export/pdf"
+import { buildShareParams, parseShareParams, shareUrl, type SharePatches } from "@/lib/model/shareLink"
 
 export type AgentStatus = "native" | "unavailable"
 
@@ -31,6 +32,8 @@ interface ProjectState {
 
   updateForm: (patch: UpdateFormInput) => void
   setClay: (patch: SetClayInput) => void
+  /** Apply a share link's decoded patches (form + clay + paper) in one go. */
+  openModel: (patches: SharePatches) => void
   applyPreset: (presetId: keyof typeof PRESETS) => void
   setPaperSize: (paper: PaperSize) => void
   setAgentStatus: (status: AgentStatus) => void
@@ -81,6 +84,13 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   setClay: (patch) =>
     set((state) => ({ clay: { ...state.clay, ...setClayInputSchema.parse(patch) } })),
 
+  openModel: (patches) => {
+    const { updateForm, setClay, setPaperSize } = get()
+    if (patches.form) updateForm(patches.form)
+    if (patches.clay) setClay(patches.clay)
+    if (patches.paperSize) setPaperSize(patches.paperSize)
+  },
+
   applyPreset: (presetId) =>
     set(() => ({ form: { ...PRESETS[presetId] }, clay: { ...DEFAULT_CLAY } })),
 
@@ -119,6 +129,8 @@ export function describeState(): {
   form: FormParams
   clay: ClaySettings
   paperSize: PaperSize
+  /** deep link that reopens exactly this design — share it with the potter */
+  shareUrl: string
   pieces: string[]
   printedPages: number
   warnings: string[]
@@ -131,10 +143,44 @@ export function describeState(): {
     form,
     clay,
     paperSize,
+    shareUrl: shareUrl(form, clay, paperSize),
     pieces: pieces.map((p) => describePiece(p, scale)),
     printedPages: pages.totalPages,
     warnings: formWarnings(form, clay),
   }
+}
+
+/**
+ * Apply a share link from the address bar — call once at boot, before
+ * first render, so a deep-linked design never flashes the default.
+ */
+export function applyShareLinkFromLocation(): void {
+  if (typeof window === "undefined" || !window.location.search) return
+  useProjectStore.getState().openModel(parseShareParams(window.location.search))
+}
+
+/**
+ * Keep the address bar in sync with the design (debounced replaceState),
+ * so the URL is always a live share link. A clean URL stays clean until
+ * the first actual edit — visitors aren't surprised by a growing URL.
+ */
+export function startShareLinkSync(): void {
+  if (typeof window === "undefined") return
+  const currentQs = () => {
+    const { form, clay, paperSize } = useProjectStore.getState()
+    return buildShareParams(form, clay, paperSize).toString()
+  }
+  let last = currentQs()
+  let timer: number | undefined
+  useProjectStore.subscribe(() => {
+    window.clearTimeout(timer)
+    timer = window.setTimeout(() => {
+      const qs = currentQs()
+      if (qs === last) return
+      last = qs
+      window.history.replaceState(null, "", `${window.location.pathname}?${qs}`)
+    }, 350)
+  })
 }
 
 /** Template-focused snapshot for get_template_summary — layout, pieces, paging. */
