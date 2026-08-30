@@ -209,6 +209,41 @@ describe("undo", () => {
     expect(paperSize).toBe("A4")
   })
 
+  it("a long drag is exactly one undo step, however slow (explicit scope)", () => {
+    const { beginUndoCoalescing, endUndoCoalescing, updateForm, undo } = store.getState()
+    beginUndoCoalescing()
+    updateForm({ heightMm: 150 })
+    nextUndoStep() // 10 s pass mid-drag — far beyond the fallback window
+    updateForm({ heightMm: 250 })
+    nextUndoStep()
+    updateForm({ heightMm: 350 })
+    endUndoCoalescing()
+    expect(store.getState().history).toHaveLength(1)
+    expect(undo()).toBe(true)
+    expect(store.getState().form.heightMm).toBe(PRESETS["classic-mug"].heightMm)
+  })
+
+  it("a change right after a finished gesture starts a new step", () => {
+    const { beginUndoCoalescing, endUndoCoalescing, updateForm } = store.getState()
+    beginUndoCoalescing()
+    updateForm({ heightMm: 150 })
+    endUndoCoalescing()
+    // 0 ms later — inside the fallback window, but the gesture is over
+    updateForm({ heightMm: 220 })
+    expect(store.getState().history).toHaveLength(2)
+  })
+
+  it("a preset click then a rapid toggle are two separate steps", () => {
+    const { applyPreset, updateForm } = store.getState()
+    applyPreset("hex-planter")
+    clock.t += 100 // well inside the fallback window
+    updateForm({ tapered: true })
+    expect(store.getState().history).toHaveLength(2)
+    expect(store.getState().undo()).toBe(true)
+    expect(store.getState().form.tapered).toBe(false)
+    expect(store.getState().form.type).toBe("faceted") // still the preset
+  })
+
   it("returns false with nothing to undo, and no-op patches don't burn steps", () => {
     const { updateForm, setClay, undo } = store.getState()
     expect(undo()).toBe(false)

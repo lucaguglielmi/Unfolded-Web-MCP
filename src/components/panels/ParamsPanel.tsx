@@ -97,6 +97,8 @@ function DimensionSlider({
   onChange: (value: number) => void
 }) {
   const shown = display ? formatLength(value, display) : `${value} ${unit ?? "mm"}`
+  const beginUndoCoalescing = useProjectStore((s) => s.beginUndoCoalescing)
+  const endUndoCoalescing = useProjectStore((s) => s.endUndoCoalescing)
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -111,9 +113,18 @@ function DimensionSlider({
         min={min}
         max={max}
         step={step}
+        // a whole drag is ONE undo step: scope opens on pointer-down and
+        // closes on commit (pointer-up doubles as a safety net — ending an
+        // already-closed scope is a no-op). Keyboard arrow-repeats have no
+        // gesture boundary and fall back to the store's time window.
+        onPointerDown={beginUndoCoalescing}
+        onPointerUp={endUndoCoalescing}
         onValueChange={([v]) => onChange(v)}
-        // one soft tick when the drag lands, not on every step
-        onValueCommit={() => feedback("tap")}
+        onValueCommit={() => {
+          endUndoCoalescing()
+          // one soft tick when the drag lands, not on every step
+          feedback("tap")
+        }}
       />
     </div>
   )

@@ -41,7 +41,12 @@ interface Snapshot {
 }
 
 const HISTORY_LIMIT = 50
-/** changes landing within this window merge into one undo step (slider drags) */
+/**
+ * Fallback coalescing window. Pointer drags and link opens use explicit
+ * begin/endUndoCoalescing scopes (exact, timing-independent); this window
+ * only merges what has no gesture boundary — held-down arrow keys on a
+ * slider, or agent tools issuing rapid successive edits.
+ */
 const HISTORY_COALESCE_MS = 800
 
 /* The pdf module is heavy (jsPDF + svg2pdf) and browser-only, so it's
@@ -67,18 +72,43 @@ export function createProjectStore({
   loadPdfModule = () => import("@/lib/export/pdf"),
 }: ProjectStoreDeps = {}) {
   let lastHistoryPushAt = 0
+  /** the next change starts a fresh step regardless of the time window */
+  let forceNextStep = true
+  /** >0 while inside an explicit coalescing scope (a drag, a link open) */
+  let coalesceDepth = 0
+  /** whether the current scope has taken its one snapshot already */
+  let scopeSnapshotTaken = false
 
   function pushHistory(state: { history: Snapshot[]; form: FormParams; clay: ClaySettings; paperSize: PaperSize }): Snapshot[] {
-    const t = now()
-    if (t - lastHistoryPushAt < HISTORY_COALESCE_MS && state.history.length > 0) {
+    if (coalesceDepth > 0) {
+      // explicit scope: exactly one snapshot (the state before the gesture)
+      if (scopeSnapshotTaken) return state.history
+      scopeSnapshotTaken = true
+    } else if (
+      !forceNextStep &&
+      now() - lastHistoryPushAt < HISTORY_COALESCE_MS &&
+      state.history.length > 0
+    ) {
       return state.history
     }
-    lastHistoryPushAt = t
+    forceNextStep = false
+    lastHistoryPushAt = now()
     const next = [
       ...state.history,
       { form: state.form, clay: state.clay, paperSize: state.paperSize },
     ]
     return next.length > HISTORY_LIMIT ? next.slice(-HISTORY_LIMIT) : next
+  }
+
+  function beginScope() {
+    coalesceDepth += 1
+    if (coalesceDepth === 1) scopeSnapshotTaken = false
+  }
+
+  function endScope() {
+    coalesceDepth = Math.max(0, coalesceDepth - 1)
+    // whatever follows a finished gesture is a new undo step
+    if (coalesceDepth === 0) forceNextStep = true
   }
 
   interface ProjectState {
@@ -111,6 +141,15 @@ export function createProjectStore({
     setPaperSize: (paper: PaperSize) => void
     /** display preference only — not part of the undo history */
     setUnit: (unit: Unit) => void
+    /**
+     * Explicit undo-coalescing scope: every change between begin and end
+     * reverts as ONE step, however long the gesture takes. Drives slider
+     * drags (pointer-down → commit); openModel and applyPreset scope
+     * themselves. Nestable; ending the outermost scope also ends the
+     * time-window fallback so the next change starts a fresh step.
+     */
+    beginUndoCoalescing: () => void
+    endUndoCoalescing: () => void
     /** Revert the most recent change (form/clay/paper). Returns false when there is nothing to undo. */
     undo: () => boolean
     /** Re-apply the most recently undone change. Returns false when there is nothing to redo. */
@@ -178,23 +217,36 @@ export function createProjectStore({
       }),
 
     openModel: (patches) => {
-      // the nested actions land within the coalescing window, so a whole
-      // opened link reverts as one undo step (the unit preference is a
-      // display setting and stays out of history entirely)
-      const { updateForm, setClay, setPaperSize, setUnit } = get()
-      if (patches.form) updateForm(patches.form)
-      if (patches.clay) setClay(patches.clay)
-      if (patches.paperSize) setPaperSize(patches.paperSize)
-      if (patches.unit) setUnit(patches.unit)
+      // one explicit scope: a whole opened link reverts as one undo step,
+      // whatever the timing (the unit preference is a display setting and
+      // stays out of history entirely)
+      beginScope()
+      try {
+        const { updateForm, setClay, setPaperSize, setUnit } = get()
+        if (patches.form) updateForm(patches.form)
+        if (patches.clay) setClay(patches.clay)
+        if (patches.paperSize) setPaperSize(patches.paperSize)
+        if (patches.unit) setUnit(patches.unit)
+      } finally {
+        endScope()
+      }
     },
 
-    applyPreset: (presetId) =>
-      set((state) => ({
-        form: { ...PRESETS[presetId] },
-        clay: { ...DEFAULT_CLAY },
-        history: pushHistory(state),
-        future: [],
-      })),
+    applyPreset: (presetId) => {
+      // self-scoped: a preset is one deliberate step, and whatever the
+      // potter does right after it is the next one
+      beginScope()
+      try {
+        set((state) => ({
+          form: { ...PRESETS[presetId] },
+          clay: { ...DEFAULT_CLAY },
+          history: pushHistory(state),
+          future: [],
+        }))
+      } finally {
+        endScope()
+      }
+    },
 
     setPaperSize: (paperSize) =>
       set((state) =>
@@ -205,6 +257,9 @@ export function createProjectStore({
 
     setUnit: (unit) => set({ unit }),
 
+    beginUndoCoalescing: beginScope,
+    endUndoCoalescing: endScope,
+
     undo: () => {
       let undone = false
       set((state) => {
@@ -212,7 +267,7 @@ export function createProjectStore({
         if (!prev) return {}
         undone = true
         // the next change after an undo always starts a fresh undo step
-        lastHistoryPushAt = 0
+        forceNextStep = true
         return {
           form: prev.form,
           clay: prev.clay,
@@ -233,7 +288,7 @@ export function createProjectStore({
         const next = state.future[state.future.length - 1]
         if (!next) return {}
         redone = true
-        lastHistoryPushAt = 0
+        forceNextStep = true
         const history = [
           ...state.history,
           { form: state.form, clay: state.clay, paperSize: state.paperSize },
