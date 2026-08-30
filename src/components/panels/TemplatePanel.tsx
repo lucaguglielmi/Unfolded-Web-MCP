@@ -10,8 +10,12 @@ import {
   textFits,
   tickMarks,
   ANNOTATION_FONT_MM,
+  ANNOTATION_OFFSET_MM,
   LABEL_FONT_MM,
   NAME_FONT_MM,
+  NAME_OFFSET_MM,
+  STAMP_FONT_MM,
+  STAMP_OFFSET_MM,
   type PaperSize,
 } from "@/lib/export/svg"
 import { selectPieces, useProjectStore } from "@/store/useProjectStore"
@@ -73,7 +77,8 @@ export function TemplatePanel() {
         >
           {layout.placed.map(({ piece, graphic, dx, dy }) => {
             const availableWidth = graphic.widthMm
-            const showName = textFits(form.name, NAME_FONT_MM, availableWidth)
+            // uppercase runs wider than the mixed-case average, hence 1.15
+            const showName = textFits(form.name, NAME_FONT_MM * 1.15, availableWidth)
             const showLabel = textFits(piece.label, LABEL_FONT_MM, availableWidth)
             const dimsText = describePiece(piece, scale).replace(`${piece.label}: `, "")
             const showDims = textFits(dimsText, ANNOTATION_FONT_MM, availableWidth)
@@ -99,12 +104,13 @@ export function TemplatePanel() {
                 {showName && (
                   <text
                     x={graphic.labelAt.x}
-                    y={graphic.labelAt.y - LABEL_FONT_MM * 0.6 - 1}
+                    y={graphic.labelAt.y - NAME_OFFSET_MM}
                     textAnchor="middle"
                     fontSize={NAME_FONT_MM}
+                    letterSpacing={0.3}
                     className="fill-muted-foreground"
                   >
-                    {form.name}
+                    {form.name.toUpperCase()}
                   </text>
                 )}
                 {showLabel && (
@@ -113,19 +119,19 @@ export function TemplatePanel() {
                     y={graphic.labelAt.y}
                     textAnchor="middle"
                     fontSize={LABEL_FONT_MM}
-                    className="fill-foreground font-medium"
+                    className="fill-foreground font-semibold"
                   >
                     {piece.label}
                   </text>
                 )}
                 {piece.kind === "rectangle" &&
                   piece.stamp &&
-                  textFits(piece.stamp, NAME_FONT_MM, availableWidth) && (
+                  textFits(piece.stamp, STAMP_FONT_MM, availableWidth) && (
                     <text
                       x={graphic.labelAt.x}
-                      y={graphic.labelAt.y + LABEL_FONT_MM * 0.9 + 1}
+                      y={graphic.labelAt.y + STAMP_OFFSET_MM}
                       textAnchor="middle"
-                      fontSize={NAME_FONT_MM}
+                      fontSize={STAMP_FONT_MM}
                       className="fill-muted-foreground"
                     >
                       {piece.stamp}
@@ -133,8 +139,9 @@ export function TemplatePanel() {
                   )}
                 {showDims && (
                   <text
-                    x={0}
-                    y={graphic.heightMm + ANNOTATION_FONT_MM + 2}
+                    x={graphic.widthMm / 2}
+                    y={graphic.heightMm + ANNOTATION_OFFSET_MM}
+                    textAnchor="middle"
                     fontSize={ANNOTATION_FONT_MM}
                     className="fill-muted-foreground"
                   >

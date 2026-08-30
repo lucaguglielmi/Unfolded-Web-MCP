@@ -187,7 +187,14 @@ export const ANNOTATION_MM = 10
  */
 export const LABEL_FONT_MM = 6
 export const NAME_FONT_MM = 3.2
+export const STAMP_FONT_MM = 3.2
 export const ANNOTATION_FONT_MM = 3.6
+
+/* vertical rhythm of the text block on each piece (baselines relative to
+   the label baseline / piece bottom) — shared so preview matches print */
+export const NAME_OFFSET_MM = 6.5
+export const STAMP_OFFSET_MM = 5.5
+export const ANNOTATION_OFFSET_MM = 6
 
 /**
  * Rough estimate of whether a text string rendered at fontSizeMm fits

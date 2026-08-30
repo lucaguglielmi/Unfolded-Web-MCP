@@ -9,11 +9,15 @@ import {
   textFits,
   tickMarks,
   ANNOTATION_FONT_MM,
+  ANNOTATION_OFFSET_MM,
   LABEL_FONT_MM,
   NAME_FONT_MM,
+  NAME_OFFSET_MM,
   PAGE_MARGIN_MM,
   PAGE_OVERLAP_MM,
   PAPERS,
+  STAMP_FONT_MM,
+  STAMP_OFFSET_MM,
   type PaperSize,
   type TemplateLayout,
 } from "./svg"
@@ -37,6 +41,75 @@ function el<K extends string>(name: K, attrs: Record<string, string | number>): 
   const node = document.createElementNS(SVG_NS, name)
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v))
   return node
+}
+
+/** Lucide "amphora" icon paths (24x24 viewBox, ISC license) — the app logomark. */
+const AMPHORA_PATHS = [
+  "M10 2v5.632c0 .424-.272.795-.653.982A6 6 0 0 0 6 14c.006 4 3 7 5 8",
+  "M10 5H8a2 2 0 0 0 0 4h.68",
+  "M14 2v5.632c0 .424.272.795.652.982A6 6 0 0 1 18 14c0 4-3 7-5 8",
+  "M14 5h2a2 2 0 0 1 0 4h-.68",
+  "M18 22H6",
+  "M9 2h6",
+]
+
+/**
+ * The Unfolded logomark + wordmark as an SVG element sized to iconMm tall,
+ * for placing on PDF pages via doc.svg(). Returns [element, totalWidthMm].
+ */
+function logoSvg(iconMm: number, withWordmark = true): [SVGSVGElement, number] {
+  const wordmarkFont = iconMm * 0.62
+  const wordmarkWidth = withWordmark ? wordmarkFont * 0.56 * "Unfolded".length + iconMm * 0.25 : 0
+  const totalW = iconMm + wordmarkWidth
+  const svg = el("svg", {
+    xmlns: SVG_NS,
+    viewBox: `0 0 ${(totalW / iconMm) * 24} 24`,
+    width: `${totalW}mm`,
+    height: `${iconMm}mm`,
+  }) as SVGSVGElement
+  for (const d of AMPHORA_PATHS) {
+    svg.appendChild(
+      el("path", {
+        d,
+        fill: "none",
+        stroke: OUTLINE_COLOR,
+        "stroke-width": 1.75,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round",
+      })
+    )
+  }
+  if (withWordmark) {
+    const text = el("text", {
+      x: 27,
+      y: 16.4,
+      "font-family": "helvetica",
+      "font-size": (wordmarkFont / iconMm) * 24,
+      "font-weight": "bold",
+      fill: OUTLINE_COLOR,
+    })
+    text.textContent = "Unfolded"
+    svg.appendChild(text)
+  }
+  return [svg, totalW]
+}
+
+/**
+ * A 30mm scale-check bar ("3 cm") drawn with plain jsPDF lines. One goes on
+ * every printed page so any page can be validated against a ruler — if the
+ * bar measures 3 cm, that page printed at true size.
+ */
+function draw3cmCheck(doc: jsPDF, xRight: number, y: number): void {
+  const x0 = xRight - 30
+  doc.setDrawColor(0)
+  doc.setLineWidth(0.4)
+  doc.line(x0, y, xRight, y)
+  doc.line(x0, y - 1.5, x0, y + 1.5)
+  doc.line(xRight, y - 1.5, xRight, y + 1.5)
+  doc.setFontSize(7)
+  doc.setTextColor(60)
+  doc.text("3 cm check", x0 - 2, y + 1, { align: "right" })
+  doc.setTextColor(0)
 }
 
 /**
@@ -93,16 +166,18 @@ function layoutSvg(
 
     const availableWidth = graphic.widthMm
 
-    if (textFits(projectName, NAME_FONT_MM, availableWidth)) {
+    // uppercase runs wider than the mixed-case average, hence the 1.15 factor
+    if (textFits(projectName, NAME_FONT_MM * 1.15, availableWidth)) {
       const name = el("text", {
         x: graphic.labelAt.x,
-        y: graphic.labelAt.y - LABEL_FONT_MM * 0.6 - 1,
+        y: graphic.labelAt.y - NAME_OFFSET_MM,
         "font-family": "helvetica",
         "font-size": NAME_FONT_MM,
         "text-anchor": "middle",
+        "letter-spacing": 0.3,
         fill: SEAM_COLOR,
       })
-      name.textContent = projectName
+      name.textContent = projectName.toUpperCase()
       g.appendChild(name)
     }
 
@@ -112,6 +187,7 @@ function layoutSvg(
         y: graphic.labelAt.y,
         "font-family": "helvetica",
         "font-size": LABEL_FONT_MM,
+        "font-weight": "bold",
         "text-anchor": "middle",
         fill: OUTLINE_COLOR,
       })
@@ -122,13 +198,13 @@ function layoutSvg(
     if (
       piece.kind === "rectangle" &&
       piece.stamp &&
-      textFits(piece.stamp, NAME_FONT_MM, availableWidth)
+      textFits(piece.stamp, STAMP_FONT_MM, availableWidth)
     ) {
       const stamp = el("text", {
         x: graphic.labelAt.x,
-        y: graphic.labelAt.y + LABEL_FONT_MM * 0.9 + 1,
+        y: graphic.labelAt.y + STAMP_OFFSET_MM,
         "font-family": "helvetica",
-        "font-size": NAME_FONT_MM,
+        "font-size": STAMP_FONT_MM,
         "text-anchor": "middle",
         fill: SEAM_COLOR,
       })
@@ -139,10 +215,11 @@ function layoutSvg(
     const dimsText = describePiece(piece, scale).replace(`${piece.label}: `, "")
     if (textFits(dimsText, ANNOTATION_FONT_MM, availableWidth)) {
       const dims = el("text", {
-        x: 0,
-        y: graphic.heightMm + ANNOTATION_FONT_MM + 2,
+        x: graphic.widthMm / 2,
+        y: graphic.heightMm + ANNOTATION_OFFSET_MM,
         "font-family": "helvetica",
         "font-size": ANNOTATION_FONT_MM,
+        "text-anchor": "middle",
         fill: SEAM_COLOR,
       })
       dims.textContent = dimsText
@@ -191,26 +268,38 @@ export async function exportTemplatesPdf(options: {
 
   const doc = new jsPDF({ unit: "mm", format: paper === "A4" ? "a4" : "letter" })
 
+  const placeLogo = async (iconMm: number, x: number, yTop: number, withWordmark = true) => {
+    const [svg, w] = logoSvg(iconMm, withWordmark)
+    document.body.appendChild(svg)
+    try {
+      await doc.svg(svg, { x, y: yTop, width: w, height: iconMm })
+    } finally {
+      svg.remove()
+    }
+    return w
+  }
+
   /* ------------------------------------------------------- overview page */
+  await placeLogo(9, M, M - 2)
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(18)
-  doc.text("Unfolded — slab template", M, M + 6)
+  doc.setFontSize(15)
+  doc.text("Slab template", M, M + 15)
   doc.setFont("helvetica", "normal")
   doc.setFontSize(11)
-  doc.text(`${name} — wet-clay template, shrinkage already applied`, M, M + 13)
+  doc.text(`${name} — wet-clay template, shrinkage already applied`, M, M + 21)
 
   doc.setFontSize(10)
   const instructions = [
     "1. Print ALL pages at 100% scale (no 'fit to page').",
-    "2. Check the calibration bars below with a ruler before cutting.",
+    "2. Check the calibration bars below with a ruler — every template page also carries a 3 cm check.",
     "3. Tape pages following the map; edges overlap by the glue strip (10 mm).",
     "4. Cut along solid outlines. Dashed edges are seams: bevel at the angle stamped on the piece, score and slip.",
     "5. Tick marks across seams are registration marks — align them when wrapping.",
   ]
-  instructions.forEach((line, i) => doc.text(line, M, M + 24 + i * 6))
+  instructions.forEach((line, i) => doc.text(line, M, M + 31 + i * 6))
 
   // calibration bars
-  let y = M + 60
+  let y = M + 67
   doc.setLineWidth(0.6)
   doc.setDrawColor(0)
   doc.line(M, y, M + 100, y)
@@ -297,14 +386,19 @@ export async function exportTemplatesPdf(options: {
       }
       doc.setLineDashPattern([], 0)
 
+      // page chrome in the margin bands: logomark top-right, footer text
+      // bottom-left, and a 3 cm scale check bottom-right on every page
+      await placeLogo(6, pageW - M - 24, 2.5)
       doc.setFontSize(8)
       doc.setTextColor(100)
+      const footerName = name.length > 40 ? `${name.slice(0, 37)}…` : name
       doc.text(
-        `Unfolded — ${name} — page ${pageId(r, c)} of ${pg.rows}x${pg.cols} — print at 100%`,
+        `${footerName} — page ${pageId(r, c)} of ${pg.rows}x${pg.cols} — print at 100%`,
         M,
         pageH - 5
       )
       doc.setTextColor(0)
+      draw3cmCheck(doc, pageW - M, pageH - 6)
   }
 
   doc.save(`unfolded-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${paper.toLowerCase()}.pdf`)
