@@ -247,4 +247,26 @@ repo:
 
 ## Done
 
-*(move completed items here with their commit hashes)*
+All 16 work items landed 2026-08-30, one commit each (6+14 combined by
+design), every one behind the full lint / test / build / e2e gate:
+
+| Item | Commit |
+|---|---|
+| 1 — unit-aware warnings in describeTemplates | `f984ef3` |
+| 2 — shareUrl options object | `40d36cd` |
+| 3 — PdfModule derived from the real module | `411d51c` |
+| 4 — single source for the deployed origin | `44dba1d` |
+| 5 — store module split by responsibility | `055e2e4` |
+| 6+14 — store factory + design-slice subscriptions | `a32abef` |
+| 7 — single source for the tool surface | `6ca0a24` |
+| 8 — app shell decomposed | `b4f50e1` |
+| 9 — commit-based undo coalescing | `8c75b88` |
+| 10 — centralized feedback + mute switch | `ef4237f` |
+| 11 — /webmcp lazy-loaded | `daea246` |
+| 12 — jsPDF optional deps dropped (~380 kB) | `e4de05d` |
+| 13 — React out of the measurement fade loop | `f5ad3aa` |
+| 15 — heartbeat paused in hidden tabs | `b3437dd` |
+| 16 — geometry-rebuild tradeoff documented | `22fd374` |
+| 17 — error boundary around the 3D preview | `3f48501` |
+
+Remaining: the final pre-submission commit deletes this file.
