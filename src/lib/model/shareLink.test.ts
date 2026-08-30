@@ -64,8 +64,9 @@ describe("parseShareParams", () => {
 
   it("parses paper size case-insensitively", () => {
     expect(parseShareParams("paper=letter").paperSize).toBe("Letter")
+    expect(parseShareParams("paper=a3").paperSize).toBe("A3")
     expect(parseShareParams("paper=A4").paperSize).toBe("A4")
-    expect(parseShareParams("paper=A3").paperSize).toBeUndefined()
+    expect(parseShareParams("paper=A5").paperSize).toBeUndefined()
   })
 })
 

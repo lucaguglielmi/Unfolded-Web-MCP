@@ -35,7 +35,7 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
   const exportPdf = useProjectStore((s) => s.exportPdf)
 
   const pages = useMemo(
-    () => countPages(layoutPieces(selectPieces(form, clay)), paperSize),
+    () => countPages(layoutPieces(selectPieces(form, clay), paperSize), paperSize),
     [form, clay, paperSize]
   )
 

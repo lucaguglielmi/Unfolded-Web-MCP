@@ -49,7 +49,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "open_model",
       description:
-        "Open a pottery design from an Unfolded share link. Pass the full URL (any domain — the deployment host may change) or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Recognized parameters: type (cylinder, tapered, triangle, square, pentagon, hexagon, heptagon, octagon), height / bottom / top (fired mm; a 'top' value marks the form as tapered — works for faceted shapes too, e.g. 'type=hexagon&top=120'), name, shrinkage (percent), wall (mm), paper (A4 or Letter). Parameters missing from the link keep their current values; out-of-range values are clamped. The same link opens the design directly in a browser, and every state snapshot includes shareUrl — give that to the potter to save or share the current design. Returns the full new state, ready for further update_form / set_clay edits.",
+        "Open a pottery design from an Unfolded share link. Pass the full URL (any domain — the deployment host may change) or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Recognized parameters: type (cylinder, tapered, triangle, square, pentagon, hexagon, heptagon, octagon), height / bottom / top (fired mm; a 'top' value marks the form as tapered — works for faceted shapes too, e.g. 'type=hexagon&top=120'), name, shrinkage (percent), wall (mm), paper (A4, A3, or Letter). Parameters missing from the link keep their current values; out-of-range values are clamped. The same link opens the design directly in a browser, and every state snapshot includes shareUrl — give that to the potter to save or share the current design. Returns the full new state, ready for further update_form / set_clay edits.",
       inputSchema: z.toJSONSchema(
         z.object({
           url: z.string().min(1).describe("Share link URL, or just its query string"),
@@ -139,7 +139,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "get_template_summary",
       description:
-        "Get the printable template details: each flat piece with wet-clay dimensions and assembly notes, the overall layout size, glue overlap, and exactly how many pages the PDF will have at the current paper size (A4 or Letter). Read-only.",
+        "Get the printable template details: each flat piece with wet-clay dimensions and assembly notes, the overall layout size, glue overlap, and exactly how many pages the PDF will have at the current paper size (A4, A3, or Letter). Read-only.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true, title: "Template summary" },
       execute: () =>
@@ -176,10 +176,10 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "export_templates",
       description:
-        "Export the printable template as a multi-page PDF and download it in the potter's browser. Pages tile the true-scale template with 10 mm glue overlaps; page 1 has assembly instructions, an assembly map, and a calibration ruler. Optionally set paperSize ('A4' or 'Letter') first. Returns the page count.",
+        "Export the printable template as a multi-page PDF and download it in the potter's browser. Pages tile the true-scale template with 10 mm glue overlaps; page 1 has assembly instructions, an assembly map, and a calibration ruler. Optionally set paperSize ('A4', 'A3', or 'Letter') first. Returns the page count.",
       inputSchema: z.toJSONSchema(
         z.object({
-          paperSize: z.enum(["A4", "Letter"]).optional().describe("Paper size for the printout"),
+          paperSize: z.enum(["A4", "A3", "Letter"]).optional().describe("Paper size for the printout"),
         })
       ),
       annotations: { title: "Export printable PDF" },
@@ -187,7 +187,7 @@ export function buildTools(): ToolDescriptor[] {
         useProjectStore.getState().recordAgentCall("export_templates")
         try {
           const { paperSize } = z
-            .object({ paperSize: z.enum(["A4", "Letter"]).optional() })
+            .object({ paperSize: z.enum(["A4", "A3", "Letter"]).optional() })
             .parse(input ?? {})
           if (paperSize) useProjectStore.getState().setPaperSize(paperSize)
           const result = await useProjectStore.getState().exportPdf()

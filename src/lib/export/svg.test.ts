@@ -77,6 +77,15 @@ describe("layoutPieces", () => {
     expect(layout.widthMm).toBeCloseTo(285.6)
   })
 
+  it("packs wider rows on A3 than on A4", () => {
+    // 100 + 18 + 100 = 218mm: too wide for an A4 row (186), fine on A3 (273)
+    const wide: Piece = { kind: "rectangle", id: "side", label: "Side", widthMm: 100, heightMm: 90, notes: [] }
+    const a4 = layoutPieces([wide, wide], "A4")
+    const a3 = layoutPieces([wide, wide], "A3")
+    expect(a4.placed[1].dy).toBeGreaterThan(0) // wrapped
+    expect(a3.placed[1].dy).toBe(0) // same shelf
+  })
+
   it("packs small pieces side by side on one shelf", () => {
     const side: Piece = { kind: "rectangle", id: "side", label: "Side", widthMm: 60, heightMm: 110, notes: [] }
     const layout = layoutPieces([side, disc])
@@ -103,6 +112,12 @@ describe("paginate", () => {
     const p = paginate(100, 100, "A4")
     expect(p.cols).toBe(1)
     expect(p.rows).toBe(1)
+  })
+
+  it("A3 fits layouts that A4 must split", () => {
+    // 250mm wide: two A4 columns, one A3 column (A3 printable width is 273)
+    expect(paginate(250, 200, "A4").cols).toBe(2)
+    expect(paginate(250, 200, "A3").cols).toBe(1)
   })
 
   it("tiles a mug wall wider than one A4 page onto two columns", () => {

@@ -73,7 +73,7 @@ fallback for browsers that expose the API there — see
 | `set_capacity` | Solve the height for a target interior volume ("make it 350 ml") |
 | `get_template_summary` | Template layout, per-piece dimensions, exact PDF page count |
 | `get_preview_image` | PNG snapshot of the live 3D preview — the agent sees what the potter sees |
-| `export_templates` | Generate and download the multi-page PDF (A4 / Letter) |
+| `export_templates` | Generate and download the multi-page PDF (A4 / A3 / Letter) |
 | `apply_preset` | Start from a preset (classic mug, tumbler, bud vase, hex planter) |
 | `undo_last_change` | Revert the last change, whoever made it (up to 50 steps) |
 
@@ -99,7 +99,7 @@ https://<deployment-host>/?type=tapered&height=600&bottom=300&top=100&shrinkage=
 ```
 
 opens the app with that exact form (`type` also accepts `triangle`, `square`,
-`pentagon`, `hexagon`; `name` and `paper=A4|Letter` work too). After the first edit
+`pentagon`, `hexagon`; `name` and `paper=A4|A3|Letter` work too). After the first edit
 the address bar live-tracks the design, the header's link button copies it, and the
 `open_model` tool lets an agent continue from any pasted link. Links are
 origin-independent — they survive domain changes.

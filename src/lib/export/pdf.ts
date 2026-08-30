@@ -335,12 +335,12 @@ export async function exportTemplatesPdf(options: {
   shareUrl?: string
 }): Promise<ExportResult> {
   const { pieces, name, paper, scale, shareUrl } = options
-  const layout = layoutPieces(pieces)
+  const layout = layoutPieces(pieces, paper)
   const pg = paginate(layout.widthMm, layout.heightMm, paper)
   const { widthMm: pageW, heightMm: pageH } = PAPERS[paper]
   const M = PAGE_MARGIN_MM
 
-  const doc = new jsPDF({ unit: "mm", format: paper === "A4" ? "a4" : "letter" })
+  const doc = new jsPDF({ unit: "mm", format: paper.toLowerCase() })
 
   const placeLogo = async (
     iconMm: number,

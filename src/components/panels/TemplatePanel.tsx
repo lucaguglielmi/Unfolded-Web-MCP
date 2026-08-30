@@ -27,7 +27,7 @@ export function TemplatePanel() {
   const setPaperSize = useProjectStore((s) => s.setPaperSize)
 
   const pieces = useMemo(() => selectPieces(form, clay), [form, clay])
-  const layout = useMemo(() => layoutPieces(pieces), [pieces])
+  const layout = useMemo(() => layoutPieces(pieces, paperSize), [pieces, paperSize])
   const pages = countPages(layout, paperSize)
   const scale = shrinkageScale(clay.shrinkagePct)
 
@@ -55,6 +55,7 @@ export function TemplatePanel() {
           <Tabs value={paperSize} onValueChange={(v) => setPaperSize(v as PaperSize)}>
             <TabsList>
               <TabsTrigger value="A4">A4</TabsTrigger>
+              <TabsTrigger value="A3">A3</TabsTrigger>
               <TabsTrigger value="Letter">Letter</TabsTrigger>
             </TabsList>
           </Tabs>

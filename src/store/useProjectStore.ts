@@ -13,7 +13,7 @@ import {
   type UpdateFormInput,
 } from "@/lib/model/schemas"
 import { buildPieces, capacityMl, describePiece, formWarnings, shrinkageScale, type Piece } from "@/lib/geometry/unroll"
-import { countPages, layoutPieces, PAGE_OVERLAP_MM, type PaperSize } from "@/lib/export/svg"
+import { countPages, layoutPieces, PAGE_OVERLAP_MM, PAPERS, type PaperSize } from "@/lib/export/svg"
 import type { ExportResult } from "@/lib/export/pdf"
 import { buildShareParams, parseShareParams, shareUrl, type SharePatches } from "@/lib/model/shareLink"
 
@@ -291,7 +291,7 @@ export function describeState(): {
 } {
   const { form, clay, paperSize } = useProjectStore.getState()
   const pieces = buildPieces(form, clay)
-  const pages = countPages(layoutPieces(pieces), paperSize)
+  const pages = countPages(layoutPieces(pieces, paperSize), paperSize)
   const scale = shrinkageScale(clay.shrinkagePct)
   return {
     form,
@@ -334,7 +334,9 @@ export function loadPersistedProject(): void {
     )
     const clay = claySettingsSchema.safeParse(record.clay)
     const paperSize =
-      record.paperSize === "A4" || record.paperSize === "Letter" ? record.paperSize : undefined
+      typeof record.paperSize === "string" && record.paperSize in PAPERS
+        ? (record.paperSize as PaperSize)
+        : undefined
     useProjectStore.setState({
       ...(form.success ? { form: form.data } : {}),
       ...(clay.success ? { clay: clay.data } : {}),
@@ -415,7 +417,7 @@ export function describeTemplates(): {
 } {
   const { form, clay, paperSize } = useProjectStore.getState()
   const pieces = buildPieces(form, clay)
-  const layout = layoutPieces(pieces)
+  const layout = layoutPieces(pieces, paperSize)
   const pages = countPages(layout, paperSize)
   const scale = shrinkageScale(clay.shrinkagePct)
   return {

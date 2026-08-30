@@ -238,20 +238,14 @@ export function textFits(text: string, fontSizeMm: number, maxWidthMm: number): 
 }
 
 /**
- * Rows a shelf can span before wrapping: the A4 printable width (the
- * narrower of the two supported papers), so a row that fits here fits on
- * one page column for either paper size.
- */
-const MAX_ROW_MM = 186
-
-/**
  * Shelf-pack pieces left-to-right in rows, wrapping when a row would
- * exceed one printable page width. Keeps the piece order (wall/side
- * first, base after), so small pieces slot beside big ones — a mug's
- * base shares a row (and usually a page) with its wall instead of
- * stacking below it.
+ * exceed the chosen paper's printable width — an A3 sheet packs wider
+ * rows than A4/Letter. Keeps the piece order (wall/side first, base
+ * after), so small pieces slot beside big ones — a mug's base shares a
+ * row (and usually a page) with its wall instead of stacking below it.
  */
-export function layoutPieces(pieces: Piece[]): TemplateLayout {
+export function layoutPieces(pieces: Piece[], paper: PaperSize = "A4"): TemplateLayout {
+  const maxRowMm = PAPERS[paper].widthMm - 2 * PAGE_MARGIN_MM
   const placed: PlacedPiece[] = []
   let y = 0
   let rowX = 0
@@ -259,7 +253,7 @@ export function layoutPieces(pieces: Piece[]): TemplateLayout {
   let maxW = 0
   for (const piece of pieces) {
     const graphic = pieceGraphic(piece)
-    if (rowX > 0 && rowX + graphic.widthMm > MAX_ROW_MM) {
+    if (rowX > 0 && rowX + graphic.widthMm > maxRowMm) {
       y += rowH + GAP_MM
       rowX = 0
       rowH = 0
@@ -276,6 +270,7 @@ export function layoutPieces(pieces: Piece[]): TemplateLayout {
 
 export const PAPERS = {
   A4: { widthMm: 210, heightMm: 297 },
+  A3: { widthMm: 297, heightMm: 420 },
   Letter: { widthMm: 215.9, heightMm: 279.4 },
 } as const
 

@@ -107,7 +107,7 @@ export function parseShareParams(input: string | URLSearchParams): SharePatches 
 
   const paperRaw = params.get("paper")?.trim().toLowerCase()
   const paperSize: PaperSize | undefined =
-    paperRaw === "a4" ? "A4" : paperRaw === "letter" ? "Letter" : undefined
+    paperRaw === "a4" ? "A4" : paperRaw === "a3" ? "A3" : paperRaw === "letter" ? "Letter" : undefined
 
   const out: SharePatches = {}
   // clamped values are in range, but run the schemas anyway so nothing
