@@ -13,15 +13,27 @@ export const LOGO_SLAB_PATHS: { d: string; fill: string }[] = [
 /** tight crop around the three slabs (source coordinate space) */
 export const LOGO_VIEWBOX = { x: 40, y: 48, w: 226, h: 186 }
 
-export function LogoMark({ className }: { className?: string }) {
+export function LogoMark({
+  className,
+  animated = false,
+}: {
+  className?: string
+  /** loop the fold/unfold animation (see index.css; respects reduced motion) */
+  animated?: boolean
+}) {
   return (
     <svg
       viewBox={`${LOGO_VIEWBOX.x} ${LOGO_VIEWBOX.y} ${LOGO_VIEWBOX.w} ${LOGO_VIEWBOX.h}`}
       className={className}
       aria-hidden="true"
     >
-      {LOGO_SLAB_PATHS.map((p) => (
-        <path key={p.fill} d={p.d} fill={p.fill} />
+      {LOGO_SLAB_PATHS.map((p, i) => (
+        <path
+          key={p.fill}
+          d={p.d}
+          fill={p.fill}
+          className={animated ? `logo-slab logo-slab-${i + 1}` : undefined}
+        />
       ))}
     </svg>
   )

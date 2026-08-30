@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 240" role="img" aria-labelledby="title desc">
+  <title id="title">unfolded logo</title>
+  <desc id="desc">Three folded slabs in cobalt and blue-black, paired with the word unfolded.</desc>
+
+  <g transform="translate(18 0)">
+    <path
+      fill="#0A5BFF"
+      d="M46 58Q46 53 51 56l65 36q4 2 4 8v80q0 6-5 3l-65-36q-4-2-4-7V58Z"
+    />
+
+    <path
+      fill="#111827"
+      d="m128 94 65-36q5-3 5 3v79q0 5-4 7l-66 36q-5 3-5-3v-79q0-5 5-7Z"
+    />
+
+    <path
+      fill="#0646CC"
+      d="m128 188 65-36q4-2 8 0l58 32q6 3 0 7l-65 36q-4 2-8 0l-58-32q-6-3 0-7Z"
+    />
+  </g>
+
+  <text
+    x="318"
+    y="166"
+    fill="#111827"
+    font-family="Inter, Geist, Helvetica Neue, Arial, sans-serif"
+    font-size="108"
+    font-weight="550"
+    letter-spacing="-5.5"
+    style="font-kerning:normal;font-feature-settings:'kern' 1,'liga' 1"
+  >unfolded</text>
+</svg>

@@ -118,3 +118,41 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* ---------------------------------------------------------------- logo
+   The header logomark unfolds forever: the cobalt slab anchors, the dark
+   slab opens from their shared hinge, the bottom slab folds down out of
+   it, holds, then everything folds back in reverse — un-fold-ed. */
+
+.logo-slab {
+  transform-box: fill-box;
+}
+
+.logo-slab-2 {
+  transform-origin: left center;
+  animation: logo-unfold-2 5s ease-in-out infinite;
+}
+
+.logo-slab-3 {
+  transform-origin: center top;
+  animation: logo-unfold-3 5s ease-in-out infinite;
+}
+
+@keyframes logo-unfold-2 {
+  0%, 6%   { transform: scaleX(0); opacity: 0.35; }
+  22%, 74% { transform: scaleX(1); opacity: 1; }
+  90%, 100% { transform: scaleX(0); opacity: 0.35; }
+}
+
+@keyframes logo-unfold-3 {
+  0%, 24%  { transform: scaleY(0); opacity: 0.35; }
+  40%, 58% { transform: scaleY(1); opacity: 1; }
+  74%, 100% { transform: scaleY(0); opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-slab-2,
+  .logo-slab-3 {
+    animation: none;
+  }
+}
