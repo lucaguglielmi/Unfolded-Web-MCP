@@ -5,6 +5,7 @@ import { LogoMark } from "@/components/LogoMark"
 import { TemplatePanel } from "@/components/panels/TemplatePanel"
 import { UndoRedoControls } from "@/components/UndoRedoControls"
 import { UnitToggle } from "@/components/UnitToggle"
+import { ViewportErrorBoundary } from "@/components/ViewportErrorBoundary"
 import { Button } from "@/components/ui/button"
 import { useIsDesktop } from "@/lib/useIsDesktop"
 import { cn } from "@/lib/utils"
@@ -108,12 +109,14 @@ export function PreviewCluster({ expanded, view, collapsed, onExpand, onClose }:
         {/* In the small thumbnail all callouts at once would clutter —
             cycle them one at a time; the main preview shows them all;
             the collapsed scroll-chip is too small for any. */}
-        <Suspense fallback={<ViewportLoader />}>
-          <Viewport
-            showHintOnMobile={expanded}
-            measurementsMode={expanded || isDesktop ? "static" : collapsed ? "hidden" : "cycle"}
-          />
-        </Suspense>
+        <ViewportErrorBoundary>
+          <Suspense fallback={<ViewportLoader />}>
+            <Viewport
+              showHintOnMobile={expanded}
+              measurementsMode={expanded || isDesktop ? "static" : collapsed ? "hidden" : "cycle"}
+            />
+          </Suspense>
+        </ViewportErrorBoundary>
         {/* units toggle floats in the main preview (not the thumbnail,
             where the tap overlay owns the corners) — the dimension
             callouts it switches live right here */}
