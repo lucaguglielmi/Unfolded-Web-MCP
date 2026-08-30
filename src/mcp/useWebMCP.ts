@@ -21,13 +21,19 @@ export function useWebMCP(): void {
     const tryRegister = (): boolean => {
       const modelContext = getModelContext()
       if (!modelContext) return false
-      setAgentStatus("native")
       if (!registered) {
-        registered = true
-        for (const tool of buildTools()) {
-          modelContext.registerTool(tool)
+        try {
+          for (const tool of buildTools()) {
+            modelContext.registerTool(tool)
+          }
+          registered = true
+        } catch (error) {
+          // don't claim "connected" on a partial registration
+          console.warn("WebMCP tool registration failed:", error)
+          return false
         }
       }
+      setAgentStatus("native")
       return true
     }
 

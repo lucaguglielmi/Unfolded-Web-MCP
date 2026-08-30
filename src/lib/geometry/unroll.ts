@@ -202,6 +202,34 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
 }
 
 /**
+ * Approximate interior capacity of the fired vessel, in milliliters.
+ * Dimensions are fired outer sizes; the wall is entered as a WET slab
+ * thickness, so it is shrunk to its fired size first. The interior is the
+ * outer surface inset horizontally by one fired wall, above a floor one
+ * fired wall thick — good to a few percent, which is what "make me a
+ * 350 ml mug" needs.
+ */
+export function capacityMl(form: FormParams, clay: ClaySettings): number {
+  const firedWall = clay.wallThicknessMm * (1 - clay.shrinkagePct / 100)
+  const hIn = Math.max(0, form.heightMm - firedWall)
+  if (hIn === 0) return 0
+
+  let volumeMm3 = 0
+  if (form.type === "faceted") {
+    const apothemIn = (form.bottomDiameterMm / 2) * Math.cos(Math.PI / form.facets) - firedWall
+    if (apothemIn <= 0) return 0
+    const area = form.facets * apothemIn * apothemIn * Math.tan(Math.PI / form.facets)
+    volumeMm3 = area * hIn
+  } else {
+    const rBot = Math.max(0, form.bottomDiameterMm / 2 - firedWall)
+    const rTop =
+      form.type === "tapered" ? Math.max(0, form.topDiameterMm / 2 - firedWall) : rBot
+    volumeMm3 = (Math.PI * hIn * (rBot * rBot + rBot * rTop + rTop * rTop)) / 3
+  }
+  return Math.round(volumeMm3 / 1000)
+}
+
+/**
  * Physical-plausibility warnings for the current design. These are shown in
  * the UI and returned to agents so impossible combinations are caught before
  * anything is printed.

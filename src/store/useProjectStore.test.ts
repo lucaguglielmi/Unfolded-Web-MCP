@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it } from "vitest"
 import { DEFAULT_CLAY, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
-import { useProjectStore } from "./useProjectStore"
+import { _resetHistoryCoalescing, useProjectStore } from "./useProjectStore"
 
-const reset = () =>
+const reset = () => {
   useProjectStore.setState({
     form: { ...PRESETS["classic-mug"] },
     clay: { ...DEFAULT_CLAY },
     paperSize: "A4",
+    history: [],
   })
+  _resetHistoryCoalescing()
+}
 
 describe("updateForm type switching", () => {
   beforeEach(reset)
@@ -90,5 +93,60 @@ describe("openModel (share links)", () => {
     const before = useProjectStore.getState().form
     useProjectStore.getState().openModel(parseShareParams("utm_source=chat&foo=1"))
     expect(useProjectStore.getState().form).toEqual(before)
+  })
+})
+
+describe("undo", () => {
+  beforeEach(reset)
+
+  it("reverts the most recent change", () => {
+    const { updateForm, undo } = useProjectStore.getState()
+    updateForm({ heightMm: 200 })
+    expect(useProjectStore.getState().form.heightMm).toBe(200)
+    expect(undo()).toBe(true)
+    expect(useProjectStore.getState().form.heightMm).toBe(PRESETS["classic-mug"].heightMm)
+  })
+
+  it("coalesces rapid changes (a slider drag) into one undo step", () => {
+    const { updateForm, undo } = useProjectStore.getState()
+    updateForm({ heightMm: 150 })
+    updateForm({ heightMm: 175 })
+    updateForm({ heightMm: 200 }) // all within the coalescing window
+    expect(useProjectStore.getState().history).toHaveLength(1)
+    expect(undo()).toBe(true)
+    expect(useProjectStore.getState().form.heightMm).toBe(PRESETS["classic-mug"].heightMm)
+    expect(undo()).toBe(false)
+  })
+
+  it("keeps separate steps for separate edits", () => {
+    const { updateForm, setClay, undo } = useProjectStore.getState()
+    updateForm({ heightMm: 200 })
+    _resetHistoryCoalescing()
+    setClay({ shrinkagePct: 15 })
+    expect(useProjectStore.getState().history).toHaveLength(2)
+    expect(undo()).toBe(true)
+    expect(useProjectStore.getState().clay.shrinkagePct).toBe(DEFAULT_CLAY.shrinkagePct)
+    expect(useProjectStore.getState().form.heightMm).toBe(200)
+    expect(undo()).toBe(true)
+    expect(useProjectStore.getState().form.heightMm).toBe(PRESETS["classic-mug"].heightMm)
+  })
+
+  it("reverts a whole opened link as one step", () => {
+    const { openModel, undo } = useProjectStore.getState()
+    openModel(parseShareParams("?type=hexagon&height=110&bottom=140&shrinkage=11&paper=letter"))
+    expect(useProjectStore.getState().history).toHaveLength(1)
+    expect(undo()).toBe(true)
+    const { form, clay, paperSize } = useProjectStore.getState()
+    expect(form).toEqual(PRESETS["classic-mug"])
+    expect(clay).toEqual(DEFAULT_CLAY)
+    expect(paperSize).toBe("A4")
+  })
+
+  it("returns false with nothing to undo, and no-op patches don't burn steps", () => {
+    const { updateForm, setClay, undo } = useProjectStore.getState()
+    expect(undo()).toBe(false)
+    updateForm({ heightMm: PRESETS["classic-mug"].heightMm })
+    setClay({ shrinkagePct: DEFAULT_CLAY.shrinkagePct })
+    expect(useProjectStore.getState().history).toHaveLength(0)
   })
 })

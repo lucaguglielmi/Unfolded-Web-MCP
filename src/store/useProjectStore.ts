@@ -9,7 +9,7 @@ import {
   type SetClayInput,
   type UpdateFormInput,
 } from "@/lib/model/schemas"
-import { buildPieces, describePiece, formWarnings, shrinkageScale, type Piece } from "@/lib/geometry/unroll"
+import { buildPieces, capacityMl, describePiece, formWarnings, shrinkageScale, type Piece } from "@/lib/geometry/unroll"
 import { countPages, layoutPieces, PAGE_OVERLAP_MM, type PaperSize } from "@/lib/export/svg"
 import type { ExportResult } from "@/lib/export/pdf"
 import { buildShareParams, parseShareParams, shareUrl, type SharePatches } from "@/lib/model/shareLink"
@@ -21,6 +21,36 @@ export interface AgentCall {
   at: number
 }
 
+/** One undo step: the design as it was before a change. */
+interface Snapshot {
+  form: FormParams
+  clay: ClaySettings
+  paperSize: PaperSize
+}
+
+const HISTORY_LIMIT = 50
+/** changes landing within this window merge into one undo step (slider drags) */
+const HISTORY_COALESCE_MS = 800
+let lastHistoryPushAt = 0
+
+/** test-only: forget the coalescing window so the next change starts a new undo step */
+export function _resetHistoryCoalescing(): void {
+  lastHistoryPushAt = 0
+}
+
+function pushHistory(state: { history: Snapshot[]; form: FormParams; clay: ClaySettings; paperSize: PaperSize }): Snapshot[] {
+  const now = Date.now()
+  if (now - lastHistoryPushAt < HISTORY_COALESCE_MS && state.history.length > 0) {
+    return state.history
+  }
+  lastHistoryPushAt = now
+  const next = [
+    ...state.history,
+    { form: state.form, clay: state.clay, paperSize: state.paperSize },
+  ]
+  return next.length > HISTORY_LIMIT ? next.slice(-HISTORY_LIMIT) : next
+}
+
 interface ProjectState {
   form: FormParams
   clay: ClaySettings
@@ -29,6 +59,8 @@ interface ProjectState {
   lastAgentCall: AgentCall | null
   isExporting: boolean
   exportError: string | null
+  /** undo stack — snapshots taken before each change, oldest first */
+  history: Snapshot[]
 
   updateForm: (patch: UpdateFormInput) => void
   setClay: (patch: SetClayInput) => void
@@ -36,6 +68,8 @@ interface ProjectState {
   openModel: (patches: SharePatches) => void
   applyPreset: (presetId: keyof typeof PRESETS) => void
   setPaperSize: (paper: PaperSize) => void
+  /** Revert the most recent change (form/clay/paper). Returns false when there is nothing to undo. */
+  undo: () => boolean
   setAgentStatus: (status: AgentStatus) => void
   recordAgentCall: (tool: string) => void
   /** Dismiss a stale export failure (e.g. when re-opening the export dialog). */
@@ -57,6 +91,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   lastAgentCall: null,
   isExporting: false,
   exportError: null,
+  history: [],
 
   updateForm: (patch) =>
     set((state) => {
@@ -78,13 +113,25 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
       if (form.type !== "tapered") {
         form.topDiameterMm = form.bottomDiameterMm
       }
-      return { form }
+      // no-op patches shouldn't burn an undo step
+      if ((Object.keys(form) as (keyof FormParams)[]).every((k) => form[k] === state.form[k])) {
+        return {}
+      }
+      return { form, history: pushHistory(state) }
     }),
 
   setClay: (patch) =>
-    set((state) => ({ clay: { ...state.clay, ...setClayInputSchema.parse(patch) } })),
+    set((state) => {
+      const clay = { ...state.clay, ...setClayInputSchema.parse(patch) }
+      if (clay.shrinkagePct === state.clay.shrinkagePct && clay.wallThicknessMm === state.clay.wallThicknessMm) {
+        return {}
+      }
+      return { clay, history: pushHistory(state) }
+    }),
 
   openModel: (patches) => {
+    // the three nested actions land within the coalescing window, so a
+    // whole opened link reverts as one undo step
     const { updateForm, setClay, setPaperSize } = get()
     if (patches.form) updateForm(patches.form)
     if (patches.clay) setClay(patches.clay)
@@ -92,9 +139,32 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
   },
 
   applyPreset: (presetId) =>
-    set(() => ({ form: { ...PRESETS[presetId] }, clay: { ...DEFAULT_CLAY } })),
+    set((state) => ({
+      form: { ...PRESETS[presetId] },
+      clay: { ...DEFAULT_CLAY },
+      history: pushHistory(state),
+    })),
 
-  setPaperSize: (paperSize) => set({ paperSize }),
+  setPaperSize: (paperSize) =>
+    set((state) => (paperSize === state.paperSize ? {} : { paperSize, history: pushHistory(state) })),
+
+  undo: () => {
+    let undone = false
+    set((state) => {
+      const prev = state.history[state.history.length - 1]
+      if (!prev) return {}
+      undone = true
+      // the next change after an undo always starts a fresh undo step
+      lastHistoryPushAt = 0
+      return {
+        form: prev.form,
+        clay: prev.clay,
+        paperSize: prev.paperSize,
+        history: state.history.slice(0, -1),
+      }
+    })
+    return undone
+  },
   setAgentStatus: (agentStatus) => set({ agentStatus }),
   recordAgentCall: (tool) => set({ lastAgentCall: { tool, at: Date.now() } }),
   clearExportError: () => set({ exportError: null }),
@@ -131,6 +201,8 @@ export function describeState(): {
   paperSize: PaperSize
   /** deep link that reopens exactly this design — share it with the potter */
   shareUrl: string
+  /** approximate fired interior volume in milliliters */
+  capacityMl: number
   pieces: string[]
   printedPages: number
   warnings: string[]
@@ -144,6 +216,7 @@ export function describeState(): {
     clay,
     paperSize,
     shareUrl: shareUrl(form, clay, paperSize),
+    capacityMl: capacityMl(form, clay),
     pieces: pieces.map((p) => describePiece(p, scale)),
     printedPages: pages.totalPages,
     warnings: formWarnings(form, clay),

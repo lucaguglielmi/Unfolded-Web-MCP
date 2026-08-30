@@ -34,17 +34,48 @@ called.
 
 ## WebMCP tools
 
-Registered via `document.modelContext.registerTool` (see [`src/mcp/tools.ts`](./src/mcp/tools.ts)):
+Registered via `document.modelContext.registerTool` (with a `navigator.modelContext`
+fallback for browsers that expose the API there — see
+[`src/mcp/tools.ts`](./src/mcp/tools.ts)):
 
 | Tool | What it does |
 |---|---|
-| `describe_project` | Read the current design, clay settings, and template pieces |
-| `update_form` | Change form type / height / diameters (fired mm) |
+| `describe_project` | Read the current design, clay, template pieces, capacity (ml), and its share link |
+| `open_model` | Open a design from a share link the user pastes in chat, then keep editing it |
+| `update_form` | Change form type / facets / height / diameters (fired mm) |
 | `set_clay` | Change shrinkage % and wall thickness |
-| `apply_preset` | Start from a preset (classic mug, tumbler, bud vase) |
+| `get_template_summary` | Template layout, per-piece dimensions, exact PDF page count |
+| `get_preview_image` | PNG snapshot of the live 3D preview — the agent sees what the potter sees |
+| `export_templates` | Generate and download the multi-page PDF (A4 / Letter) |
+| `apply_preset` | Start from a preset (classic mug, tumbler, bud vase, hex planter) |
+| `undo_last_change` | Revert the last change, whoever made it (up to 50 steps) |
 
 UI and agent tools share the same zustand store and zod schemas, so human and agent
-edits stay in sync in the same session.
+edits stay in sync in the same session. Every mutating tool returns the full new
+state — including `capacityMl` (ask for *"a 350 ml mug"* and the agent iterates until
+it matches) and `shareUrl` (the agent can always hand the current design's link back
+into the chat).
+
+Things to try in a WebMCP-capable browser:
+
+> *"What am I designing right now?"*
+> *"Make it a hexagonal planter, 18 cm tall and 14 cm wide."*
+> *"My stoneware shrinks 13% — adjust and tell me the fired sizes."*
+> *"Make it hold about 350 ml, show me how it looks, then export the PDF for Letter paper."*
+
+## Share links
+
+Every design is a URL. Query parameters describe the whole model, so a link like
+
+```
+https://<deployment-host>/?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5
+```
+
+opens the app with that exact form (`type` also accepts `triangle`, `square`,
+`pentagon`, `hexagon`; `name` and `paper=A4|Letter` work too). After the first edit
+the address bar live-tracks the design, the header's link button copies it, and the
+`open_model` tool lets an agent continue from any pasted link. Links are
+origin-independent — they survive domain changes.
 
 ## How the math works
 

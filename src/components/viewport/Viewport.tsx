@@ -3,6 +3,7 @@ import * as THREE from "three"
 import { Canvas } from "@react-three/fiber"
 import { Grid, Html, Line, OrbitControls } from "@react-three/drei"
 import { cn } from "@/lib/utils"
+import { registerPreviewCanvas } from "@/lib/previewCapture"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -222,7 +223,14 @@ function Scene() {
 export function Viewport({ showHintOnMobile = true }: { showHintOnMobile?: boolean }) {
   return (
     <div className="relative h-full w-full">
-      <Canvas camera={{ position: [2.4, 1.6, 2.4], fov: 38 }} className="touch-none bg-background">
+      <Canvas
+        camera={{ position: [2.4, 1.6, 2.4], fov: 38 }}
+        // preserveDrawingBuffer lets the get_preview_image WebMCP tool
+        // snapshot the latest frame for the agent
+        gl={{ preserveDrawingBuffer: true }}
+        onCreated={(state) => registerPreviewCanvas(state.gl.domElement)}
+        className="touch-none bg-background"
+      >
         <ambientLight intensity={0.65} />
         <directionalLight position={[4, 6, 3]} intensity={1.05} />
         <directionalLight position={[-3, 2, -4]} intensity={0.35} />

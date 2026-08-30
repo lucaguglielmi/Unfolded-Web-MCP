@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildPieces, describePiece, formWarnings, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
+import { buildPieces, capacityMl, describePiece, formWarnings, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
 import type { ClaySettings, FormParams } from "@/lib/model/schemas"
 
 const clay: ClaySettings = { shrinkagePct: 0, wallThicknessMm: 5 }
@@ -190,5 +190,41 @@ describe("describePiece", () => {
     const text = describePiece(disc, scale)
     expect(text).toContain("100.0 mm")
     expect(text).toContain("88.0 mm fired")
+  })
+})
+
+describe("capacityMl", () => {
+  const mug: FormParams = {
+    type: "cylinder",
+    name: "Mug",
+    heightMm: 100,
+    topDiameterMm: 85,
+    bottomDiameterMm: 85,
+    facets: 4,
+  }
+
+  it("computes a cylinder interior with fired wall and floor", () => {
+    // shrinkage 12%: fired wall = 5 * 0.88 = 4.4mm
+    // rIn = 42.5 - 4.4 = 38.1, hIn = 100 - 4.4 = 95.6
+    const expected = Math.round((Math.PI * 38.1 ** 2 * 95.6) / 1000)
+    expect(capacityMl(mug, { shrinkagePct: 12, wallThicknessMm: 5 })).toBe(expected)
+  })
+
+  it("a flared tapered form holds more than the straight cylinder", () => {
+    const flared: FormParams = { ...mug, type: "tapered", topDiameterMm: 120 }
+    const c = { shrinkagePct: 12, wallThicknessMm: 5 }
+    expect(capacityMl(flared, c)).toBeGreaterThan(capacityMl(mug, c))
+  })
+
+  it("a hexagon holds less than its circumscribed cylinder", () => {
+    const hex: FormParams = { ...mug, type: "faceted", facets: 6 }
+    const c = { shrinkagePct: 12, wallThicknessMm: 5 }
+    expect(capacityMl(hex, c)).toBeGreaterThan(0)
+    expect(capacityMl(hex, c)).toBeLessThan(capacityMl(mug, c))
+  })
+
+  it("degenerates to zero instead of going negative", () => {
+    const tiny: FormParams = { ...mug, bottomDiameterMm: 20, topDiameterMm: 20 }
+    expect(capacityMl(tiny, { shrinkagePct: 0, wallThicknessMm: 15 })).toBe(0)
   })
 })

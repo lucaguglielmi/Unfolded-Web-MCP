@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Amphora, Box, Check, Link2, Maximize2, Scissors, X } from "lucide-react"
+import { Amphora, Box, Check, Link2, Maximize2, Scissors, Undo2, X } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { IconOptionGroup } from "@/components/IconOptionGroup"
@@ -14,6 +14,23 @@ import { useProjectStore } from "@/store/useProjectStore"
 import { useWebMCP } from "@/mcp/useWebMCP"
 
 type PreviewView = "3d" | "template"
+
+function UndoButton() {
+  const canUndo = useProjectStore((s) => s.history.length > 0)
+  const undo = useProjectStore((s) => s.undo)
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Undo last change"
+      title="Undo last change"
+      disabled={!canUndo}
+      onClick={() => undo()}
+    >
+      <Undo2 className="size-4" />
+    </Button>
+  )
+}
 
 /**
  * Copies the current design's deep link. The address bar already tracks the
@@ -74,6 +91,7 @@ export default function App() {
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
+            <UndoButton />
             <CopyLinkButton />
             <AgentBadge />
           </div>
