@@ -96,13 +96,17 @@ export function PreviewCluster({ expanded, view, collapsed, onExpand, onClose }:
       <div
         className={cn(
           "relative min-h-0",
+          // the card's width morph animates: 100% <-> 6rem interpolate via
+          // calc(), and shrink-0 keeps flex from fighting the transition
+          // (the collapsed name label is flex-1 and yields per frame)
           expanded
             ? view === "3d"
               ? "flex-1"
               : "hidden"
-            : collapsed
-              ? "h-full w-24 shrink-0 border-r"
-              : "h-full flex-1",
+            : cn(
+                "h-full shrink-0 transition-[width] duration-300 ease-out",
+                collapsed ? "w-24 border-r" : "w-full"
+              ),
           "lg:block lg:h-auto lg:w-auto lg:flex-1 lg:border-r"
         )}
       >

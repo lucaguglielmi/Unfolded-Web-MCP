@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Check, Link2 } from "lucide-react"
+import { Check, Share2 } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
 import { Button } from "@/components/ui/button"
 import {
@@ -70,7 +70,7 @@ export function ShareDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" aria-label="Share this design" title="Share this design">
-          <Link2 className="size-4" />
+          <Share2 className="size-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-sm">

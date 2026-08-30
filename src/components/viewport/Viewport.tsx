@@ -477,6 +477,12 @@ export function Viewport({
         // preserveDrawingBuffer lets the get_preview_image WebMCP tool
         // snapshot the latest frame for the agent
         gl={{ preserveDrawingBuffer: true }}
+        // Debounce buffer resizes past the 300ms collapse/expand morph:
+        // resizing the WebGL buffer clears it (white flash every frame of
+        // the animation), while a stale buffer just CSS-stretches with the
+        // element — so the pot stays visible through the whole transition
+        // and snaps crisp right after it settles.
+        resize={{ debounce: { scroll: 50, resize: 350 } }}
         onCreated={(state) => registerPreviewCanvas(state.gl.domElement)}
         className="touch-none bg-background"
       >
