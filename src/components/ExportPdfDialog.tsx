@@ -12,14 +12,16 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { countPages, layoutPieces } from "@/lib/export/svg"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { countPages, layoutPieces, type PaperSize } from "@/lib/export/svg"
 import { feedback } from "@/lib/feedback"
 import { selectPieces, useProjectStore } from "@/store/useProjectStore"
 
 /**
- * Wraps a trigger button with a small dialog for naming the export — the
- * name is saved back onto the project and printed on the overview page and
- * on every slab piece, so confirming it once here should be deliberate.
+ * Wraps a trigger button with a small dialog that confirms the export:
+ * paper size (the page count in the button follows it live) and the
+ * project name, which is saved back onto the project and printed on the
+ * overview page and on every slab piece.
  */
 export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -31,6 +33,7 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
   const form = useProjectStore((s) => s.form)
   const clay = useProjectStore((s) => s.clay)
   const paperSize = useProjectStore((s) => s.paperSize)
+  const setPaperSize = useProjectStore((s) => s.setPaperSize)
   const isExporting = useProjectStore((s) => s.exportsInFlight > 0)
   const updateForm = useProjectStore((s) => s.updateForm)
   const exportPdf = useProjectStore((s) => s.exportPdf)
@@ -70,11 +73,25 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
       <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Export template</DialogTitle>
-          <DialogDescription>
-            This name is saved on the project and printed on the overview page and on
-            every slab piece.
-          </DialogDescription>
+          <DialogDescription>Unfolded is free for everyone, forever.</DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-2">
+          <Label>Paper size</Label>
+          <Tabs
+            value={paperSize}
+            onValueChange={(v) => {
+              feedback("tap")
+              setPaperSize(v as PaperSize)
+            }}
+          >
+            <TabsList className="w-full">
+              <TabsTrigger value="A4">A4</TabsTrigger>
+              <TabsTrigger value="A3">A3</TabsTrigger>
+              <TabsTrigger value="Letter">Letter</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor="export-project-name">Project name</Label>

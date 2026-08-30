@@ -2,8 +2,6 @@ import { useMemo } from "react"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { InfoTip } from "@/components/InfoTip"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { feedback } from "@/lib/feedback"
 import { describePiece, shrinkageScale } from "@/lib/geometry/unroll"
 import {
   countPages,
@@ -17,7 +15,6 @@ import {
   NAME_OFFSET_MM,
   STAMP_FONT_MM,
   STAMP_OFFSET_MM,
-  type PaperSize,
 } from "@/lib/export/svg"
 import { selectPieces, useProjectStore } from "@/store/useProjectStore"
 
@@ -26,7 +23,6 @@ export function TemplatePanel() {
   const clay = useProjectStore((s) => s.clay)
   const paperSize = useProjectStore((s) => s.paperSize)
   const unit = useProjectStore((s) => s.unit)
-  const setPaperSize = useProjectStore((s) => s.setPaperSize)
 
   const pieces = useMemo(() => selectPieces(form, clay), [form, clay])
   const layout = useMemo(() => layoutPieces(pieces, paperSize), [pieces, paperSize])
@@ -53,27 +49,11 @@ export function TemplatePanel() {
             {pages.templatePages > 1 ? "s" : ""} + overview on {paperSize}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Tabs
-            value={paperSize}
-            onValueChange={(v) => {
-              feedback("tap")
-              setPaperSize(v as PaperSize)
-            }}
-          >
-            <TabsList>
-              <TabsTrigger value="A4">A4</TabsTrigger>
-              <TabsTrigger value="A3">A3</TabsTrigger>
-              <TabsTrigger value="Letter">Letter</TabsTrigger>
-            </TabsList>
-          </Tabs>
-          {/* On mobile this panel only appears in the full-screen template
-              view, which covers the sticky export bar — so the header button
-              is the direct Export action there, and never a duplicate. */}
-          <ExportPdfDialog
-            trigger={<Button size="sm">Export PDF</Button>}
-          />
-        </div>
+        {/* On mobile this panel only appears in the full-screen template
+            view, which covers the sticky export bar — so the header button
+            is the direct Export action there, and never a duplicate. Paper
+            size lives inside the export dialog, next to its page count. */}
+        <ExportPdfDialog trigger={<Button size="sm">Export PDF</Button>} />
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-4">
