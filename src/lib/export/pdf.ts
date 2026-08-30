@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf"
 import "svg2pdf.js"
+import { LOGO_SLAB_PATHS, LOGO_VIEWBOX } from "@/components/LogoMark"
 import type { Piece } from "@/lib/geometry/unroll"
 import { describePiece } from "@/lib/geometry/unroll"
 import {
@@ -57,52 +58,48 @@ function el<K extends string>(name: K, attrs: Record<string, string | number>): 
   return node
 }
 
-/** Lucide "amphora" icon paths (24x24 viewBox, ISC license) — the app logomark. */
-const AMPHORA_PATHS = [
-  "M10 2v5.632c0 .424-.272.795-.653.982A6 6 0 0 0 6 14c.006 4 3 7 5 8",
-  "M10 5H8a2 2 0 0 0 0 4h.68",
-  "M14 2v5.632c0 .424.272.795.652.982A6 6 0 0 1 18 14c0 4-3 7-5 8",
-  "M14 5h2a2 2 0 0 1 0 4h-.68",
-  "M18 22H6",
-  "M9 2h6",
-]
+/* grayscale slab fills for template-page margins (chrome stays ink-safe
+   there; the overview page gets the real cobalt) */
+const LOGO_MONO_FILLS = ["#555555", "#111111", "#333333"]
+
+/** total viewBox width in mark units, with and without the wordmark
+    (helvetica bold runs wider than the brand font — leave room) */
+const LOGO_UNITS_MARK = LOGO_VIEWBOX.w
+const LOGO_UNITS_FULL = 790
+
+/** logo lockup width in mm for a given icon height */
+function logoWidthMm(iconMm: number, withWordmark = true): number {
+  return (iconMm * (withWordmark ? LOGO_UNITS_FULL : LOGO_UNITS_MARK)) / LOGO_VIEWBOX.h
+}
 
 /**
- * The Unfolded logomark + wordmark as an SVG element sized to iconMm tall,
- * for placing on PDF pages via doc.svg(). Returns [element, totalWidthMm].
+ * The Unfolded logomark (three folded slabs) + wordmark as an SVG element
+ * sized to iconMm tall, for placing on PDF pages via doc.svg().
+ * Returns [element, totalWidthMm].
  */
-function logoSvg(iconMm: number, withWordmark = true): [SVGSVGElement, number] {
-  const wordmarkFont = iconMm * 0.62
-  const wordmarkWidth = withWordmark ? wordmarkFont * 0.56 * "Unfolded".length + iconMm * 0.25 : 0
-  const totalW = iconMm + wordmarkWidth
+function logoSvg(iconMm: number, withWordmark = true, monochrome = false): [SVGSVGElement, number] {
+  const totalUnits = withWordmark ? LOGO_UNITS_FULL : LOGO_UNITS_MARK
+  const totalW = logoWidthMm(iconMm, withWordmark)
   const svg = el("svg", {
     xmlns: SVG_NS,
-    viewBox: `0 0 ${(totalW / iconMm) * 24} 24`,
+    viewBox: `${LOGO_VIEWBOX.x} ${LOGO_VIEWBOX.y} ${totalUnits} ${LOGO_VIEWBOX.h}`,
     width: `${totalW}mm`,
     height: `${iconMm}mm`,
   }) as SVGSVGElement
-  for (const d of AMPHORA_PATHS) {
-    svg.appendChild(
-      el("path", {
-        d,
-        fill: "none",
-        stroke: OUTLINE_COLOR,
-        "stroke-width": 1.75,
-        "stroke-linecap": "round",
-        "stroke-linejoin": "round",
-      })
-    )
-  }
+  LOGO_SLAB_PATHS.forEach((p, i) => {
+    svg.appendChild(el("path", { d: p.d, fill: monochrome ? LOGO_MONO_FILLS[i] : p.fill }))
+  })
   if (withWordmark) {
     const text = el("text", {
-      x: 27,
-      y: 16.4,
+      x: 318,
+      y: 166,
       "font-family": "helvetica",
-      "font-size": (wordmarkFont / iconMm) * 24,
+      "font-size": 108,
       "font-weight": "bold",
-      fill: OUTLINE_COLOR,
+      "letter-spacing": -5.5,
+      fill: monochrome ? "#111111" : "#111827",
     })
-    text.textContent = "Unfolded"
+    text.textContent = "unfolded"
     svg.appendChild(text)
   }
   return [svg, totalW]
@@ -343,8 +340,14 @@ export async function exportTemplatesPdf(options: {
 
   const doc = new jsPDF({ unit: "mm", format: paper === "A4" ? "a4" : "letter" })
 
-  const placeLogo = async (iconMm: number, x: number, yTop: number, withWordmark = true) => {
-    const [svg, w] = logoSvg(iconMm, withWordmark)
+  const placeLogo = async (
+    iconMm: number,
+    x: number,
+    yTop: number,
+    withWordmark = true,
+    monochrome = false
+  ) => {
+    const [svg, w] = logoSvg(iconMm, withWordmark, monochrome)
     document.body.appendChild(svg)
     try {
       await doc.svg(svg, { x, y: yTop, width: w, height: iconMm })
@@ -493,9 +496,10 @@ export async function exportTemplatesPdf(options: {
       }
       doc.setLineDashPattern([], 0)
 
-      // page chrome in the margin bands: logomark top-right, footer text
-      // bottom-left, and a 3 cm scale check bottom-right on every page
-      await placeLogo(6, pageW - M - 24, 2.5)
+      // page chrome in the margin bands: logo top-right (grayscale — the
+      // template pages stay ink-safe), footer text bottom-left, and a
+      // 3 cm scale check bottom-right on every page
+      await placeLogo(6, pageW - M - logoWidthMm(6), 2.5, true, true)
       doc.setFontSize(8)
       doc.setTextColor(100)
       const footerName = name.length > 40 ? `${name.slice(0, 37)}…` : name
