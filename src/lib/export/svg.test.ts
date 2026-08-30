@@ -69,10 +69,32 @@ describe("tickMarks", () => {
 })
 
 describe("layoutPieces", () => {
-  it("stacks pieces without overlap", () => {
+  it("wraps to a new shelf when a piece would exceed one page width", () => {
+    // the mug wall (285.6mm) overflows a page column, so the disc wraps below
     const layout = layoutPieces([rect, disc])
+    expect(layout.placed[1].dx).toBe(0)
     expect(layout.placed[1].dy).toBeGreaterThan(rect.heightMm)
     expect(layout.widthMm).toBeCloseTo(285.6)
+  })
+
+  it("packs small pieces side by side on one shelf", () => {
+    const side: Piece = { kind: "rectangle", id: "side", label: "Side", widthMm: 60, heightMm: 110, notes: [] }
+    const layout = layoutPieces([side, disc])
+    expect(layout.placed[1].dy).toBe(0) // same shelf as the side panel
+    expect(layout.placed[1].dx).toBeGreaterThan(60) // to its right, after the gap
+    expect(layout.heightMm).toBeLessThan(110 + 85.2) // shorter than stacking
+  })
+
+  it("never lets shelf-mates overlap horizontally", () => {
+    const side: Piece = { kind: "rectangle", id: "side", label: "Side", widthMm: 60, heightMm: 110, notes: [] }
+    const layout = layoutPieces([side, disc, side, disc])
+    for (const a of layout.placed) {
+      for (const b of layout.placed) {
+        if (a === b || a.dy !== b.dy) continue
+        const apart = a.dx + a.graphic.widthMm <= b.dx || b.dx + b.graphic.widthMm <= a.dx
+        expect(apart).toBe(true)
+      }
+    }
   })
 })
 

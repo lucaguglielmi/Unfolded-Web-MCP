@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
-import { formWarnings } from "@/lib/geometry/unroll"
+import { capacityMl, formWarnings } from "@/lib/geometry/unroll"
 import { PRESETS } from "@/lib/model/schemas"
 import { useProjectStore } from "@/store/useProjectStore"
 
@@ -59,6 +59,11 @@ const PRESET_ICONS: Record<string, typeof Coffee> = {
   tumbler: CupSoda,
   "bud-vase": Amphora,
   "hex-planter": Hexagon,
+}
+
+function formatCapacity(ml: number): string {
+  if (ml >= 1000) return `${(ml / 1000).toFixed(ml >= 10000 ? 0 : 1)} L`
+  return `${ml} ml`
 }
 
 function SectionTitle({ children, tip }: { children: ReactNode; tip?: ReactNode }) {
@@ -113,6 +118,7 @@ export function ParamsPanel() {
   const applyPreset = useProjectStore((s) => s.applyPreset)
 
   const warnings = formWarnings(form, clay)
+  const capacity = capacityMl(form, clay)
 
   return (
     <div className="space-y-6">
@@ -182,6 +188,18 @@ export function ParamsPanel() {
             onChange={(v) => updateForm({ topDiameterMm: v })}
           />
         )}
+
+        <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+          Holds about{" "}
+          <span className="text-foreground font-medium tabular-nums">
+            {formatCapacity(capacity)}
+          </span>
+          <InfoTip>
+            Approximate fired interior volume — the outer size minus the fired wall
+            thickness, above the floor. Ask your agent to &ldquo;make it hold 350 ml&rdquo;
+            and it can set this directly.
+          </InfoTip>
+        </p>
       </section>
 
       <Separator />

@@ -331,8 +331,10 @@ export async function exportTemplatesPdf(options: {
   paper: PaperSize
   /** shrinkageScale(clay.shrinkagePct) — used to print fired dimensions alongside wet ones */
   scale: number
+  /** deep link to this exact design — printed as a QR on the overview so the paper can reopen the model */
+  shareUrl?: string
 }): Promise<ExportResult> {
-  const { pieces, name, paper, scale } = options
+  const { pieces, name, paper, scale, shareUrl } = options
   const layout = layoutPieces(pieces)
   const pg = paginate(layout.widthMm, layout.heightMm, paper)
   const { widthMm: pageW, heightMm: pageH } = PAPERS[paper]
@@ -359,6 +361,31 @@ export async function exportTemplatesPdf(options: {
 
   /* ------------------------------------------------------- overview page */
   await placeLogo(9, M, M - 2)
+
+  // QR of the design's share link, top-right: weeks later in the studio,
+  // scanning the printout reopens this exact parametric model to tweak or
+  // reprint. Strictly a nicety — never let it break an export.
+  if (shareUrl) {
+    try {
+      const { toDataURL } = await import("qrcode")
+      const qrPng = await toDataURL(shareUrl, {
+        margin: 0,
+        width: 256,
+        errorCorrectionLevel: "M",
+        color: { dark: "#1c1917", light: "#ffffff" },
+      })
+      const QR_MM = 22
+      doc.addImage(qrPng, "PNG", pageW - M - QR_MM, M - 2, QR_MM, QR_MM)
+      doc.setFontSize(7)
+      doc.setTextColor(120)
+      doc.text("scan to reopen", pageW - M - QR_MM / 2, M + QR_MM + 2, { align: "center" })
+      doc.text("this design", pageW - M - QR_MM / 2, M + QR_MM + 5, { align: "center" })
+      doc.setTextColor(0)
+    } catch {
+      // offline QR lib failure — the link still lives in the app
+    }
+  }
+
   doc.setFont("helvetica", "bold")
   doc.setFontSize(15)
   doc.text("Slab template", M, M + 15)

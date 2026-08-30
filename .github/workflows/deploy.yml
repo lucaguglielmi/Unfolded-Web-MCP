@@ -15,8 +15,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run lint
       - run: npm test
       - run: npm run build
+      - name: Install Chromium for e2e
+        run: npx playwright install --with-deps chromium
+      - name: End-to-end (WebMCP tools, share links, export)
+        run: npm run e2e
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
         with:

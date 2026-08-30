@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildPieces, capacityMl, describePiece, facetBevelDeg, formWarnings, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
+import { buildPieces, capacityMl, describePiece, facetBevelDeg, formWarnings, heightForCapacityMl, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
 import type { ClaySettings, FormParams } from "@/lib/model/schemas"
 
 const clay: ClaySettings = { shrinkagePct: 0, wallThicknessMm: 5 }
@@ -277,5 +277,43 @@ describe("tapered faceted prisms", () => {
     const straight: FormParams = { ...base, tapered: false, topDiameterMm: 100 }
     const c = { shrinkagePct: 12, wallThicknessMm: 5 }
     expect(capacityMl(base, c)).toBeGreaterThan(capacityMl(straight, c))
+  })
+})
+
+describe("heightForCapacityMl", () => {
+  const mug: FormParams = {
+    type: "round",
+    tapered: false,
+    name: "Mug",
+    heightMm: 100,
+    topDiameterMm: 85,
+    bottomDiameterMm: 85,
+    facets: 4,
+  }
+  const c: ClaySettings = { shrinkagePct: 12, wallThicknessMm: 5 }
+
+  it("solves the height that yields the target capacity exactly", () => {
+    const h = heightForCapacityMl(mug, c, 350)
+    expect(h).not.toBeNull()
+    expect(capacityMl({ ...mug, heightMm: h! }, c)).toBe(350)
+  })
+
+  it("works for tapered faceted forms too", () => {
+    const hexTapered: FormParams = {
+      ...mug,
+      type: "faceted",
+      tapered: true,
+      facets: 6,
+      bottomDiameterMm: 100,
+      topDiameterMm: 150,
+    }
+    const h = heightForCapacityMl(hexTapered, c, 1000)
+    expect(h).not.toBeNull()
+    expect(capacityMl({ ...hexTapered, heightMm: h! }, c)).toBe(1000)
+  })
+
+  it("returns null when the walls close the interior", () => {
+    const tiny: FormParams = { ...mug, bottomDiameterMm: 20, topDiameterMm: 20 }
+    expect(heightForCapacityMl(tiny, { shrinkagePct: 0, wallThicknessMm: 15 }, 100)).toBeNull()
   })
 })

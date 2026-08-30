@@ -237,18 +237,39 @@ export function textFits(text: string, fontSizeMm: number, maxWidthMm: number): 
   return text.length * fontSizeMm * 0.52 <= maxWidthMm
 }
 
-/** Stack pieces in a column — simple, predictable, and fine for a handful of pieces. */
+/**
+ * Rows a shelf can span before wrapping: the A4 printable width (the
+ * narrower of the two supported papers), so a row that fits here fits on
+ * one page column for either paper size.
+ */
+const MAX_ROW_MM = 186
+
+/**
+ * Shelf-pack pieces left-to-right in rows, wrapping when a row would
+ * exceed one printable page width. Keeps the piece order (wall/side
+ * first, base after), so small pieces slot beside big ones — a mug's
+ * base shares a row (and usually a page) with its wall instead of
+ * stacking below it.
+ */
 export function layoutPieces(pieces: Piece[]): TemplateLayout {
   const placed: PlacedPiece[] = []
   let y = 0
+  let rowX = 0
+  let rowH = 0
   let maxW = 0
   for (const piece of pieces) {
     const graphic = pieceGraphic(piece)
-    placed.push({ piece, graphic, dx: 0, dy: y })
-    y += graphic.heightMm + ANNOTATION_MM + GAP_MM
-    maxW = Math.max(maxW, graphic.widthMm)
+    if (rowX > 0 && rowX + graphic.widthMm > MAX_ROW_MM) {
+      y += rowH + GAP_MM
+      rowX = 0
+      rowH = 0
+    }
+    placed.push({ piece, graphic, dx: rowX, dy: y })
+    rowX += graphic.widthMm + GAP_MM
+    rowH = Math.max(rowH, graphic.heightMm + ANNOTATION_MM)
+    maxW = Math.max(maxW, rowX - GAP_MM)
   }
-  return { placed, widthMm: maxW, heightMm: Math.max(0, y - GAP_MM) }
+  return { placed, widthMm: maxW, heightMm: y + rowH }
 }
 
 /* ---------------------------------------------------------------- paging */

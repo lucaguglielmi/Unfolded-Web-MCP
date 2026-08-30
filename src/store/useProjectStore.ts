@@ -51,6 +51,7 @@ interface PdfModule {
     name: string
     paper: PaperSize
     scale: number
+    shareUrl?: string
   }) => Promise<ExportResult>
 }
 let importPdfModule: () => Promise<PdfModule> = () => import("@/lib/export/pdf")
@@ -245,6 +246,7 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
         name: form.name,
         paper: paperSize,
         scale: shrinkageScale(clay.shrinkagePct),
+        shareUrl: shareUrl(form, clay, paperSize),
       })
     } finally {
       set((state) => ({ exportsInFlight: Math.max(0, state.exportsInFlight - 1) }))

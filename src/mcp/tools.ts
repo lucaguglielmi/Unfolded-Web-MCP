@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { capacityMl, heightForCapacityMl } from "@/lib/geometry/unroll"
 import { setClayInputSchema, updateFormInputSchema, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
 import { capturePreviewPng } from "@/lib/previewCapture"
@@ -74,7 +75,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "update_form",
       description:
-        "Update the pottery form. Any subset of: type ('round' = circular wall, 'faceted' = prism with flat sides), tapered (boolean — its own axis, so ANY shape can taper: true makes the top differ from the bottom, a cone frustum for round or a pyramid frustum for faceted, and topDiameterMm applies; false keeps the wall straight with top mirroring bottom), facets (side count for faceted forms: 3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon), name, heightMm, topDiameterMm, bottomDiameterMm (for faceted forms widths are across corners). Legacy type values 'cylinder' and 'tapered' are still accepted. Dimensions are FIRED sizes in millimeters — shrinkage compensation is applied automatically to the templates. The 3D preview and the flat templates the potter sees update immediately. Returns the full new state, including capacityMl (approximate fired interior volume) — for a target like 'a 350 ml mug', adjust dimensions and check capacityMl until it matches.",
+        "Update the pottery form. Any subset of: type ('round' = circular wall, 'faceted' = prism with flat sides), tapered (boolean — its own axis, so ANY shape can taper: true makes the top differ from the bottom, a cone frustum for round or a pyramid frustum for faceted, and topDiameterMm applies; false keeps the wall straight with top mirroring bottom), facets (side count for faceted forms: 3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon), name, heightMm, topDiameterMm, bottomDiameterMm (for faceted forms widths are across corners). Legacy type values 'cylinder' and 'tapered' are still accepted. Dimensions are FIRED sizes in millimeters — shrinkage compensation is applied automatically to the templates. The 3D preview and the flat templates the potter sees update immediately. Returns the full new state, including capacityMl (approximate fired interior volume). For a target volume like 'a 350 ml mug', prefer set_capacity — it solves the height exactly in one call.",
       inputSchema: z.toJSONSchema(updateFormInputSchema),
       annotations: { title: "Update form dimensions", idempotentHint: true },
       execute: (input) =>
@@ -94,6 +95,45 @@ export function buildTools(): ToolDescriptor[] {
         run("set_clay", () => {
           useProjectStore.getState().setClay((input ?? {}) as SetClayInput)
           return textResult(stateText("Clay settings updated."))
+        }),
+    },
+    {
+      name: "set_capacity",
+      description:
+        "Set the vessel's interior capacity directly, in milliliters. Interior volume is linear in height, so this solves for the exact height that yields the target while keeping the shape, diameters, taper, and clay unchanged. If the needed height falls outside the buildable 20-600 mm range it is clamped and the response reports the actually achievable capacity — widen or narrow the form with update_form and call again to get closer. Returns the full new state.",
+      inputSchema: z.toJSONSchema(
+        z.object({
+          capacityMl: z
+            .number()
+            .min(1)
+            .max(200000)
+            .describe("Target fired interior capacity in milliliters, e.g. 350 for a mug"),
+        })
+      ),
+      annotations: { title: "Set capacity", idempotentHint: true },
+      execute: (input) =>
+        run("set_capacity", () => {
+          const { capacityMl: target } = z
+            .object({ capacityMl: z.number().min(1).max(200000) })
+            .parse(input ?? {})
+          const { form, clay } = useProjectStore.getState()
+          const solved = heightForCapacityMl(form, clay, target)
+          if (solved === null) {
+            return textResult(
+              "The walls close this form's interior entirely — no height can hold anything. " +
+                "Thin the walls (set_clay) or widen the form (update_form) first.\n\n" +
+                `Current state:\n${stateText()}`,
+              true
+            )
+          }
+          const clamped = Math.round(Math.min(600, Math.max(20, solved)) * 10) / 10
+          useProjectStore.getState().updateForm({ heightMm: clamped })
+          const achieved = capacityMl(useProjectStore.getState().form, clay)
+          const note =
+            Math.abs(clamped - solved) > 0.05
+              ? `Target ${target} ml needs a ${solved.toFixed(0)} mm height — clamped to ${clamped} mm, which holds ~${achieved} ml. Adjust the diameters to get closer.`
+              : `Height set to ${clamped} mm — the vessel now holds ~${achieved} ml.`
+          return textResult(stateText(note))
         }),
     },
     {

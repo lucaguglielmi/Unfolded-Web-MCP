@@ -44,6 +44,7 @@ fallback for browsers that expose the API there — see
 | `open_model` | Open a design from a share link the user pastes in chat, then keep editing it |
 | `update_form` | Change shape / taper / facets / height / diameters (fired mm) — any shape can be straight or tapered |
 | `set_clay` | Change shrinkage % and wall thickness |
+| `set_capacity` | Solve the height for a target interior volume ("make it 350 ml") |
 | `get_template_summary` | Template layout, per-piece dimensions, exact PDF page count |
 | `get_preview_image` | PNG snapshot of the live 3D preview — the agent sees what the potter sees |
 | `export_templates` | Generate and download the multi-page PDF (A4 / Letter) |

@@ -269,13 +269,24 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
  * 350 ml mug" needs.
  */
 export function capacityMl(form: FormParams, clay: ClaySettings): number {
-  const firedWall = clay.wallThicknessMm * (1 - clay.shrinkagePct / 100)
+  const firedWall = firedWallMm(clay)
   const hIn = Math.max(0, form.heightMm - firedWall)
   if (hIn === 0) return 0
+  return Math.round((interiorSectionMm2(form, firedWall) * hIn) / 1000)
+}
 
+function firedWallMm(clay: ClaySettings): number {
+  return clay.wallThicknessMm * (1 - clay.shrinkagePct / 100)
+}
+
+/**
+ * Effective interior cross-section in mm² — the K in V = K · interiorHeight.
+ * Volume is LINEAR in height for every supported shape (the frustum formula's
+ * radii/areas don't depend on height), which is what makes set_capacity an
+ * exact one-step solve.
+ */
+function interiorSectionMm2(form: FormParams, firedWall: number): number {
   const topOuter = form.tapered ? form.topDiameterMm : form.bottomDiameterMm
-
-  let volumeMm3 = 0
   if (form.type === "faceted") {
     // frustum of a pyramid: V = h/3 (A1 + A2 + sqrt(A1 A2)); straight prisms
     // fall out naturally with A1 == A2
@@ -287,13 +298,29 @@ export function capacityMl(form: FormParams, clay: ClaySettings): number {
     }
     const aBot = area(form.bottomDiameterMm)
     const aTop = area(topOuter)
-    volumeMm3 = (hIn * (aBot + aTop + Math.sqrt(aBot * aTop))) / 3
-  } else {
-    const rBot = Math.max(0, form.bottomDiameterMm / 2 - firedWall)
-    const rTop = Math.max(0, topOuter / 2 - firedWall)
-    volumeMm3 = (Math.PI * hIn * (rBot * rBot + rBot * rTop + rTop * rTop)) / 3
+    return (aBot + aTop + Math.sqrt(aBot * aTop)) / 3
   }
-  return Math.round(volumeMm3 / 1000)
+  const rBot = Math.max(0, form.bottomDiameterMm / 2 - firedWall)
+  const rTop = Math.max(0, topOuter / 2 - firedWall)
+  return (Math.PI * (rBot * rBot + rBot * rTop + rTop * rTop)) / 3
+}
+
+/**
+ * The fired height that gives the form the requested interior capacity,
+ * keeping every other dimension fixed — exact, because volume is linear in
+ * height. Returns null when the walls close the interior entirely (no
+ * height can hold anything). The returned height is NOT clamped to the
+ * schema range; callers clamp and report.
+ */
+export function heightForCapacityMl(
+  form: FormParams,
+  clay: ClaySettings,
+  targetMl: number
+): number | null {
+  const firedWall = firedWallMm(clay)
+  const section = interiorSectionMm2(form, firedWall)
+  if (section <= 0) return null
+  return (targetMl * 1000) / section + firedWall
 }
 
 /**
