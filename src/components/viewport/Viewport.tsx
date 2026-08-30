@@ -63,9 +63,18 @@ function Scene() {
   // flatShading is baked into compiled materials, so key meshes on the mode
   const meshKey = `${isFaceted}-${radialSegments}`
 
+  // The camera looks in from a 45° azimuth while lathe vertex 0 sits at
+  // azimuth 0 — which leaves a triangle or square presenting an almost
+  // flat wall to the viewer. Start each faceted form with a corner turned
+  // toward the camera, backed off by a sliver of its face angle so the two
+  // front faces catch different light: every facet count opens on a
+  // distinct, readable silhouette. Round forms are rotation-invariant.
+  const CAMERA_AZIMUTH = Math.PI / 4
+  const startYaw = isFaceted ? CAMERA_AZIMUTH - (0.3 * Math.PI) / form.facets : 0
+
   return (
     <>
-      <group position={[0, bottomY, 0]}>
+      <group position={[0, bottomY, 0]} rotation={[0, startYaw, 0]}>
         <mesh key={`outer-${meshKey}`}>
           <latheGeometry args={[outerPoints, radialSegments]} />
           <meshStandardMaterial

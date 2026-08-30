@@ -59,8 +59,19 @@ export const useProjectStore = create<ProjectState>()((set, get) => ({
     set((state) => {
       const parsed = updateFormInputSchema.parse(patch)
       const form = { ...state.form, ...parsed }
-      // Cylinder and faceted forms have one width: keep top mirroring bottom
-      // so switching to 'tapered' starts from a sensible shape.
+      // Switching to 'tapered' from a straight form would otherwise start
+      // with top === bottom — i.e. a preview that doesn't look tapered at
+      // all. Unless the caller set an explicit top, flare it so the change
+      // is immediately visible.
+      const switchedToTapered = parsed.type === "tapered" && state.form.type !== "tapered"
+      if (
+        switchedToTapered &&
+        parsed.topDiameterMm === undefined &&
+        Math.abs(form.topDiameterMm - form.bottomDiameterMm) < 0.05
+      ) {
+        form.topDiameterMm = Math.min(300, Math.round(form.bottomDiameterMm * 1.4))
+      }
+      // Cylinder and faceted forms have one width: keep top mirroring bottom.
       if (form.type !== "tapered") {
         form.topDiameterMm = form.bottomDiameterMm
       }
