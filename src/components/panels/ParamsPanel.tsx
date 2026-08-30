@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react"
+import { type ReactNode } from "react"
 import {
   Amphora,
   Coffee,
@@ -14,7 +14,6 @@ import {
 import { IconOptionGroup } from "@/components/IconOptionGroup"
 import { InfoTip } from "@/components/InfoTip"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
@@ -93,47 +92,6 @@ function DimensionSlider({
   )
 }
 
-/**
- * Name field keeps a local draft so the user can clear/retype freely;
- * only valid names (1-60 chars) are committed to the store.
- */
-function NameField() {
-  const name = useProjectStore((s) => s.form.name)
-  const updateForm = useProjectStore((s) => s.updateForm)
-  const [draft, setDraft] = useState(name)
-  const [lastSeenName, setLastSeenName] = useState(name)
-
-  // follow external changes (agent tools, presets) without clobbering typing
-  if (name !== lastSeenName) {
-    setLastSeenName(name)
-    if (draft !== name) setDraft(name)
-  }
-
-  return (
-    <Input
-      id="form-name"
-      aria-label="Piece name"
-      value={draft}
-      maxLength={60}
-      placeholder="Name your piece"
-      onChange={(e) => {
-        const value = e.target.value.slice(0, 60)
-        setDraft(value)
-        if (value.trim().length > 0) updateForm({ name: value })
-      }}
-      onBlur={() => {
-        const trimmed = draft.trim()
-        if (trimmed.length === 0) {
-          setDraft(name)
-        } else if (trimmed !== draft) {
-          setDraft(trimmed)
-          updateForm({ name: trimmed })
-        }
-      }}
-    />
-  )
-}
-
 export function ParamsPanel() {
   const form = useProjectStore((s) => s.form)
   const clay = useProjectStore((s) => s.clay)
@@ -150,7 +108,8 @@ export function ParamsPanel() {
           Form
         </SectionTitle>
 
-        <NameField />
+        {/* form.name stays in the model (export dialog, PDF stamps, share
+            links, agent tools) — it's just not edited here anymore */}
 
         <IconOptionGroup
           value={form.type === "faceted" ? `f${form.facets}` : form.type}
