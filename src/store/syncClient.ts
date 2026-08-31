@@ -1,8 +1,8 @@
 import { shallow } from "zustand/shallow"
-import type { SharePatches } from "@/lib/model/shareLink"
+import { sanitizeSharePatches, type SharePatches } from "@/lib/model/shareLink"
 import { applyClayPatch, applyFormPatch } from "@/lib/model/applyPatch"
-import { PAPERS, type PaperSize } from "@/lib/export/svg"
-import { isUnit, type Unit } from "@/lib/units"
+import type { PaperSize } from "@/lib/export/svg"
+import type { Unit } from "@/lib/units"
 import type { ClaySettings, FormParams } from "@/lib/model/schemas"
 import { useProjectStore, type ProjectStore } from "./useProjectStore"
 
@@ -54,25 +54,6 @@ export function diffDesign(prev: DesignSlice, next: DesignSlice): SharePatches |
   if (Object.keys(clay).length > 0) out.clay = clay
   if (next.paperSize !== prev.paperSize) out.paperSize = next.paperSize
   if (next.unit !== prev.unit) out.unit = next.unit
-  return Object.keys(out).length > 0 ? out : null
-}
-
-/**
- * Forgiving parse of a peer's (or the server's) SharePatches — same posture
- * as share-link parsing: unknown keys ignored, wrong-typed fields dropped.
- * Full validation/clamping happens in the store's own actions; this only
- * keeps obviously-foreign shapes from reaching them.
- */
-function sanitizePatches(raw: unknown): SharePatches | null {
-  if (typeof raw !== "object" || raw === null) return null
-  const r = raw as Record<string, unknown>
-  const out: SharePatches = {}
-  if (typeof r.form === "object" && r.form !== null) out.form = r.form as SharePatches["form"]
-  if (typeof r.clay === "object" && r.clay !== null) out.clay = r.clay as SharePatches["clay"]
-  if (typeof r.paperSize === "string" && r.paperSize in PAPERS) {
-    out.paperSize = r.paperSize as PaperSize
-  }
-  if (isUnit(r.unit)) out.unit = r.unit
   return Object.keys(out).length > 0 ? out : null
 }
 
@@ -161,7 +142,7 @@ export function createSyncClient({
   /** adopt a server snapshot (welcome/resync): apply, then move the diff
       baseline in the same frame so the publisher sees nothing to send */
   const adoptServerState = (raw: unknown, newVersion: number) => {
-    const patches = sanitizePatches(raw)
+    const patches = sanitizeSharePatches(raw)
     try {
       if (patches) store.getState().openModel(patches)
     } catch {
@@ -199,7 +180,12 @@ export function createSyncClient({
         break
       }
       case "patch": {
-        if (msg.clientId === clientId) break // own echo
+        if (msg.clientId === clientId) {
+          // own echo: nothing to apply, but the version bump is ours too —
+          // without tracking it, the next peer patch would look like a gap
+          if (typeof msg.version === "number") version = Math.max(version, msg.version)
+          break
+        }
         const newVersion = typeof msg.version === "number" ? msg.version : version + 1
         if (newVersion > version + 1) {
           // missed a broadcast — a fresh hello makes the server re-welcome
@@ -207,7 +193,7 @@ export function createSyncClient({
           send({ kind: "hello", protocolVersion: SYNC_PROTOCOL_VERSION, clientId, actor: "human" })
           break
         }
-        const patches = sanitizePatches(msg.patches)
+        const patches = sanitizeSharePatches(msg.patches)
         if (patches && lastSynced) {
           try {
             store.getState().openModel(patches)
@@ -254,7 +240,15 @@ export function createSyncClient({
     socket = s
     status = "connecting"
     s.onopen = () => {
-      send({ kind: "hello", protocolVersion: SYNC_PROTOCOL_VERSION, clientId, actor: "human" })
+      // state rides along for first-contact bootstrap: an eagerly created
+      // session adopts the minting tab's design instead of a default mug
+      send({
+        kind: "hello",
+        protocolVersion: SYNC_PROTOCOL_VERSION,
+        clientId,
+        actor: "human",
+        state: slice(),
+      })
     }
     s.onmessage = (ev) => onMessage(ev.data)
     s.onclose = () => {

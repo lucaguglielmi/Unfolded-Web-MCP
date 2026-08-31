@@ -1,7 +1,7 @@
 import type { ClaySettings, FormParams, FormType, SetClayInput, UpdateFormInput } from "./schemas"
 import { setClayInputSchema, updateFormInputSchema } from "./schemas"
-import type { PaperSize } from "@/lib/export/svg"
-import type { Unit } from "@/lib/units"
+import { PAPERS, type PaperSize } from "@/lib/export/svg"
+import { isUnit, type Unit } from "@/lib/units"
 
 /**
  * Share links: the whole design encoded as URL query parameters, e.g.
@@ -132,6 +132,26 @@ export function parseShareParams(input: string | URLSearchParams): SharePatches 
   return out
 }
 
+/**
+ * Forgiving shape-check of SharePatches that arrived over the wire (live
+ * sync: a peer's patch, the server's snapshot) — same posture as link
+ * parsing: unknown keys ignored, wrong-typed fields dropped. Values are
+ * NOT validated here; the store's actions (and the sync server's
+ * applyPatch) do that with the zod schemas.
+ */
+export function sanitizeSharePatches(raw: unknown): SharePatches | null {
+  if (typeof raw !== "object" || raw === null) return null
+  const r = raw as Record<string, unknown>
+  const out: SharePatches = {}
+  if (typeof r.form === "object" && r.form !== null) out.form = r.form as SharePatches["form"]
+  if (typeof r.clay === "object" && r.clay !== null) out.clay = r.clay as SharePatches["clay"]
+  if (typeof r.paperSize === "string" && r.paperSize in PAPERS) {
+    out.paperSize = r.paperSize as PaperSize
+  }
+  if (isUnit(r.unit)) out.unit = r.unit
+  return Object.keys(out).length > 0 ? out : null
+}
+
 const fmtNum = (n: number) => String(Number(n.toFixed(1)))
 
 export function buildShareParams(
@@ -184,6 +204,9 @@ export function shareUrl(
   const params = buildShareParams(form, clay, paperSize, opts.unit ?? "cm")
   if (opts.viaChatGpt) params.set("via", "chatgpt")
   const qs = params.toString()
-  if (typeof window === "undefined") return `?${qs}`
-  return `${window.location.origin}${window.location.pathname}?${qs}`
+  // via globalThis so this module also compiles for the sync Worker,
+  // which has no DOM lib (and no window — it takes the relative branch)
+  const loc = (globalThis as { location?: { origin: string; pathname: string } }).location
+  if (!loc) return `?${qs}`
+  return `${loc.origin}${loc.pathname}?${qs}`
 }
