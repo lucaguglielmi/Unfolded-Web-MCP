@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { HelpCircle, Menu, MonitorSmartphone, Share2, X } from "lucide-react"
+import { HelpCircle, Menu, MonitorSmartphone, Share2, Sparkles, X } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
 import { PairDialog } from "@/components/PairDialog"
 import { ShareDialog } from "@/components/ShareDialog"
@@ -16,6 +16,7 @@ export function MobileMenu() {
   const [shareOpen, setShareOpen] = useState(false)
   const [pairOpen, setPairOpen] = useState(false)
   const whyHref = useDesignHref("/why")
+  const webmcpHref = useDesignHref("/webmcp")
 
   const rowClass =
     "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
@@ -39,7 +40,8 @@ export function MobileMenu() {
             type="button"
             aria-hidden
             tabIndex={-1}
-            className="fixed inset-0 z-40 cursor-default"
+            data-no-feedback
+            className="fixed inset-0 z-40 !cursor-default"
             onClick={() => setOpen(false)}
           />
           <div className="bg-background absolute top-full right-0 z-50 mt-2 w-64 rounded-xl border p-2 shadow-lg">
@@ -47,6 +49,11 @@ export function MobileMenu() {
             <div className="px-1.5 py-2" onClick={() => setOpen(false)}>
               <AgentBadge />
             </div>
+            {/* same destination as the pill above, spelled out as a row */}
+            <a href={webmcpHref} className={rowClass} onClick={() => setOpen(false)}>
+              <Sparkles className="text-muted-foreground size-4" />
+              About WebMCP
+            </a>
             <a href={whyHref} className={rowClass} onClick={() => setOpen(false)}>
               <HelpCircle className="text-muted-foreground size-4" />
               Why Unfolded

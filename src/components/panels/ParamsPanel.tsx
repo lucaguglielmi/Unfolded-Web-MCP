@@ -119,11 +119,16 @@ function DimensionSlider({
         // gesture boundary and fall back to the store's time window.
         onPointerDown={beginUndoCoalescing}
         onPointerUp={endUndoCoalescing}
-        onValueChange={([v]) => onChange(v)}
+        onValueChange={([v]) => {
+          onChange(v)
+          // the faintest tick per step (throttled inside feedback) — the
+          // slider purrs under the finger
+          feedback("slide")
+        }}
         onValueCommit={() => {
           endUndoCoalescing()
-          // one soft tick when the drag lands, not on every step
-          feedback("tap")
+          // the satisfying thock of the drag landing
+          feedback("release")
         }}
       />
     </div>

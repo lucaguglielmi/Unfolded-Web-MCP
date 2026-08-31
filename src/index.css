@@ -126,6 +126,20 @@
     @apply bg-background text-foreground;
     overscroll-behavior: none;
   }
+  /* everything clickable shows a pointer — buttons included (browsers
+     default those to the arrow cursor); disabled controls stay arrows */
+  button:not(:disabled),
+  a[href],
+  label[for],
+  select,
+  summary,
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="option"],
+  [role="menuitem"],
+  [role="menuitemradio"] {
+    cursor: pointer;
+  }
 }
 
 /* ---------------------------------------------------------------- logo

@@ -12,6 +12,7 @@ import { ShareDialog } from "@/components/ShareDialog"
 import { SyncBadge } from "@/components/SyncBadge"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { feedback } from "@/lib/feedback"
 import { useIsDesktop } from "@/lib/useIsDesktop"
 import { useDesignHref } from "@/lib/useStudioHref"
 import { useWebMCP } from "@/mcp/useWebMCP"
@@ -103,6 +104,7 @@ export default function App() {
             onExpand={(view) => {
               setPreviewView(view)
               setPreviewExpanded(true)
+              feedback("open")
             }}
             onClose={() => setPreviewExpanded(false)}
           />

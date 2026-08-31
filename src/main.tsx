@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import { installGlobalFeedback } from '@/lib/feedback'
 import { loadPersistedProject, startProjectPersistence } from '@/store/persistence'
 import { startLiveSync } from '@/store/syncClient'
 import { applyShareLinkFromLocation, startShareLinkSync } from '@/store/urlSync'
@@ -16,6 +17,7 @@ applyShareLinkFromLocation()
 startShareLinkSync()
 startProjectPersistence()
 startLiveSync()
+installGlobalFeedback()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
