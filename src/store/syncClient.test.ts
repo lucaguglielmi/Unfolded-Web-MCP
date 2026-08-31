@@ -246,3 +246,83 @@ describe("createSyncClient", () => {
     expect(client.peers()).toBe(3)
   })
 })
+
+describe("pairing operations", () => {
+  it("pair() mints and persists a sid for an unpaired tab, then connects", () => {
+    const records: Record<string, string> = {}
+    const factory = vi.fn(() => socket)
+    const fresh = createSyncClient({
+      store,
+      storage: fakeStorage(records),
+      createSocket: factory,
+      randomId: () => "tab-a",
+      newSid: () => "minted-sid-1234567890",
+    })
+    expect(fresh.isPaired()).toBe(false)
+    fresh.pair()
+    expect(JSON.parse(records[SESSION_STORAGE_KEY]).sid).toBe("minted-sid-1234567890")
+    expect(factory).toHaveBeenCalledWith("minted-sid-1234567890")
+    expect(fresh.isPaired()).toBe(true)
+    fresh.stop()
+  })
+
+  it("mintCode() pairs, waits for the session, and resolves the server's code", async () => {
+    client.start()
+    socket.open()
+    const minted = client.mintCode()
+    socket.receive({ kind: "welcome", state: slice(store), version: 1, peers: 1 })
+    await Promise.resolve()
+    expect(socket.sentOfKind("mint_code")).toHaveLength(1)
+    socket.receive({ kind: "code", code: "K7F3QP", expiresAt: 999_999 })
+    await expect(minted).resolves.toEqual({ code: "K7F3QP", expiresAt: 999_999 })
+  })
+
+  it("joinWithCode() claims, follows the new session, and reports misses", async () => {
+    const records: Record<string, string> = {}
+    const sockets: FakeSocket[] = []
+    const claim = vi.fn(async (code: string) =>
+      code === "GOODIE" ? { ok: true, sid: "claimed-sid-1234567890" } : { ok: false, retryable: false }
+    )
+    const fresh = createSyncClient({
+      store,
+      storage: fakeStorage(records),
+      createSocket: () => {
+        const s = new FakeSocket()
+        sockets.push(s)
+        return s
+      },
+      claimCode: claim,
+    })
+    await expect(fresh.joinWithCode("nope")).resolves.toEqual({ ok: false, retryable: false })
+    expect(records[SESSION_STORAGE_KEY]).toBeUndefined()
+    await expect(fresh.joinWithCode("GOODIE")).resolves.toEqual({ ok: true })
+    expect(JSON.parse(records[SESSION_STORAGE_KEY]).sid).toBe("claimed-sid-1234567890")
+    expect(sockets).toHaveLength(1)
+    fresh.stop()
+  })
+
+  it("unpair() disconnects and forgets the session", () => {
+    const records: Record<string, string> = {
+      [SESSION_STORAGE_KEY]: JSON.stringify({ sid: "x".repeat(22) }),
+    }
+    const fresh = createSyncClient({
+      store,
+      storage: fakeStorage(records),
+      createSocket: () => socket,
+    })
+    fresh.start()
+    fresh.unpair()
+    expect(records[SESSION_STORAGE_KEY]).toBeUndefined()
+    expect(fresh.isPaired()).toBe(false)
+    expect(socket.closed).toBe(true)
+  })
+
+  it("notifies subscribers on status and peer transitions", () => {
+    const seen: string[] = []
+    client.subscribe(() => seen.push(`${client.status()}:${client.peers()}`))
+    startSynced()
+    socket.receive({ kind: "presence", peers: 3 })
+    client.stop()
+    expect(seen).toEqual(["connecting:1", "syncing:1", "syncing:2", "syncing:3", "off:3", "off:1"])
+  })
+})

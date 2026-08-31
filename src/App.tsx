@@ -4,6 +4,7 @@ import { ChromeFlagNudge } from "@/components/ChromeFlagNudge"
 import { LogoMark } from "@/components/LogoMark"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { FeedbackToggle } from "@/components/FeedbackToggle"
+import { PairDialog } from "@/components/PairDialog"
 import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { PreviewCluster, type PreviewView } from "@/components/PreviewCluster"
 import { ShareDialog } from "@/components/ShareDialog"
@@ -68,6 +69,7 @@ export default function App() {
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <FeedbackToggle />
+            <PairDialog />
             <ShareDialog />
             <AgentBadge />
           </div>

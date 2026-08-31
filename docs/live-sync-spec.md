@@ -341,12 +341,17 @@ JSON text frames, `protocolVersion: 1` in `hello`. Unknown kinds/fields
 ignored (same forgiving posture as share-link parsing).
 
 Client → server (SessionDO socket): `hello {protocolVersion, clientId,
-actor}` · `patch {patchId, baseVersion, patches: SharePatches}` ·
+actor, state?}` — `state` is the tab's design slice, used only for
+first-contact bootstrap so an eagerly created session adopts the minting
+tab's design instead of a default mug (ignored once the session is
+initialized) · `patch {patchId, baseVersion, patches: SharePatches}` ·
 `mint_code {}` (reply `code`) · `bye {}`.
 
 Server → client: `welcome {state, version, peers}` · `patch {version,
-patches, clientId, actor}` · `resync {state, version}` ·
-`presence {peers}` · `code {code, expiresAt}` · `error {code, message}`.
+patches, clientId, actor}` — broadcast to ALL including the sender, whose
+own echo is how it learns the version its edit landed at · `resync {state,
+version}` · `presence {peers}` · `code {code, expiresAt}` ·
+`error {code, message}`.
 
 HTTP (worker): `POST /api/pair/claim {code}` → `{sid}` or uniform failure —
 the **only** place a `sid` crosses to a client, used solely to open

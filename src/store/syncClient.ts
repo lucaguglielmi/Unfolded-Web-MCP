@@ -69,12 +69,23 @@ export interface SocketLike {
 
 export type SyncStatus = "off" | "connecting" | "syncing"
 
+export interface ClaimResponse {
+  ok: boolean
+  sid?: string
+  /** a rate-limited miss is worth retrying in a minute; an invalid code is not */
+  retryable?: boolean
+}
+
 export interface SyncClientDeps {
   store?: ProjectStore
   storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">
   /** open a socket to the session — default: wss to /api/session/:sid/ws */
   createSocket?: (sid: string) => SocketLike
   randomId?: () => string
+  /** resolve a pairing code to a session id — default: POST /api/pair/claim */
+  claimCode?: (code: string) => Promise<ClaimResponse>
+  /** mint a fresh session id — default: 128 crypto-random bits, url-safe */
+  newSid?: () => string
 }
 
 export interface SyncClient {
@@ -85,6 +96,18 @@ export interface SyncClient {
   status(): SyncStatus
   /** peers currently in the session, as last reported by the server (self included) */
   peers(): number
+  /** whether this tab holds a session (paired), connected or not */
+  isPaired(): boolean
+  /** ensure this tab has a session (minting one eagerly) and connect */
+  pair(): void
+  /** mint a pairing code for this tab's session — pairs first if needed */
+  mintCode(): Promise<{ code: string; expiresAt: number } | null>
+  /** claim a code from another device; on success this tab follows that session */
+  joinWithCode(rawCode: string): Promise<{ ok: true } | { ok: false; retryable: boolean }>
+  /** leave the session and forget it on this device */
+  unpair(): void
+  /** notify on status/peers transitions — for useSyncExternalStore */
+  subscribe(listener: () => void): () => void
 }
 
 function defaultSocket(sid: string): SocketLike {
@@ -98,11 +121,38 @@ function defaultRandomId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
+function defaultNewSid(): string {
+  // 128 random bits as url-safe base64 — matches the worker's SID_RE
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "")
+}
+
+async function defaultClaimCode(code: string): Promise<ClaimResponse> {
+  try {
+    const response = await fetch("/api/pair/claim", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    })
+    const body: unknown = await response.json().catch(() => null)
+    const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {}
+    return {
+      ok: response.ok && record.ok === true && typeof record.sid === "string",
+      sid: typeof record.sid === "string" ? record.sid : undefined,
+      retryable: record.retryable === true,
+    }
+  } catch {
+    // no /api here, or the network blinked — worth another try
+    return { ok: false, retryable: true }
+  }
+}
+
 export function createSyncClient({
   store = useProjectStore,
   storage = typeof window === "undefined" ? undefined : window.localStorage,
   createSocket = defaultSocket,
   randomId = defaultRandomId,
+  claimCode = defaultClaimCode,
+  newSid = defaultNewSid,
 }: SyncClientDeps = {}): SyncClient {
   const clientId = randomId()
   let socket: SocketLike | null = null
@@ -112,6 +162,24 @@ export function createSyncClient({
   let lastSynced: DesignSlice | null = null
   let sendTimer: ReturnType<typeof setTimeout> | undefined
   let unsubscribe: (() => void) | undefined
+  const listeners = new Set<() => void>()
+  let pendingMint: ((code: { code: string; expiresAt: number } | null) => void) | null = null
+
+  const notify = () => {
+    for (const l of listeners) l()
+  }
+  const setStatus = (next: SyncStatus) => {
+    if (status !== next) {
+      status = next
+      notify()
+    }
+  }
+  const setPeers = (next: number) => {
+    if (peers !== next) {
+      peers = next
+      notify()
+    }
+  }
 
   const slice = (): DesignSlice => {
     const { form, clay, paperSize, unit } = store.getState()
@@ -172,8 +240,8 @@ export function createSyncClient({
     switch (msg.kind) {
       case "welcome":
       case "resync": {
-        status = "syncing"
-        if (typeof msg.peers === "number") peers = msg.peers
+        setStatus("syncing")
+        if (typeof msg.peers === "number") setPeers(msg.peers)
         adoptServerState(msg.state, typeof msg.version === "number" ? msg.version : 0)
         // edits made while the snapshot was in flight still go out
         flushLocalEdits()
@@ -220,7 +288,14 @@ export function createSyncClient({
         break
       }
       case "presence": {
-        if (typeof msg.peers === "number") peers = msg.peers
+        if (typeof msg.peers === "number") setPeers(msg.peers)
+        break
+      }
+      case "code": {
+        if (pendingMint && typeof msg.code === "string" && typeof msg.expiresAt === "number") {
+          pendingMint({ code: msg.code, expiresAt: msg.expiresAt })
+          pendingMint = null
+        }
         break
       }
       default:
@@ -238,7 +313,7 @@ export function createSyncClient({
       return // no /api in this deployment — the app stays the offline app
     }
     socket = s
-    status = "connecting"
+    setStatus("connecting")
     s.onopen = () => {
       // state rides along for first-contact bootstrap: an eagerly created
       // session adopts the minting tab's design instead of a default mug
@@ -272,10 +347,12 @@ export function createSyncClient({
     clearTimeout(sendTimer)
     unsubscribe?.()
     unsubscribe = undefined
+    pendingMint?.(null)
+    pendingMint = null
     const s = socket
     socket = null
-    status = "off"
-    peers = 1
+    setStatus("off")
+    setPeers(1)
     lastSynced = null
     try {
       s?.close()
@@ -284,7 +361,94 @@ export function createSyncClient({
     }
   }
 
-  return { start, stop, status: () => status, peers: () => peers }
+  const persistSid = (sid: string) => {
+    try {
+      storage?.setItem(SESSION_STORAGE_KEY, JSON.stringify({ sid }))
+    } catch {
+      // storage blocked — pairing lasts for this visit only
+    }
+  }
+
+  const pair = () => {
+    if (!storedSid()) persistSid(newSid()) // eager creation (spec §4.2)
+    start()
+  }
+
+  /** resolves once the session is live, or false after the timeout */
+  const whenSyncing = (timeoutMs: number): Promise<boolean> =>
+    new Promise((resolve) => {
+      if (status === "syncing") return resolve(true)
+      const timer = setTimeout(() => {
+        off()
+        resolve(false)
+      }, timeoutMs)
+      const off = () => {
+        clearTimeout(timer)
+        listeners.delete(check)
+      }
+      const check = () => {
+        if (status === "syncing") {
+          off()
+          resolve(true)
+        } else if (status === "off") {
+          off()
+          resolve(false)
+        }
+      }
+      listeners.add(check)
+    })
+
+  const mintCode = async (): Promise<{ code: string; expiresAt: number } | null> => {
+    pair()
+    if (!(await whenSyncing(8_000))) return null
+    return new Promise((resolve) => {
+      pendingMint?.(null)
+      pendingMint = resolve
+      send({ kind: "mint_code" })
+      setTimeout(() => {
+        if (pendingMint === resolve) {
+          pendingMint = null
+          resolve(null)
+        }
+      }, 8_000)
+    })
+  }
+
+  const joinWithCode = async (
+    rawCode: string
+  ): Promise<{ ok: true } | { ok: false; retryable: boolean }> => {
+    const claimed = await claimCode(rawCode)
+    if (!claimed.ok || !claimed.sid) return { ok: false, retryable: claimed.retryable === true }
+    stop() // leaving any current session — the claimer follows the minted one
+    persistSid(claimed.sid)
+    start()
+    return { ok: true }
+  }
+
+  const unpair = () => {
+    stop()
+    try {
+      storage?.removeItem(SESSION_STORAGE_KEY)
+    } catch {
+      /* nothing to forget */
+    }
+  }
+
+  return {
+    start,
+    stop,
+    status: () => status,
+    peers: () => peers,
+    isPaired: () => storedSid() !== null,
+    pair,
+    mintCode,
+    joinWithCode,
+    unpair,
+    subscribe: (listener) => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+  }
 }
 
 /** App-boot entry point: one shared client, connected only when paired. */
