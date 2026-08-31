@@ -4,6 +4,7 @@ import { LOGO_SLAB_PATHS, LOGO_VIEWBOX } from "@/components/LogoMark"
 import type { Piece } from "@/lib/geometry/unroll"
 import { describePiece } from "@/lib/geometry/unroll"
 import { MM_PER_INCH, type Unit } from "@/lib/units"
+import { placeTemplateQr, QR_CAPTION_MM, TEMPLATE_QR_MM } from "./qrPlacement"
 import {
   contentTiles,
   layoutPieces,
@@ -366,49 +367,73 @@ export async function exportTemplatesPdf(options: {
     return w
   }
 
-  /* ------------------------------------------------------- overview page */
-  await placeLogo(9, M, M - 2)
-
-  // QR of the design's share link, top-right: weeks later in the studio,
-  // scanning the printout reopens this exact parametric model to tweak or
-  // reprint. Strictly a nicety — never let it break an export.
+  // QR of the design's share link: weeks later in the studio, scanning the
+  // printout reopens this exact parametric model to tweak or reprint. One
+  // copy goes top-right on the overview; another rides with the largest
+  // template piece (see qrPlacement.ts) so the link survives after the
+  // pieces are cut out and the overview is binned. Strictly a nicety —
+  // never let it break an export.
+  let qrPng: string | null = null
   if (shareUrl) {
     try {
       const { toDataURL } = await import("qrcode")
-      const qrPng = await toDataURL(shareUrl, {
+      qrPng = await toDataURL(shareUrl, {
         margin: 0,
         width: 256,
         // H-level error correction leaves room for the logomark in the middle
         errorCorrectionLevel: "H",
         color: { dark: "#1c1917", light: "#ffffff" },
       })
-      const QR_MM = 22
-      const qrX = pageW - M - QR_MM
-      const qrY = M - 2
-      doc.addImage(qrPng, "PNG", qrX, qrY, QR_MM, QR_MM)
-      // the unfolded mark, sitting on a small white pad at the QR's center
-      const markH = 4.6
-      const markW = (markH * LOGO_VIEWBOX.w) / LOGO_VIEWBOX.h
-      doc.setFillColor("#ffffff")
-      doc.roundedRect(
-        qrX + QR_MM / 2 - markW / 2 - 0.8,
-        qrY + QR_MM / 2 - markH / 2 - 0.8,
-        markW + 1.6,
-        markH + 1.6,
-        0.6,
-        0.6,
-        "F"
-      )
-      await placeLogo(markH, qrX + QR_MM / 2 - markW / 2, qrY + QR_MM / 2 - markH / 2, false)
-      doc.setFontSize(7)
-      doc.setTextColor(120)
-      doc.text("scan to reopen", pageW - M - QR_MM / 2, M + QR_MM + 2, { align: "center" })
-      doc.text("this design", pageW - M - QR_MM / 2, M + QR_MM + 5, { align: "center" })
-      doc.setTextColor(0)
     } catch {
       // offline QR lib failure — the link still lives in the app
     }
   }
+
+  /** QR square + center logomark + caption; keepTab adds the dotted
+      cut-me-out outline used when the block sits beside a piece */
+  const drawQrBlock = async (x: number, y: number, monochrome = false, keepTab = false) => {
+    if (!qrPng) return
+    if (keepTab) {
+      doc.setDrawColor(150)
+      doc.setLineWidth(0.2)
+      doc.setLineDashPattern([1.2, 1.2], 0)
+      doc.roundedRect(
+        x - 1.5,
+        y - 1.5,
+        TEMPLATE_QR_MM + 3,
+        TEMPLATE_QR_MM + QR_CAPTION_MM + 3,
+        1,
+        1,
+        "S"
+      )
+      doc.setLineDashPattern([], 0)
+      doc.setDrawColor(0)
+    }
+    doc.addImage(qrPng, "PNG", x, y, TEMPLATE_QR_MM, TEMPLATE_QR_MM)
+    // the unfolded mark, sitting on a small white pad at the QR's center
+    const markH = 4.6
+    const markW = (markH * LOGO_VIEWBOX.w) / LOGO_VIEWBOX.h
+    doc.setFillColor("#ffffff")
+    doc.roundedRect(
+      x + TEMPLATE_QR_MM / 2 - markW / 2 - 0.8,
+      y + TEMPLATE_QR_MM / 2 - markH / 2 - 0.8,
+      markW + 1.6,
+      markH + 1.6,
+      0.6,
+      0.6,
+      "F"
+    )
+    await placeLogo(markH, x + TEMPLATE_QR_MM / 2 - markW / 2, y + TEMPLATE_QR_MM / 2 - markH / 2, false, monochrome)
+    doc.setFontSize(7)
+    doc.setTextColor(120)
+    doc.text("scan to reopen", x + TEMPLATE_QR_MM / 2, y + TEMPLATE_QR_MM + 2.6, { align: "center" })
+    doc.text("this design", x + TEMPLATE_QR_MM / 2, y + TEMPLATE_QR_MM + 5.6, { align: "center" })
+    doc.setTextColor(0)
+  }
+
+  /* ------------------------------------------------------- overview page */
+  await placeLogo(9, M, M - 2)
+  await drawQrBlock(pageW - M - TEMPLATE_QR_MM, M - 2)
 
   doc.setFont("helvetica", "bold")
   doc.setFontSize(15)
@@ -510,6 +535,10 @@ export async function exportTemplatesPdf(options: {
   doc.setTextColor(0)
   doc.setDrawColor(0)
 
+  // where the template-page QR lands (inside the largest piece, or beside
+  // it with a keep-tab outline; null when no page has a safe spot)
+  const templateQr = qrPng ? placeTemplateQr(layout, pg, tiles) : null
+
   /* ---------------------------------------------------------- tile pages */
   let pages = 1
   for (const { row: r, col: c, x0, y0 } of tiles) {
@@ -547,6 +576,17 @@ export async function exportTemplatesPdf(options: {
         doc.line(M, gy, M + pg.printWidthMm, gy)
       }
       doc.setLineDashPattern([], 0)
+
+      // the piece-borne QR, on the one page that fully contains it
+      // (grayscale center mark — template pages stay ink-safe)
+      if (templateQr && templateQr.tile.row === r && templateQr.tile.col === c) {
+        await drawQrBlock(
+          M + templateQr.x - x0,
+          M + templateQr.y - y0,
+          true,
+          !templateQr.inside
+        )
+      }
 
       // page chrome in the margin bands: logo top-right (grayscale — the
       // template pages stay ink-safe), footer text bottom-left, and a

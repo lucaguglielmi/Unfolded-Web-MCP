@@ -71,12 +71,15 @@ function trapezoidGraphic(topWidthMm: number, bottomWidthMm: number, heightMm: n
   }
 }
 
-function sectorGraphic(innerRadiusMm: number, outerRadiusMm: number, angleRad: number): PieceGraphic {
-  // Fan opens upward: angles symmetric around -90deg (y-down SVG coords).
+/**
+ * Bounding box of an annular sector fanned symmetrically around -90deg
+ * (y-down coords) — shared between the outline path and pieceContains so
+ * both use the identical local-coordinate origin.
+ */
+function sectorBounds(innerRadiusMm: number, outerRadiusMm: number, angleRad: number) {
   const a0 = -Math.PI / 2 - angleRad / 2
   const a1 = a0 + angleRad
   const at = (a: number, r: number): Vec => ({ x: r * Math.cos(a), y: r * Math.sin(a) })
-
   let minX = Infinity
   let minY = Infinity
   let maxX = -Infinity
@@ -92,6 +95,21 @@ function sectorGraphic(innerRadiusMm: number, outerRadiusMm: number, angleRad: n
       maxY = Math.max(maxY, p.y)
     }
   }
+  return { a0, a1, at, minX, minY, maxX, maxY }
+}
+
+/** Vertices of a regular polygon with a horizontal bottom edge (y-down coords). */
+function polygonPoints(sides: number, circumradiusMm: number): Vec[] {
+  const pts: Vec[] = []
+  for (let k = 0; k < sides; k++) {
+    const a = Math.PI / 2 - Math.PI / sides + (2 * Math.PI * k) / sides
+    pts.push({ x: circumradiusMm * Math.cos(a), y: circumradiusMm * Math.sin(a) })
+  }
+  return pts
+}
+
+function sectorGraphic(innerRadiusMm: number, outerRadiusMm: number, angleRad: number): PieceGraphic {
+  const { a0, a1, at, minX, minY, maxX, maxY } = sectorBounds(innerRadiusMm, outerRadiusMm, angleRad)
 
   const shift = (p: Vec): Vec => ({ x: p.x - minX, y: p.y - minY })
   const p = (a: number, r: number) => {
@@ -126,11 +144,7 @@ function sectorGraphic(innerRadiusMm: number, outerRadiusMm: number, angleRad: n
 function polygonGraphic(sides: number, circumradiusMm: number): PieceGraphic {
   // Vertices oriented so the bottom edge is horizontal (y-down coords):
   // two adjacent vertices sit symmetric about the downward vertical.
-  const pts: Vec[] = []
-  for (let k = 0; k < sides; k++) {
-    const a = Math.PI / 2 - Math.PI / sides + (2 * Math.PI * k) / sides
-    pts.push({ x: circumradiusMm * Math.cos(a), y: circumradiusMm * Math.sin(a) })
-  }
+  const pts = polygonPoints(sides, circumradiusMm)
   const minX = Math.min(...pts.map((p) => p.x))
   const minY = Math.min(...pts.map((p) => p.y))
   const maxX = Math.max(...pts.map((p) => p.x))
@@ -170,6 +184,67 @@ export function pieceGraphic(piece: Piece): PieceGraphic {
       return discGraphic(piece.diameterMm)
     case "polygon":
       return polygonGraphic(piece.sides, piece.circumradiusMm)
+  }
+}
+
+/**
+ * Whether a point (in the piece's LOCAL graphic coordinates — same origin
+ * as pieceGraphic's outline) lies inside the piece outline. Drives the
+ * printed-QR placement, which must sit clear of every cut line.
+ */
+export function pieceContains(piece: Piece, x: number, y: number): boolean {
+  switch (piece.kind) {
+    case "rectangle":
+      return x >= 0 && x <= piece.widthMm && y >= 0 && y <= piece.heightMm
+    case "trapezoid": {
+      if (y < 0 || y > piece.heightMm) return false
+      const w = Math.max(piece.topWidthMm, piece.bottomWidthMm)
+      const t = y / piece.heightMm
+      const half = (piece.topWidthMm + (piece.bottomWidthMm - piece.topWidthMm) * t) / 2
+      return x >= w / 2 - half && x <= w / 2 + half
+    }
+    case "annularSector": {
+      const { a0, a1, minX, minY } = sectorBounds(
+        piece.innerRadiusMm,
+        piece.outerRadiusMm,
+        piece.angleRad
+      )
+      // back to arc-center coordinates (the graphic is shifted by -min)
+      const cx = x + minX
+      const cy = y + minY
+      const r = Math.hypot(cx, cy)
+      if (r < piece.innerRadiusMm || r > piece.outerRadiusMm) return false
+      // the fan is symmetric around -90deg, so atan2 needs no wrapping
+      // as long as the opening stays under a full turn
+      const a = Math.atan2(cy, cx)
+      const twoPi = 2 * Math.PI
+      const rel = (((a - a0) % twoPi) + twoPi) % twoPi
+      return rel <= a1 - a0
+    }
+    case "disc": {
+      const r = piece.diameterMm / 2
+      return Math.hypot(x - r, y - r) <= r
+    }
+    case "polygon": {
+      const pts = polygonPoints(piece.sides, piece.circumradiusMm)
+      const minX = Math.min(...pts.map((p) => p.x))
+      const minY = Math.min(...pts.map((p) => p.y))
+      // convex polygon, vertices in a consistent winding: the point must
+      // sit on the same side of every edge
+      const px = x + minX
+      const py = y + minY
+      let sign = 0
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i]
+        const b = pts[(i + 1) % pts.length]
+        const cross = (b.x - a.x) * (py - a.y) - (b.y - a.y) * (px - a.x)
+        if (cross === 0) continue
+        const s = Math.sign(cross)
+        if (sign === 0) sign = s
+        else if (s !== sign) return false
+      }
+      return true
+    }
   }
 }
 
