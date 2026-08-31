@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react"
-import { MonitorSmartphone } from "lucide-react"
+import { Check, Copy, MonitorSmartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -107,6 +107,22 @@ export function PairDialog({
     }
   }
 
+  const [copied, setCopied] = useState(false)
+  const copyCode = async () => {
+    if (!activeCode) return
+    // copy WITHOUT the dash — the dash is for reading aloud; the paste
+    // target (an agent chat, the other device's input) wants it clean,
+    // though entry normalizes either form anyway
+    try {
+      await navigator.clipboard.writeText(activeCode.code)
+      feedback("success")
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1500)
+    } catch {
+      window.prompt("Copy this pairing code:", activeCode.code)
+    }
+  }
+
   const unpair = () => {
     liveSync.unpair()
     setCode(null)
@@ -146,10 +162,26 @@ export function PairDialog({
 
           {activeCode ? (
             <div className="rise-in flex flex-col items-center gap-1.5">
-              <code className="rounded-lg border px-4 py-2 font-mono text-3xl tracking-widest">
-                {pretty(activeCode.code)}
-              </code>
-              <p className="text-muted-foreground text-xs">expires in {mmss(remainingMs)}</p>
+              {/* the code IS the copy button — one tap grabs it */}
+              <button
+                type="button"
+                onClick={copyCode}
+                aria-label="Copy pairing code"
+                title="Tap to copy"
+                className="hover:bg-accent group inline-flex items-center gap-3 rounded-lg border px-4 py-2 transition-colors"
+              >
+                <code className="font-mono text-3xl tracking-widest">
+                  {pretty(activeCode.code)}
+                </code>
+                {copied ? (
+                  <Check className="size-4 text-emerald-600" />
+                ) : (
+                  <Copy className="text-muted-foreground size-4 opacity-60 group-hover:opacity-100" />
+                )}
+              </button>
+              <p className="text-muted-foreground text-xs">
+                {copied ? "copied — paste it on the other device" : `tap to copy · expires in ${mmss(remainingMs)}`}
+              </p>
             </div>
           ) : (
             <Button onClick={mint} disabled={minting} className="w-full">
