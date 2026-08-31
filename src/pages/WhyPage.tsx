@@ -1,6 +1,6 @@
 import { useState } from "react"
-import { ArrowLeft, ArrowUpRight } from "lucide-react"
-import { LogoMark } from "@/components/LogoMark"
+import { ArrowUpRight } from "lucide-react"
+import { ExplainerHeader } from "@/components/ExplainerHeader"
 import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 // the tool list renders from its single source next to the registrations
@@ -16,13 +16,13 @@ import { TOOL_SUMMARIES } from "@/mcp/tools"
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <p className="text-xs font-medium tracking-[0.18em] text-stone-400 uppercase">{children}</p>
+    <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground/80 uppercase">{children}</p>
   )
 }
 
 function Code({ children }: { children: string }) {
   return (
-    <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[0.85em] text-stone-700">
+    <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground/80">
       {children}
     </code>
   )
@@ -73,12 +73,12 @@ function OneMinute() {
         <dl className="space-y-6">
           {DIGEST.map(({ title, body }) => (
             <div key={title} className="max-w-xl">
-              <dt className="font-semibold tracking-tight text-stone-900">{title}</dt>
-              <dd className="mt-1 leading-relaxed text-stone-600">{body}</dd>
+              <dt className="font-semibold tracking-tight text-foreground">{title}</dt>
+              <dd className="mt-1 leading-relaxed text-foreground/75">{body}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-10 text-sm text-stone-400">
+        <p className="mt-10 text-sm text-muted-foreground/80">
           That's the minute. Switch to the five-minute read for the full story — or open the
           studio and just try it.
         </p>
@@ -140,13 +140,13 @@ function FiveMinutes() {
         <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
           Design in 3D, <span className="text-[#0A5BFF]">print flat</span>, build in clay.
         </h1>
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-stone-500">
+        <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
           Unfolded lets potters design slab-built forms — mugs, tumblers, vases, planters — as
           parametric 3D objects and turns them into true-scale printable templates to cut,
           tape, and lay on a clay slab. Every dimension is shrinkage-compensated for your clay
           body and developed along the slab mid-surface, so the fired piece matches the design.
         </p>
-        <p className="mt-4 max-w-xl leading-relaxed text-stone-500">
+        <p className="mt-4 max-w-xl leading-relaxed text-muted-foreground">
           And the whole app is WebMCP-native: an AI agent browsing alongside you can inspect
           and edit the same design you see on screen — <em>&ldquo;make it a 350&nbsp;ml
           tumbler and use my stoneware at 12% shrinkage&rdquo;</em> — while the 3D preview and
@@ -155,9 +155,9 @@ function FiveMinutes() {
       </section>
 
       {/* why this exists */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Why this exists</SectionLabel>
-        <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
+        <p className="mt-5 max-w-xl leading-relaxed text-foreground/75">
           Slab building is the most common hand-building technique in ceramics, and its paper
           step is still manual: potters draw templates on cereal boxes, wrap paper around
           forms, and do the sizing math by hand. The math is genuinely hard, two errors are
@@ -165,60 +165,60 @@ function FiveMinutes() {
           is right, the workflow fights you:
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-stone-200 p-6">
+          <div className="rounded-2xl border border-border p-6">
             <h3 className="font-semibold tracking-tight">Capacity math under constraints</h3>
-            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+            <p className="mt-3 text-sm leading-relaxed text-foreground/75">
               &ldquo;How much will it hold?&rdquo; is already awkward math for a straight
               cylinder — add a taper, wall thickness, and shrinkage, then pin a constraint like
               a fixed height or a silhouette you love, and solving for an exact volume by hand
               turns into guesswork. Most potters settle for &ldquo;close enough&rdquo;.
             </p>
           </div>
-          <div className="rounded-2xl border border-stone-200 p-6">
+          <div className="rounded-2xl border border-border p-6">
             <h3 className="font-semibold tracking-tight">Hard shapes, wrong PDFs</h3>
-            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+            <p className="mt-3 text-sm leading-relaxed text-foreground/75">
               A tapered hexagon or a flared pentagon is hard to visualize and harder to unroll
               by hand — and asking an AI chat to generate the template PDF fails most of the
               time: non-deterministic output, wrong bevels, and broken tiling the moment a
               piece spans multiple pages.
             </p>
           </div>
-          <div className="rounded-2xl border border-stone-200 p-6">
+          <div className="rounded-2xl border border-border p-6">
             <h3 className="font-semibold tracking-tight">Shrinkage scaled the wrong way</h3>
-            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+            <p className="mt-3 text-sm leading-relaxed text-foreground/75">
               Clay shrinks ~10–13% from wet to fired, so a template must be scaled up by{" "}
               <Code>1/(1−s)</Code> — but the intuitive <Code>1+s</Code> is what most people
               reach for. At 12% shrinkage it leaves every dimension ~1.6% short: a lid that no
               longer fits, a set of mugs that don't match.
             </p>
           </div>
-          <div className="rounded-2xl border border-stone-200 p-6">
+          <div className="rounded-2xl border border-border p-6">
             <h3 className="font-semibold tracking-tight">Walls measured on the wrong surface</h3>
-            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+            <p className="mt-3 text-sm leading-relaxed text-foreground/75">
               A slab bends along its middle, so a wrapped wall must be developed on the
               mid-surface <Code>(r − t/2)</Code>; using the outer dimension makes the wall come
               out too long and the seam overlap.
             </p>
           </div>
-          <div className="rounded-2xl border border-stone-200 p-6">
+          <div className="rounded-2xl border border-border p-6">
             <h3 className="font-semibold tracking-tight">Printing that fights you</h3>
-            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+            <p className="mt-3 text-sm leading-relaxed text-foreground/75">
               Anything bigger than a sheet of paper — a planter wall, an unrolled cone — has to
               be split across pages and rejoined at exact scale: tiling, alignment marks, and
               glue margins all done by hand, with a fresh chance for a scale error on every
               sheet.
             </p>
           </div>
-          <div className="rounded-2xl border border-stone-200 p-6">
+          <div className="rounded-2xl border border-border p-6">
             <h3 className="font-semibold tracking-tight">No preview without the work</h3>
-            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+            <p className="mt-3 text-sm leading-relaxed text-foreground/75">
               There's no way to see the piece before committing to it — checking proportions or
               capacity means building the whole template (or the pot itself), so every tweak to
               a height or a taper costs hours instead of a slider drag.
             </p>
           </div>
         </div>
-        <p className="mt-6 max-w-xl leading-relaxed text-stone-600">
+        <p className="mt-6 max-w-xl leading-relaxed text-foreground/75">
           Unfolded encodes all of this — and more — under the hood: shrinkage scaled the
           right way, walls developed on the slab's mid-surface, exact interior capacity
           (volume is linear in height, so <em>&ldquo;make it hold 350&nbsp;ml&rdquo;</em> has
@@ -228,7 +228,7 @@ function FiveMinutes() {
           studio classes — and the output is physical: a PDF that prints at 100% scale, with
           a ruler on the page to prove it, that gets cut out and laid on clay.
         </p>
-        <p className="mt-4 max-w-xl leading-relaxed text-stone-600">
+        <p className="mt-4 max-w-xl leading-relaxed text-foreground/75">
           The agent is not a gimmick on top: sizing questions are exactly what potters ask in
           words (<em>&ldquo;a mug that holds a full pour-over&rdquo;</em>, <em>&ldquo;my new
           clay shrinks 14%, fix my templates&rdquo;</em>) and exactly what the geometry can
@@ -237,37 +237,37 @@ function FiveMinutes() {
       </section>
 
       {/* the non-trivial parts */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>The non-trivial WebMCP parts</SectionLabel>
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-400">
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground/80">
           What makes this more than tools bolted onto a page — all of it covered by the
           committed end-to-end suite that gates every deploy.
         </p>
         <ul className="mt-6 space-y-5">
           {NON_TRIVIAL.map(({ title, body }) => (
-            <li key={title} className="max-w-xl text-sm leading-relaxed text-stone-600">
-              <span className="font-semibold text-stone-900">{title}</span> — {body}
+            <li key={title} className="max-w-xl text-sm leading-relaxed text-foreground/75">
+              <span className="font-semibold text-foreground">{title}</span> — {body}
             </li>
           ))}
         </ul>
       </section>
 
       {/* the tools */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>The tools an agent gets</SectionLabel>
         <dl className="mt-6 grid gap-x-10 gap-y-5 sm:grid-cols-2">
           {TOOL_SUMMARIES.map(({ name, blurb }) => (
             <div key={name}>
-              <dt className="font-mono text-[13px] font-medium text-[#0646CC]">{name}</dt>
-              <dd className="mt-1 text-sm leading-relaxed text-stone-500">{blurb}</dd>
+              <dt className="font-mono text-[13px] font-medium text-[#0646CC] dark:text-[#6b9aff]">{name}</dt>
+              <dd className="mt-1 text-sm leading-relaxed text-muted-foreground">{blurb}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-6 max-w-xl text-sm leading-relaxed text-stone-400">
+        <p className="mt-6 max-w-xl text-sm leading-relaxed text-muted-foreground/80">
           How to connect a browser, what the header pill means, and prompts to try live on the{" "}
           <a
             href={webmcpHref}
-            className="font-medium text-stone-600 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
+            className="font-medium text-foreground/75 underline decoration-muted-foreground/40 underline-offset-4 transition-colors hover:text-foreground"
           >
             WebMCP guide
           </a>
@@ -276,17 +276,17 @@ function FiveMinutes() {
       </section>
 
       {/* share links */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Every design is a URL</SectionLabel>
-        <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
+        <p className="mt-5 max-w-xl leading-relaxed text-foreground/75">
           Query parameters describe the whole model, so a link like this opens the app with
           that exact form:
         </p>
-        <pre className="mt-5 overflow-x-auto rounded-xl border border-stone-200 bg-stone-50/60 px-5 py-4 font-mono text-[13px] leading-relaxed text-stone-700">
+        <pre className="mt-5 overflow-x-auto rounded-xl border border-border bg-muted/50 px-5 py-4 font-mono text-[13px] leading-relaxed text-foreground/80">
           {"?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5"}
         </pre>
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-500">
-          <Code>type</Code> also accepts triangle, square, pentagon, hexagon;{" "}
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground">
+          <Code>type</Code> also accepts triangle, square, pentagon, hexagon, octagon;{" "}
           <Code>paper=A4|A3|Letter</Code> and <Code>units=cm|in</Code> work too — the model
           itself stays metric, units only change what you see and print. After the first edit
           the address bar live-tracks the design, the header's share button copies it (with a
@@ -298,22 +298,22 @@ function FiveMinutes() {
       </section>
 
       {/* the math */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>How the math works</SectionLabel>
-        <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
+        <p className="mt-5 max-w-xl leading-relaxed text-foreground/75">
           Slab-built forms are developable surfaces, so templates come from closed-form
           unrolling — no mesh solver:
         </p>
         <ul className="mt-6 max-w-xl space-y-2.5">
           {UNROLLINGS.map(([from, to]) => (
             <li key={from} className="flex items-baseline gap-3 text-sm leading-relaxed">
-              <span className="w-32 shrink-0 font-medium text-stone-900">{from}</span>
-              <span className="text-stone-400">→</span>
-              <span className="text-stone-600">{to}</span>
+              <span className="w-32 shrink-0 font-medium text-foreground">{from}</span>
+              <span className="text-muted-foreground/80">→</span>
+              <span className="text-foreground/75">{to}</span>
             </li>
           ))}
         </ul>
-        <p className="mt-6 max-w-xl text-sm leading-relaxed text-stone-500">
+        <p className="mt-6 max-w-xl text-sm leading-relaxed text-muted-foreground">
           Two pottery-specific corrections ride on top — shrinkage scaling{" "}
           <Code>1/(1−s)</Code> and mid-surface development <Code>r − t/2</Code> — and the
           whole geometry is unit-tested to the tenth of a millimeter.
@@ -372,7 +372,7 @@ function ForAgents() {
         <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
           Hello, agent. <span className="text-[#0A5BFF]">This page is for you.</span>
         </h1>
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-stone-500">
+        <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
           Unfolded is a deterministic, parametric 3D editor for slab-built pottery that
           registers thirteen WebMCP tools the moment it loads. Below is everything you need to
           use it well: the data model and its ranges, the tool surface and its contracts, the
@@ -381,7 +381,7 @@ function ForAgents() {
         </p>
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Identity</SectionLabel>
         <dl className="mt-6 max-w-xl space-y-2.5 text-sm leading-relaxed">
           {(
@@ -394,85 +394,85 @@ function ForAgents() {
             ] as [string, string][]
           ).map(([k, v]) => (
             <div key={k} className="flex items-baseline gap-3">
-              <dt className="w-28 shrink-0 font-medium text-stone-900">{k}</dt>
-              <dd className="text-stone-600">{v}</dd>
+              <dt className="w-28 shrink-0 font-medium text-foreground">{k}</dt>
+              <dd className="text-foreground/75">{v}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Data model and ranges</SectionLabel>
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-400">
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground/80">
           All dimensions are FIRED sizes in millimeters; shrinkage compensation happens in the
           template pipeline, not in your inputs. Values outside a range are clamped.
         </p>
         <dl className="mt-6 max-w-xl space-y-2.5 text-sm leading-relaxed">
           {PARAM_RANGES.map(([k, v]) => (
             <div key={k} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-              <dt className="font-mono text-[13px] font-medium text-[#0646CC]">{k}</dt>
-              <dd className="text-stone-600">{v}</dd>
+              <dt className="font-mono text-[13px] font-medium text-[#0646CC] dark:text-[#6b9aff]">{k}</dt>
+              <dd className="text-foreground/75">{v}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>The tool surface</SectionLabel>
         <dl className="mt-6 grid gap-x-10 gap-y-5 sm:grid-cols-2">
           {TOOL_SUMMARIES.map(({ name, blurb }) => (
             <div key={name}>
-              <dt className="font-mono text-[13px] font-medium text-[#0646CC]">{name}</dt>
-              <dd className="mt-1 text-sm leading-relaxed text-stone-500">{blurb}</dd>
+              <dt className="font-mono text-[13px] font-medium text-[#0646CC] dark:text-[#6b9aff]">{name}</dt>
+              <dd className="mt-1 text-sm leading-relaxed text-muted-foreground">{blurb}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-6 max-w-xl text-sm leading-relaxed text-stone-400">
+        <p className="mt-6 max-w-xl text-sm leading-relaxed text-muted-foreground/80">
           Each tool ships a full JSON Schema input contract and honest annotations
           (read-only / idempotent / destructive). Descriptions embedded in the registrations
           carry the fine print.
         </p>
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Mechanics you should know</SectionLabel>
         <dl className="mt-6 max-w-xl space-y-4 text-sm leading-relaxed">
           {AGENT_MECHANICS.map(([k, v]) => (
             <div key={k}>
-              <dt className="font-semibold text-stone-900">{k}</dt>
-              <dd className="mt-0.5 text-stone-600">{v}</dd>
+              <dt className="font-semibold text-foreground">{k}</dt>
+              <dd className="mt-0.5 text-foreground/75">{v}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>The geometry it computes for you</SectionLabel>
         <dl className="mt-6 max-w-xl space-y-2.5 text-sm leading-relaxed">
           {FORMULAS.map(([k, v]) => (
             <div key={k} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-              <dt className="w-36 shrink-0 font-medium text-stone-900">{k}</dt>
-              <dd className="font-mono text-[13px] text-stone-600">{v}</dd>
+              <dt className="w-36 shrink-0 font-medium text-foreground">{k}</dt>
+              <dd className="font-mono text-[13px] text-foreground/75">{v}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-6 max-w-xl text-sm leading-relaxed text-stone-400">
+        <p className="mt-6 max-w-xl text-sm leading-relaxed text-muted-foreground/80">
           The print pipeline tiles true-scale templates across pages with 10 mm glue overlaps,
           crop marks, registration ticks, per-panel bevel stamps, a per-page calibration bar,
           an assembly map of separated sheets, and a QR of the design's link.
         </p>
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Why this is a good fit for you</SectionLabel>
         <ul className="mt-6 max-w-xl space-y-4">
           {WHY_FIT.map((item) => (
-            <li key={item} className="text-sm leading-relaxed text-stone-600">
+            <li key={item} className="text-sm leading-relaxed text-foreground/75">
               {item}
             </li>
           ))}
         </ul>
-        <p className="mt-8 max-w-xl text-sm leading-relaxed text-stone-400">
+        <p className="mt-8 max-w-xl text-sm leading-relaxed text-muted-foreground/80">
           If your host exposes WebMCP, the tools are already registered in this tab — call{" "}
           <Code>describe_project</Code> and begin.
         </p>
@@ -488,21 +488,8 @@ export function WhyPage() {
   const studioHref = useStudioHref()
 
   return (
-    <div className="webmcp-page app-fade-in min-h-dvh bg-white text-stone-900 antialiased">
-      {/* top bar */}
-      <header className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
-        <a href={studioHref} className="flex items-center gap-2.5">
-          <LogoMark animated className="h-5 w-auto" />
-          <span className="text-base font-semibold tracking-tight">unfolded</span>
-        </a>
-        <a
-          href={studioHref}
-          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-50"
-        >
-          <ArrowLeft className="size-3.5" />
-          Back to the studio
-        </a>
-      </header>
+    <div className="webmcp-page app-fade-in min-h-dvh bg-background text-foreground antialiased dark:bg-gradient-to-b dark:from-[#0a1122] dark:via-[#060a14] dark:to-[#04060c]">
+      <ExplainerHeader current="why" />
 
       <main className="mx-auto max-w-3xl px-6 pb-24">
         {/* reading-depth toolbar */}
@@ -514,8 +501,8 @@ export function WhyPage() {
         </div>
 
         {/* footer */}
-        <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-stone-100 pt-8">
-          <p className="text-sm text-stone-400">
+        <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 pt-8">
+          <p className="text-sm text-muted-foreground/80">
             Free for everyone, forever · open source (MIT) · built for the WebMCP Challenge
           </p>
           <div className="flex items-center gap-3">
@@ -523,13 +510,13 @@ export function WhyPage() {
               href="https://github.com/lucaguglielmi/Unfolded-Web-MCP"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 transition-colors hover:text-stone-900"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/75 transition-colors hover:text-foreground"
             >
               GitHub <ArrowUpRight className="size-3.5" />
             </a>
             <a
               href={studioHref}
-              className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/85"
             >
               Open the studio
             </a>

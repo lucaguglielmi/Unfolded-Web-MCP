@@ -110,7 +110,9 @@ export function TemplatePanel() {
                     {piece.label}
                   </text>
                 )}
-                {(piece.kind === "rectangle" || piece.kind === "trapezoid") &&
+                {(piece.kind === "rectangle" ||
+                  piece.kind === "trapezoid" ||
+                  piece.kind === "annularSector") &&
                   piece.stamp &&
                   textFits(piece.stamp, STAMP_FONT_MM, availableWidth) && (
                     <text
@@ -138,7 +140,7 @@ export function TemplatePanel() {
             )
           })}
         </svg>
-        <p className="text-muted-foreground mx-auto mt-2 max-w-2xl text-xs">
+        <p className="text-muted-foreground mx-auto mt-2 max-w-2xl px-4 text-xs sm:px-6">
           Dashed edges are seams — bevel at the angle stamped on the piece, then score
           &amp; slip; tick marks are registration marks. Small pieces that can't fit
           their label or dimensions just print blank rather than overflow. The PDF tiles

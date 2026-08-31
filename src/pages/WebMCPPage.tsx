@@ -1,6 +1,6 @@
 import { useMemo, useState, useSyncExternalStore } from "react"
-import { ArrowLeft, ArrowUpRight, Check } from "lucide-react"
-import { LogoMark } from "@/components/LogoMark"
+import { ArrowUpRight, Check } from "lucide-react"
+import { ExplainerHeader } from "@/components/ExplainerHeader"
 import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 import { feedback } from "@/lib/feedback"
@@ -47,8 +47,8 @@ function StatusPill() {
       className={cn(
         "inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium",
         green
-          ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-          : "border-stone-200 bg-stone-50 text-stone-500"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/25 dark:bg-emerald-500/10 dark:text-emerald-300"
+          : "border-border bg-muted/50 text-muted-foreground"
       )}
     >
       <span className="relative flex size-2">
@@ -58,7 +58,7 @@ function StatusPill() {
         <span
           className={cn(
             "relative inline-flex size-2 rounded-full",
-            green ? "bg-emerald-500" : "bg-stone-300"
+            green ? "bg-emerald-500" : "bg-muted-foreground/40"
           )}
         />
       </span>
@@ -83,18 +83,18 @@ function LiveSyncStatus() {
           : Number(peers) > 1
             ? `This tab is live in a session with ${peers} devices.`
             : "This tab is paired to a live session — no other device is connected right now."
-  return <p className="mt-5 text-sm text-stone-400">Right here, right now: {text}</p>
+  return <p className="mt-5 text-sm text-muted-foreground/80">Right here, right now: {text}</p>
 }
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <p className="text-xs font-medium tracking-[0.18em] text-stone-400 uppercase">{children}</p>
+    <p className="text-xs font-medium tracking-[0.18em] text-muted-foreground/80 uppercase">{children}</p>
   )
 }
 
 function Code({ children }: { children: string }) {
   return (
-    <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[0.85em] text-stone-700">
+    <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.85em] text-foreground/80">
       {children}
     </code>
   )
@@ -142,12 +142,12 @@ function OneMinute() {
         <dl className="space-y-6">
           {DIGEST.map(({ title, body }) => (
             <div key={title} className="max-w-xl">
-              <dt className="font-semibold tracking-tight text-stone-900">{title}</dt>
-              <dd className="mt-1 leading-relaxed text-stone-600">{body}</dd>
+              <dt className="font-semibold tracking-tight text-foreground">{title}</dt>
+              <dd className="mt-1 leading-relaxed text-foreground/75">{body}</dd>
             </div>
           ))}
         </dl>
-        <p className="mt-10 text-sm text-stone-400">
+        <p className="mt-10 text-sm text-muted-foreground/80">
           That's the minute. Switch to the five-minute read for connection steps in both
           browsers, every tool, and the fine print.
         </p>
@@ -167,7 +167,7 @@ function FiveMinutes() {
         <h1 className="mt-6 max-w-xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
           Your AI agent can use this app <span className="text-[#0A5BFF]">with you</span>.
         </h1>
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-stone-500">
+        <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
           Unfolded is WebMCP&#8209;native. Open it in an agent&#8209;capable browser and the AI
           you're chatting with can see your pottery design, change it, check its capacity,
           and export the printable templates — live, in the same session you're looking at.
@@ -175,9 +175,9 @@ function FiveMinutes() {
       </section>
 
       {/* what is webmcp */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>What is WebMCP?</SectionLabel>
-        <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
+        <p className="mt-5 max-w-xl leading-relaxed text-foreground/75">
           WebMCP is a browser API that lets a web page hand real, typed tools to the AI agent
           browsing alongside you. Instead of the agent guessing at pixels or filling forms, the
           page says: <em>here is exactly what you can do</em>. This app registers {TOOL_COUNT} tools on{" "}
@@ -189,31 +189,31 @@ function FiveMinutes() {
       </section>
 
       {/* how to turn it on */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Try it in two ways</SectionLabel>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-2xl border border-stone-200 p-6">
+          <div className="rounded-2xl border border-border p-6">
             <h3 className="font-semibold tracking-tight">ChatGPT's in-app browser</h3>
-            <p className="mt-1 text-sm text-stone-400">WebMCP works out of the box.</p>
-            <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-stone-600">
+            <p className="mt-1 text-sm text-muted-foreground/80">WebMCP works out of the box.</p>
+            <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-foreground/75">
               <li>1. In the ChatGPT app, open this site in the built-in browser.</li>
               <li>2. Watch the WebMCP pill in the header turn green.</li>
               <li>3. Ask for the pot you want — the design changes as you chat.</li>
             </ol>
-            <p className="mt-3 text-xs leading-relaxed text-stone-400">
+            <p className="mt-3 text-xs leading-relaxed text-muted-foreground/80">
               Heads up: tapping a link in the chat opens ChatGPT's <em>ordinary</em> in-app
               browser — a separate tab without WebMCP. When the agent minted that link, the
               tab says &ldquo;Connected via ChatGPT&rdquo;; the agent itself keeps editing
               in its own internal browser.
             </p>
           </div>
-          <div className="rounded-2xl border border-stone-200 p-6">
+          <div className="rounded-2xl border border-border p-6">
             <h3 className="font-semibold tracking-tight">Google Chrome (desktop &amp; Android)</h3>
-            <p className="mt-1 text-sm text-stone-400">Behind an experimental flag.</p>
-            <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-stone-600">
+            <p className="mt-1 text-sm text-muted-foreground/80">Behind an experimental flag.</p>
+            <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-foreground/75">
               <li>
                 1. Open{" "}
-                <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[0.8rem] break-all text-stone-700">
+                <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.8rem] break-all text-foreground/80">
                   chrome://flags/#enable-webmcp-testing
                 </code>{" "}
                 (on Android too; if it's missing, try Chrome Canary).
@@ -221,9 +221,9 @@ function FiveMinutes() {
               <li>2. Enable it and relaunch Chrome — the pill here turns green.</li>
               <li>
                 3. No agent attached? Drive the tools yourself from the DevTools console
-                (desktop, or via <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-[0.8rem] text-stone-700">chrome://inspect</code> for
+                (desktop, or via <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.8rem] text-foreground/80">chrome://inspect</code> for
                 a phone):{" "}
-                <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-[0.8rem] break-all text-stone-700">
+                <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.8rem] break-all text-foreground/80">
                   __unfoldedTools.set_capacity.execute({"{"}capacityMl: 350{"}"})
                 </code>
               </li>
@@ -233,7 +233,7 @@ function FiveMinutes() {
       </section>
 
       {/* the three pill states */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>What the pill in the header means</SectionLabel>
         <ul className="mt-6 space-y-4">
           <li className="flex items-start gap-3">
@@ -241,16 +241,16 @@ function FiveMinutes() {
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
             </span>
-            <p className="text-sm leading-relaxed text-stone-600">
-              <span className="font-semibold text-stone-900">WebMCP active</span> — the API is
+            <p className="text-sm leading-relaxed text-foreground/75">
+              <span className="font-semibold text-foreground">WebMCP active</span> — the API is
               available in this very tab and the tools registered. You and the agent share one
               live session: every change either of you makes is visible to both.
             </p>
           </li>
           <li className="flex items-start gap-3">
             <span className="mt-1 inline-flex size-2 shrink-0 rounded-full bg-emerald-500" />
-            <p className="text-sm leading-relaxed text-stone-600">
-              <span className="font-semibold text-stone-900">Connected via ChatGPT</span> — this
+            <p className="text-sm leading-relaxed text-foreground/75">
+              <span className="font-semibold text-foreground">Connected via ChatGPT</span> — this
               tab has no direct WebMCP, but the design arrived through a link the agent minted
               in your ChatGPT conversation. Those links carry a live invitation: tapping one
               makes this tab follow the agent's session both ways, so your edits here show up
@@ -259,15 +259,15 @@ function FiveMinutes() {
             </p>
           </li>
           <li className="flex items-start gap-3">
-            <span className="mt-1 inline-flex size-2 shrink-0 rounded-full bg-stone-300" />
-            <p className="text-sm leading-relaxed text-stone-600">
-              <span className="font-semibold text-stone-900">WebMCP</span> with a grey dot —
+            <span className="mt-1 inline-flex size-2 shrink-0 rounded-full bg-muted-foreground/40" />
+            <p className="text-sm leading-relaxed text-foreground/75">
+              <span className="font-semibold text-foreground">WebMCP</span> with a grey dot —
               neither could be confirmed in this tab. Ask ChatGPT to open Unfolded in its
               internal browser, or enable the Chrome flag above.
             </p>
           </li>
         </ul>
-        <p className="mt-5 text-sm text-stone-400">
+        <p className="mt-5 text-sm text-muted-foreground/80">
           The states are honest by design: a ChatGPT connection is only ever shown on the
           explicit signal of an agent-minted link — never guessed from your browser's user
           agent or from being inside an in-app browser.
@@ -275,9 +275,9 @@ function FiveMinutes() {
       </section>
 
       {/* across devices */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Work across devices</SectionLabel>
-        <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
+        <p className="mt-5 max-w-xl leading-relaxed text-foreground/75">
           A design doesn't live in one chair — and the other chair needs no WebMCP, just a
           browser. Open <strong>Continue on another screen</strong> (the two-screens icon in
           the header) and scan its QR, or copy its link: the device that opens it follows
@@ -286,14 +286,14 @@ function FiveMinutes() {
           a live one</em> — tap it, and the tab you're looking at stays current with the
           agent's own browser from then on.
         </p>
-        <ul className="mt-6 max-w-xl space-y-3 text-sm leading-relaxed text-stone-600">
+        <ul className="mt-6 max-w-xl space-y-3 text-sm leading-relaxed text-foreground/75">
           <li>
-            <span className="font-semibold text-stone-900">One rule:</span> the device that{" "}
+            <span className="font-semibold text-foreground">One rule:</span> the device that{" "}
             <em>opens the link</em> (or enters the code) follows the other one's design — a
             single undo brings its previous design back. Afterwards no device is special.
           </li>
           <li>
-            <span className="font-semibold text-stone-900">Honest terms:</span> an
+            <span className="font-semibold text-foreground">Honest terms:</span> an
             invitation is single-use and short-lived — a link's token works once and dies
             (10 minutes at most), a spoken code once within 5. Whoever uses one can edit
             the design live. No URL ever carries a <em>durable</em> capability: a used link
@@ -301,13 +301,13 @@ function FiveMinutes() {
             at all.
           </li>
           <li>
-            <span className="font-semibold text-stone-900">The code is the fallback:</span>{" "}
+            <span className="font-semibold text-foreground">The code is the fallback:</span>{" "}
             behind &ldquo;or use a code&rdquo; in the same dialog, for when you can't scan
             or tap — read it aloud, or tell your agent{" "}
             <em>&ldquo;join my desktop session, code K7F&#8209;3QP&rdquo;</em>.
           </li>
           <li>
-            <span className="font-semibold text-stone-900">Comes back on its own:</span>{" "}
+            <span className="font-semibold text-foreground">Comes back on its own:</span>{" "}
             phones freeze background tabs; every return to the tab reconnects and
             converges, and edits made offline are kept and sent.
           </li>
@@ -316,32 +316,32 @@ function FiveMinutes() {
       </section>
 
       {/* the tools */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>What your agent can do</SectionLabel>
         <dl className="mt-6 grid gap-x-10 gap-y-5 sm:grid-cols-2">
           {TOOL_SUMMARIES.map(({ name, blurb }) => (
             <div key={name}>
-              <dt className="font-mono text-[13px] font-medium text-[#0646CC]">{name}</dt>
-              <dd className="mt-1 text-sm leading-relaxed text-stone-500">{blurb}</dd>
+              <dt className="font-mono text-[13px] font-medium text-[#0646CC] dark:text-[#6b9aff]">{name}</dt>
+              <dd className="mt-1 text-sm leading-relaxed text-muted-foreground">{blurb}</dd>
             </div>
           ))}
         </dl>
       </section>
 
       {/* prompts */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Things to say</SectionLabel>
         <ul className="mt-6 space-y-3">
           {PROMPTS.map((prompt) => (
             <li
               key={prompt}
-              className="rounded-xl border border-stone-200 bg-stone-50/60 px-5 py-3.5 text-[15px] text-stone-700"
+              className="rounded-xl border border-border bg-muted/50 px-5 py-3.5 text-[15px] text-foreground/80"
             >
               “{prompt}”
             </li>
           ))}
         </ul>
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-400">
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground/80">
           Everything the agent does passes through the same validation as the sliders, every
           response carries a share link that reopens the exact design, and templates are
           always shrinkage-compensated for your clay. And if the agent takes a wrong turn,
@@ -350,38 +350,38 @@ function FiveMinutes() {
       </section>
 
       {/* profiler */}
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Curious where the time goes?</SectionLabel>
-        <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
+        <p className="mt-5 max-w-xl leading-relaxed text-foreground/75">
           Agent conversations can feel slow, so we measured: the tools themselves run in
           single-digit <em>milliseconds</em> — the seconds you feel are the model thinking
           between calls. Unfolded ships the instrument that proves it. Open any page with{" "}
-          <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[13px]">?perf=overlay</code>{" "}
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[13px]">?perf=overlay</code>{" "}
           and a small live panel appears: every tool call your agent makes, its timing, the
           size of what it read, and — the honest line — how much of the wait was the model,
           not the pottery math.
         </p>
-        <ul className="mt-6 max-w-xl space-y-3 text-sm leading-relaxed text-stone-600">
+        <ul className="mt-6 max-w-xl space-y-3 text-sm leading-relaxed text-foreground/75">
           <li>
-            <span className="font-semibold text-stone-900">Off unless you ask:</span>{" "}
-            <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-xs">?perf=1</code>{" "}
+            <span className="font-semibold text-foreground">Off unless you ask:</span>{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">?perf=1</code>{" "}
             turns it on for this browser (it remembers),{" "}
-            <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-xs">?perf=0</code>{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">?perf=0</code>{" "}
             turns it off. Nothing is measured, stored, or sent otherwise — and even when on,
             everything stays in your tab.
           </li>
           <li>
-            <span className="font-semibold text-stone-900">For the console-inclined:</span>{" "}
-            <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-xs">__webmcpPerf.table()</code>{" "}
+            <span className="font-semibold text-foreground">For the console-inclined:</span>{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">__webmcpPerf.table()</code>{" "}
             in DevTools prints the per-tool numbers;{" "}
-            <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-xs">.export()</code>{" "}
+            <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">.export()</code>{" "}
             downloads the full report.
           </li>
           <li>
-            <span className="font-semibold text-stone-900">Built to travel:</span> the
+            <span className="font-semibold text-foreground">Built to travel:</span> the
             profiler is a dependency-free module any WebMCP site can lift —{" "}
             <a
-              className="font-medium text-stone-700 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
+              className="font-medium text-foreground/80 underline decoration-muted-foreground/40 underline-offset-4 transition-colors hover:text-foreground"
               href="https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/packages/webmcp-profiler"
               target="_blank"
               rel="noreferrer"
@@ -391,7 +391,7 @@ function FiveMinutes() {
             . One import, and your tools are measured too.
           </li>
         </ul>
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-400">
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted-foreground/80">
           Its first catch, fixed here: the 3D preview snapshot agents request was ~130 KB per
           look; it's ~7 KB now. Your agent got faster because the page timed itself.
         </p>
@@ -427,22 +427,22 @@ function HumanEasterEgg() {
 
   return (
     <section className="py-14">
-      <div className="rounded-2xl border border-[#0A5BFF]/25 bg-[#0A5BFF]/[0.03] p-6">
+      <div className="rounded-2xl border border-[#0A5BFF]/25 bg-[#0A5BFF]/[0.03] dark:bg-[#0A5BFF]/[0.08] p-6">
         <h3 className="font-semibold tracking-tight">
           If you are human and clicked on this page — congratulations!
         </h3>
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-stone-600">
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-foreground/75">
           The world is more interesting when people don't always do what they are told. If you
           want your agent to get started, copy this prompt and paste it inside any ChatGPT chat:
         </p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <code className="min-w-0 flex-1 truncate rounded-md border border-stone-200 bg-white px-3 py-2 font-mono text-[12px] text-stone-500">
+          <code className="min-w-0 flex-1 truncate rounded-md border border-border bg-background px-3 py-2 font-mono text-[12px] text-muted-foreground">
             {KICKSTART_PROMPT.slice(0, 72)}…
           </code>
           <button
             type="button"
             onClick={copy}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/85"
           >
             {copied ? (
               <>
@@ -464,11 +464,11 @@ function JsonBlock({ label, data }: { label?: string; data: unknown }) {
   return (
     <div className="mt-4 min-w-0">
       {label && (
-        <p className="mb-1.5 font-mono text-[11px] font-medium tracking-wide text-stone-400">
+        <p className="mb-1.5 font-mono text-[11px] font-medium tracking-wide text-muted-foreground/80">
           {label}
         </p>
       )}
-      <pre className="max-h-[26rem] overflow-auto rounded-xl border border-stone-200 bg-stone-50 p-4 font-mono text-[11px] leading-[1.6] whitespace-pre text-stone-700">
+      <pre className="max-h-[26rem] overflow-auto rounded-xl border border-border bg-muted/50 p-4 font-mono text-[11px] leading-[1.6] whitespace-pre text-foreground/80">
         {text}
       </pre>
     </div>
@@ -522,7 +522,7 @@ function ForAgents() {
         <h1 className="mt-6 max-w-xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
           Hello, agent. <span className="text-[#0A5BFF]">Here's everything.</span>
         </h1>
-        <p className="mt-6 max-w-xl text-lg leading-relaxed text-stone-500">
+        <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
           This view is written to be parsed, not skimmed: the complete machine description of
           the application — pipeline, invariants, formulas, every tool's registered JSON
           Schema, the data model, the share-link grammar, and the live-sync protocol. All of
@@ -535,21 +535,21 @@ function ForAgents() {
 
       <HumanEasterEgg />
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>How the connection works</SectionLabel>
         <dl className="mt-6 max-w-xl space-y-4 text-sm leading-relaxed">
           {AGENT_CONNECTION.map(([k, v]) => (
             <div key={k}>
-              <dt className="font-semibold text-stone-900">{k}</dt>
-              <dd className="mt-0.5 text-stone-600">{v}</dd>
+              <dt className="font-semibold text-foreground">{k}</dt>
+              <dd className="mt-0.5 text-foreground/75">{v}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>How the application works</SectionLabel>
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-600">
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-foreground/75">
           State flows one way: a validated store mutation (yours or the potter's) →
           closed-form unrolling of the developable surfaces → shelf-packed layout →
           paginated, true-scale PDF. The invariants below are contracts, not descriptions —
@@ -560,9 +560,9 @@ function ForAgents() {
         <JsonBlock label="application.formulas (geometry, closed-form)" data={m.application.formulas} />
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>The tool surface — registered JSON Schemas</SectionLabel>
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-600">
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-foreground/75">
           {TOOL_COUNT} tools, exactly as registered on <Code>document.modelContext</Code> in
           this tab — names, annotations, descriptions, and each input's JSON Schema.
         </p>
@@ -570,19 +570,19 @@ function ForAgents() {
           {m.tools.map((tool) => (
             <div key={tool.name} className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-[13px] font-semibold text-[#0646CC]">{tool.name}</span>
+                <span className="font-mono text-[13px] font-semibold text-[#0646CC] dark:text-[#6b9aff]">{tool.name}</span>
                 {Object.entries(tool.annotations)
                   .filter(([k]) => k !== "title")
                   .map(([k, v]) => (
                     <span
                       key={k}
-                      className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 font-mono text-[10px] text-stone-500"
+                      className="rounded-full border border-border bg-muted/50 px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
                     >
                       {k}={String(v)}
                     </span>
                   ))}
               </div>
-              <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-stone-500">
+              <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-muted-foreground">
                 {tool.description}
               </p>
               <JsonBlock label={`${tool.name}.inputSchema`} data={tool.inputSchema} />
@@ -591,7 +591,7 @@ function ForAgents() {
         </div>
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Data model — JSON Schema, presets, defaults</SectionLabel>
         <JsonBlock label="dataModel.formParams" data={m.dataModel.formParams} />
         <JsonBlock label="dataModel.claySettings" data={m.dataModel.claySettings} />
@@ -606,19 +606,19 @@ function ForAgents() {
         />
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Share-link grammar</SectionLabel>
         <JsonBlock label="shareLinks" data={m.shareLinks} />
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Live-sync protocol</SectionLabel>
         <JsonBlock label="liveSync" data={m.liveSync} />
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Performance introspection — profile yourself</SectionLabel>
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-600">
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-foreground/75">
           This tool surface carries its own analyser. Open any URL here with{" "}
           <Code>?perf=1</Code> (via <Code>open_model</Code>, if you like) and every call you
           make is spanned: wall time, payload bytes, the tokens your result costs you to
@@ -630,7 +630,7 @@ function ForAgents() {
         <JsonBlock label="profiler" data={m.profiler} />
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Constants &amp; interaction model</SectionLabel>
         <JsonBlock
           label="layoutConstants · interactionModel"
@@ -638,20 +638,20 @@ function ForAgents() {
         />
       </section>
 
-      <section className="border-t border-stone-100 py-14">
+      <section className="border-t border-border/60 py-14">
         <SectionLabel>Playbook</SectionLabel>
         <ul className="mt-6 max-w-xl space-y-4">
           {AGENT_PLAYBOOK.map((item) => (
-            <li key={item} className="text-sm leading-relaxed text-stone-600">
+            <li key={item} className="text-sm leading-relaxed text-foreground/75">
               {item}
             </li>
           ))}
         </ul>
-        <p className="mt-8 max-w-xl text-sm leading-relaxed text-stone-400">
+        <p className="mt-8 max-w-xl text-sm leading-relaxed text-muted-foreground/80">
           For the narrative the humans read — why the app exists, who it serves — switch{" "}
           <a
             href={whyHref}
-            className="font-medium text-stone-600 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
+            className="font-medium text-foreground/75 underline decoration-muted-foreground/40 underline-offset-4 transition-colors hover:text-foreground"
           >
             /why
           </a>{" "}
@@ -671,21 +671,8 @@ export function WebMCPPage() {
   const whyHref = useDesignHref("/why")
 
   return (
-    <div className="webmcp-page app-fade-in min-h-dvh bg-white text-stone-900 antialiased">
-      {/* top bar */}
-      <header className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
-        <a href={studioHref} className="flex items-center gap-2.5">
-          <LogoMark animated className="h-5 w-auto" />
-          <span className="text-base font-semibold tracking-tight">unfolded</span>
-        </a>
-        <a
-          href={studioHref}
-          className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-50"
-        >
-          <ArrowLeft className="size-3.5" />
-          Back to the studio
-        </a>
-      </header>
+    <div className="webmcp-page app-fade-in min-h-dvh bg-background text-foreground antialiased dark:bg-gradient-to-b dark:from-[#0a1122] dark:via-[#060a14] dark:to-[#04060c]">
+      <ExplainerHeader current="webmcp" />
 
       <main className="mx-auto max-w-3xl px-6 pb-24">
         {/* reading-depth toolbar */}
@@ -697,14 +684,14 @@ export function WebMCPPage() {
         </div>
 
         {/* footer */}
-        <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-stone-100 pt-8">
-          <p className="text-sm text-stone-400">
+        <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 pt-8">
+          <p className="text-sm text-muted-foreground/80">
             Open source (MIT) · built for the WebMCP Challenge
           </p>
           <div className="flex items-center gap-3">
             <a
               href={whyHref}
-              className="text-sm font-medium text-stone-600 transition-colors hover:text-stone-900"
+              className="text-sm font-medium text-foreground/75 transition-colors hover:text-foreground"
             >
               Why Unfolded
             </a>
@@ -712,13 +699,13 @@ export function WebMCPPage() {
               href="https://github.com/lucaguglielmi/Unfolded-Web-MCP"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-stone-600 transition-colors hover:text-stone-900"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground/75 transition-colors hover:text-foreground"
             >
               GitHub <ArrowUpRight className="size-3.5" />
             </a>
             <a
               href={studioHref}
-              className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/85"
             >
               Open the studio
             </a>

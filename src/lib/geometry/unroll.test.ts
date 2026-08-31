@@ -81,6 +81,8 @@ describe("buildPieces", () => {
     const tumbler: FormParams = { ...mug, tapered: true, topDiameterMm: 90, bottomDiameterMm: 65 }
     const [wall] = buildPieces(tumbler, clay)
     expect(wall.kind).toBe("annularSector")
+    if (wall.kind !== "annularSector") throw new Error("expected annular sector wall")
+    expect(wall.stamp).toBe("bevel seam 45°")
   })
 
   it("treats sub-tolerance taper as straight instead of a degenerate sector", () => {
@@ -134,6 +136,13 @@ describe("buildPieces", () => {
       const [side] = buildPieces(hex, clay)
       expect(side.notes.join(" ")).toMatch(/30°/)
       expect(side.notes.join(" ")).toMatch(/Cut 6 copies/)
+    })
+
+    it("octagon bevel is 22.5 degrees", () => {
+      const oct: FormParams = { ...square, facets: 8 }
+      const [side] = buildPieces(oct, clay)
+      expect(side.notes.join(" ")).toMatch(/22\.5°/)
+      expect(side.notes.join(" ")).toMatch(/Cut 8 copies/)
     })
 
     it("warns when walls leave no room for the base, measured across flats", () => {

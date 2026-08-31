@@ -213,7 +213,7 @@ function layoutSvg(
     }
 
     if (
-      (piece.kind === "rectangle" || piece.kind === "trapezoid") &&
+      (piece.kind === "rectangle" || piece.kind === "trapezoid" || piece.kind === "annularSector") &&
       piece.stamp &&
       textFits(piece.stamp, STAMP_FONT_MM, availableWidth)
     ) {

@@ -47,7 +47,7 @@ const CLUSTER_DESKTOP =
   "bg-background lg:relative lg:z-auto lg:order-2 lg:m-0 lg:flex lg:h-auto lg:min-h-0 lg:min-w-0 lg:flex-1 lg:flex-row lg:overflow-visible lg:rounded-none lg:border-0"
 const CLUSTER_OVERLAY = "fixed inset-0 z-50 flex flex-col"
 const CLUSTER_CARD =
-  "relative order-1 mx-4 mt-3 flex shrink-0 overflow-hidden rounded-xl border transition-[height] duration-300 ease-out"
+  "relative order-1 mx-4 mt-3 flex shrink-0 overflow-hidden rounded-2xl border transition-[height] duration-300 ease-out"
 
 const PREVIEW_VIEW_OPTIONS = [
   { value: "3d" as const, label: "3D preview", icon: Box },
@@ -107,7 +107,9 @@ export function PreviewCluster({ expanded, view, collapsed, onExpand, onClose }:
                 "h-full shrink-0 transition-[width] duration-300 ease-out",
                 collapsed ? "w-24 border-r" : "w-full"
               ),
-          "lg:block lg:h-auto lg:w-auto lg:flex-1 lg:border-r"
+          // desktop: no divider borders — the viewport draws its own rounded
+          // stage, and this padding is the breathing room around it
+          "lg:block lg:h-auto lg:w-auto lg:flex-1 lg:p-4"
         )}
       >
         {/* In the small thumbnail all callouts at once would clutter —
@@ -124,7 +126,14 @@ export function PreviewCluster({ expanded, view, collapsed, onExpand, onClose }:
         {/* units toggle floats in the main preview (not the thumbnail,
             where the tap overlay owns the corners) — the dimension
             callouts it switches live right here */}
-        <div className={cn("absolute right-2.5 bottom-2.5 z-20", expanded ? "block" : "hidden lg:block")}>
+        <div
+          className={cn(
+            // on desktop the stage is inset by the p-4 padding, so nudge the
+            // toggle inward to sit inside the rounded card
+            "absolute right-2.5 bottom-2.5 z-20 lg:right-7 lg:bottom-7",
+            expanded ? "block" : "hidden lg:block"
+          )}
+        >
           <UnitToggle className="bg-background/90 shadow-sm" />
         </div>
       </div>
@@ -147,7 +156,10 @@ export function PreviewCluster({ expanded, view, collapsed, onExpand, onClose }:
         <TemplatePanel />
       </div>
 
-      <UndoRedoControls className={cn(!expanded && collapsed && "max-lg:hidden")} />
+      {/* desktop: inset past the stage padding so the pair floats inside the card */}
+      <UndoRedoControls
+        className={cn("lg:bottom-7 lg:left-7", !expanded && collapsed && "max-lg:hidden")}
+      />
 
       {/* Thumbnail tap targets: the whole card opens the 3D preview;
           the chips open straight into either full-screen view */}
