@@ -27,8 +27,9 @@ export interface SharePatches {
   unit?: Unit
 }
 
-/** friendly names accepted (and emitted) for the `type` parameter */
-const TYPE_ALIASES: Record<string, { type: FormType; tapered?: boolean; facets?: number }> = {
+/** friendly names accepted (and emitted) for the `type` parameter —
+    exported so the /webmcp agent manifest documents the real table */
+export const TYPE_ALIASES: Record<string, { type: FormType; tapered?: boolean; facets?: number }> = {
   round: { type: "round" },
   cylinder: { type: "round", tapered: false },
   tapered: { type: "round", tapered: true },

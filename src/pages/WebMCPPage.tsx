@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react"
+import { useMemo, useState, useSyncExternalStore } from "react"
 import { ArrowLeft, ArrowUpRight, Check } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
 import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
@@ -7,6 +7,7 @@ import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 // the tool list renders from its single source next to the registrations
 import { TOOL_SUMMARIES } from "@/mcp/tools"
+import { buildAgentManifest } from "./agentManifest"
 import { liveSync } from "@/store/syncClient"
 import { useProjectStore } from "@/store/useProjectStore"
 
@@ -349,7 +350,7 @@ function FiveMinutes() {
  * the etiquette — but the page shows only its first line: it's for pasting,
  * not reading.
  */
-const KICKSTART_PROMPT = `Open https://tryunfolded.com in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get eleven typed tools: describe_project, open_model, update_form, set_clay, set_units, set_capacity, get_template_summary, get_preview_image, export_templates, apply_preset, undo_last_change. Start by calling describe_project to see the current design. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it through the tools — all dimensions are FIRED sizes in millimeters; for a target volume use set_capacity, which solves the exact height in one call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and give me the shareUrl from your last tool result so I can reopen the design anywhere. If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
+const KICKSTART_PROMPT = `Open https://tryunfolded.com in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get ${TOOL_COUNT} typed tools: ${TOOL_SUMMARIES.map((t) => t.name).join(", ")}. Start by calling describe_project to see the current design. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it through the tools — all dimensions are FIRED sizes in millimeters; for a target volume use set_capacity, which solves the exact height in one call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and give me the shareUrl from your last tool result so I can reopen the design anywhere. If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
 
 function HumanEasterEgg() {
   const [copied, setCopied] = useState(false)
@@ -399,6 +400,23 @@ function HumanEasterEgg() {
   )
 }
 
+/** dense, scrollable JSON — the visual grammar of the not-human view */
+function JsonBlock({ label, data }: { label?: string; data: unknown }) {
+  const text = useMemo(() => JSON.stringify(data, null, 2), [data])
+  return (
+    <div className="mt-4 min-w-0">
+      {label && (
+        <p className="mb-1.5 font-mono text-[11px] font-medium tracking-wide text-stone-400">
+          {label}
+        </p>
+      )}
+      <pre className="max-h-[26rem] overflow-auto rounded-xl border border-stone-200 bg-stone-50 p-4 font-mono text-[11px] leading-[1.6] whitespace-pre text-stone-700">
+        {text}
+      </pre>
+    </div>
+  )
+}
+
 const AGENT_CONNECTION: [string, string][] = [
   ["Registration", "document.modelContext.registerTool preferred; navigator/window fallbacks; provideContext({tools}) for hosts without registerTool. Registration is automatic — there is nothing for you to enable."],
   ["Late injection", "the app never stops watching for the API: 500 ms polling for 15 s, then a 3 s heartbeat (paused while the tab is hidden), plus focus/visibility re-checks. Executing any tool flips the app to connected."],
@@ -421,25 +439,38 @@ const AGENT_PLAYBOOK: string[] = [
 
 function ForAgents() {
   const whyHref = useDesignHref("/why")
+  const manifest = useMemo(() => buildAgentManifest(), [])
+  const m = manifest as {
+    application: { pipeline: unknown; invariants: string[]; formulas: unknown }
+    tools: { name: string; title?: string; annotations: Record<string, unknown>; description: string; inputSchema: unknown }[]
+    dataModel: Record<string, unknown>
+    shareLinks: unknown
+    liveSync: unknown
+    layoutConstants: unknown
+    interactionModel: unknown
+  }
   return (
     <>
+      {/* the whole manifest, embedded as data for anything that parses DOM */}
+      <script
+        type="application/json"
+        id="unfolded-agent-manifest"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(manifest) }}
+      />
+
       <section className="pt-12 pb-14">
         <StatusPill />
         <h1 className="mt-6 max-w-xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-          Hello, agent. <span className="text-[#0A5BFF]">Here's how to connect.</span>
+          Hello, agent. <span className="text-[#0A5BFF]">Here's everything.</span>
         </h1>
         <p className="mt-6 max-w-xl text-lg leading-relaxed text-stone-500">
-          This page and the whole app register {TOOL_COUNT} typed tools the moment they load.
-          The pill above is this tab's live status. Below: how the connection works, the tool
-          surface, and the playbook that uses it well. For the data model, its exact ranges,
-          and the geometry formulas, switch{" "}
-          <a
-            href={whyHref}
-            className="font-medium text-stone-600 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
-          >
-            /why
-          </a>{" "}
-          to &ldquo;I am not human&rdquo;.
+          This view is written to be parsed, not skimmed: the complete machine description of
+          the application — pipeline, invariants, formulas, every tool's registered JSON
+          Schema, the data model, the share-link grammar, and the live-sync protocol. All of
+          it is derived at page load from the same zod schemas and tool registrations the app
+          runs, so it cannot drift from the code. The identical document is embedded in this
+          page as{" "}
+          <Code>{'<script type="application/json" id="unfolded-agent-manifest">'}</Code>.
         </p>
       </section>
 
@@ -458,15 +489,80 @@ function ForAgents() {
       </section>
 
       <section className="border-t border-stone-100 py-14">
-        <SectionLabel>The tool surface</SectionLabel>
-        <dl className="mt-6 grid gap-x-10 gap-y-5 sm:grid-cols-2">
-          {TOOL_SUMMARIES.map(({ name, blurb }) => (
-            <div key={name}>
-              <dt className="font-mono text-[13px] font-medium text-[#0646CC]">{name}</dt>
-              <dd className="mt-1 text-sm leading-relaxed text-stone-500">{blurb}</dd>
+        <SectionLabel>How the application works</SectionLabel>
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-600">
+          State flows one way: a validated store mutation (yours or the potter's) →
+          closed-form unrolling of the developable surfaces → shelf-packed layout →
+          paginated, true-scale PDF. The invariants below are contracts, not descriptions —
+          rely on them.
+        </p>
+        <JsonBlock label="application.pipeline" data={m.application.pipeline} />
+        <JsonBlock label="application.invariants" data={m.application.invariants} />
+        <JsonBlock label="application.formulas (geometry, closed-form)" data={m.application.formulas} />
+      </section>
+
+      <section className="border-t border-stone-100 py-14">
+        <SectionLabel>The tool surface — registered JSON Schemas</SectionLabel>
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-600">
+          {TOOL_COUNT} tools, exactly as registered on <Code>document.modelContext</Code> in
+          this tab — names, annotations, descriptions, and each input's JSON Schema.
+        </p>
+        <div className="mt-8 space-y-10">
+          {m.tools.map((tool) => (
+            <div key={tool.name} className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-mono text-[13px] font-semibold text-[#0646CC]">{tool.name}</span>
+                {Object.entries(tool.annotations)
+                  .filter(([k]) => k !== "title")
+                  .map(([k, v]) => (
+                    <span
+                      key={k}
+                      className="rounded-full border border-stone-200 bg-stone-50 px-2 py-0.5 font-mono text-[10px] text-stone-500"
+                    >
+                      {k}={String(v)}
+                    </span>
+                  ))}
+              </div>
+              <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-stone-500">
+                {tool.description}
+              </p>
+              <JsonBlock label={`${tool.name}.inputSchema`} data={tool.inputSchema} />
             </div>
           ))}
-        </dl>
+        </div>
+      </section>
+
+      <section className="border-t border-stone-100 py-14">
+        <SectionLabel>Data model — JSON Schema, presets, defaults</SectionLabel>
+        <JsonBlock label="dataModel.formParams" data={m.dataModel.formParams} />
+        <JsonBlock label="dataModel.claySettings" data={m.dataModel.claySettings} />
+        <JsonBlock label="dataModel.presets" data={m.dataModel.presets} />
+        <JsonBlock
+          label="dataModel.defaults · papers · displayUnits"
+          data={{
+            defaults: m.dataModel.defaults,
+            papers: m.dataModel.papers,
+            displayUnits: m.dataModel.displayUnits,
+          }}
+        />
+      </section>
+
+      <section className="border-t border-stone-100 py-14">
+        <SectionLabel>Share-link grammar</SectionLabel>
+        <JsonBlock label="shareLinks" data={m.shareLinks} />
+      </section>
+
+      <section className="border-t border-stone-100 py-14">
+        <SectionLabel>Live-sync protocol</SectionLabel>
+        <JsonBlock label="liveSync" data={m.liveSync} />
+      </section>
+
+      <section className="border-t border-stone-100 py-14">
+        <SectionLabel>Constants &amp; interaction model</SectionLabel>
+        <JsonBlock
+          label="layoutConstants · interactionModel"
+          data={{ layoutConstants: m.layoutConstants, interactionModel: m.interactionModel }}
+        />
       </section>
 
       <section className="border-t border-stone-100 py-14">
@@ -479,8 +575,15 @@ function ForAgents() {
           ))}
         </ul>
         <p className="mt-8 max-w-xl text-sm leading-relaxed text-stone-400">
-          If the pill above is green, your tools are live in this tab — call{" "}
-          <Code>describe_project</Code> and begin.
+          For the narrative the humans read — why the app exists, who it serves — switch{" "}
+          <a
+            href={whyHref}
+            className="font-medium text-stone-600 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
+          >
+            /why
+          </a>{" "}
+          to its own not-human view. If the pill at the top is green, your tools are live in
+          this tab — call <Code>describe_project</Code> and begin.
         </p>
       </section>
     </>
