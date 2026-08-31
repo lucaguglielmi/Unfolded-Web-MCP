@@ -26,11 +26,6 @@ Decisions taken 2026-08-31 (previously open):
   moves just *outside* that piece on the same template page (§6) — never
   shrunk, never overview-only.
 
-**Deadline context:** `docs/refactor-spec.md` freezes features until the
-WebMCP Challenge submission (Sep 3). This entire spec is **post-deadline
-work**; the tools in §8 change the frozen tool surface and wait for the
-freeze to lift.
-
 ## 1. Problem
 
 WebMCP is tab-scoped: the agent in a phone tab (ChatGPT's internal browser,
