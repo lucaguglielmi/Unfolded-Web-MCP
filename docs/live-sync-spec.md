@@ -13,6 +13,10 @@ Decisions taken 2026-08-31 (previously open):
 - **Agent-minted codes (`start_pairing`) are v1, not stretch** — forced by
   user flow B (§5.2): without the reverse direction, moving phone-born work
   to a desktop adopts state the wrong way.
+- **Idle-session retention: 30 days.** Confirmed.
+- **In-piece QR stays 22 mm.** If the largest piece can't host it, the QR
+  moves just *outside* that piece on the same template page (§6) — never
+  shrunk, never overview-only.
 
 **Deadline context:** `docs/refactor-spec.md` freezes features until the
 WebMCP Challenge submission (Sep 3). This entire spec is **post-deadline
@@ -121,8 +125,8 @@ mint/claim asymmetry exists only at pairing time.
   untouched). Refresh and revisits rejoin silently; the pairing outlives the
   code by design.
 - **"Unpair this device"** in the dialog: disconnect + delete the local key.
-  Server side, a session with zero connections for **30 days** deletes its
-  storage via alarm (still open, §Open questions).
+  Server side, a session with zero connections for **30 days** (decided)
+  deletes its storage via alarm.
 - "Pair a device" on a tab already in a session issues a code for *that*
   session — n-device pairing falls out for free, capped at 16 sockets.
 
@@ -188,11 +192,17 @@ on clay, splashed and filed. Flow C depends on the paper that *survives*.
 carries the link to the software that reopens it with the right parameters.
 
 - Placement: centroid-ish, ≥ 8 mm clear of every cut/fold/miter line and of
-  the piece's dimension labels; standard quiet zone; same 22 mm size with
-  the unfolded mark inset, plus the "scan to reopen this design" caption.
-- Fallback: if no piece can host a 22 mm QR + quiet zone (tiny forms), keep
-  overview-only, as today. The overview QR stays in both cases (it's the
-  one visible without digging through cut pieces).
+  the piece's dimension labels; standard quiet zone; **22 mm** (decided —
+  matches the overview QR, scans reliably on handled paper) with the
+  unfolded mark inset, plus the "scan to reopen this design" caption.
+- Fallback (decided): if the largest piece can't host 22 mm + quiet zone
+  (tiny forms), the QR prints **just outside that piece on the same
+  template page** — nearest free spot to the piece within the printable
+  area, clear of every other piece and of the page's calibration bar, with
+  a thin dotted keep-tab outline and the same caption, so the potter can
+  cut it out alongside and file it with the templates. Never shrunk below
+  22 mm. The overview QR stays in all cases (it's the one visible without
+  digging through cut pieces).
 - The QR remains a **parameter-only share link** — never a `sid`, never a
   code. A found template grants a copy of the design, not entry to a live
   session (§2).
@@ -385,8 +395,10 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
 
 - **Unit (pure):** `applyPatch.ts` parity with today's store behavior
   (table-driven); diff/merge + echo bookkeeping; code normalize/format; QR
-  placement geometry (largest-piece selection, quiet-zone clearance,
-  too-small fallback) against `buildPieces` fixtures.
+  placement geometry against `buildPieces` fixtures — largest-piece
+  selection, quiet-zone clearance, and the too-small fallback (outside
+  placement collides with no piece, no calibration bar, and stays on the
+  printable area at 22 mm).
 - **DO tests (`@cloudflare/vitest-pool-workers`):** mint→claim→burn (second
   claim uniform-fails), TTL expiry, eager create (mint from a fresh tab,
   claim after minter disconnects — decided behavior), rate limits, two-
@@ -448,8 +460,9 @@ decisions):
   clay → (months later) paper → screen — with the same parameter-only-link
   guarantee as today. Risks are layout ones (QR colliding with fold marks
   or labels on small pieces; ink where a potter cuts) — handled by the
-  clearance rule + fallback, verified by geometry tests, and worth one
-  manual print-and-scan check on A4 and Letter.
+  clearance rule and the decided fallback (never shrink: move outside the
+  piece onto the same page with a keep-tab outline), verified by geometry
+  tests, and worth one manual print-and-scan check on A4 and Letter.
 - **Eager creation (decided)** trades a handful of possibly-never-claimed
   DO creations for a code that never lies about being valid. Cheap
   (SQLite-backed DOs, ≤1 KB state, 30-day sweep) and honest. Fine.
@@ -470,7 +483,6 @@ decisions):
 
 ## Open questions
 
-1. Idle-session retention: 30 days — confirm.
-2. QR size inside pieces: keep 22 mm (matches overview, easier scanning on
-   curved/cut paper) or drop to 18 mm to fit more pieces? Leaning 22 mm
-   with the fallback.
+None — all resolved. Decisions are recorded at the top of this document;
+implementation can start the moment the Sep 3 feature freeze lifts, in work-
+item order (§14).
