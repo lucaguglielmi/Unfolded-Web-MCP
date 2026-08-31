@@ -1,17 +1,22 @@
 # Publishes packages/webmcp-profiler to npm.
 #
-# Triggers: manually (workflow_dispatch), or by pushing a tag like
-# webmcp-profiler-v0.1.0. Needs the NPM_TOKEN repository secret (an npm
-# granular access token with read/write + bypass-2FA) until npm trusted
-# publishing is configured for the package — then the token can be
-# deleted and NODE_AUTH_TOKEN removed; the id-token permission below
-# already covers OIDC provenance either way.
+# Triggers: manually (workflow_dispatch), or any push to main that touches
+# the package's package.json — which makes a version bump the release
+# action, and nothing else: the guard step skips the publish when that
+# version already exists on npm, so doc-only edits to package.json are
+# harmless no-ops.
+#
+# Needs the NPM_TOKEN repository secret (an npm granular access token with
+# read/write + bypass-2FA) until npm trusted publishing is configured for
+# the package — then the token can be deleted and NODE_AUTH_TOKEN removed;
+# the id-token permission below already covers OIDC provenance either way.
 name: Publish webmcp-profiler
 
 on:
   workflow_dispatch:
   push:
-    tags: ["webmcp-profiler-v*"]
+    branches: [main]
+    paths: ["packages/webmcp-profiler/package.json"]
 
 permissions:
   contents: read
@@ -26,9 +31,24 @@ jobs:
         with:
           node-version: 22
           registry-url: "https://registry.npmjs.org"
-      - run: npm ci
-      - run: npm test
-      - run: npm run build --workspace webmcp-profiler
-      - run: npm publish --workspace webmcp-profiler --access public --provenance
+      - name: Skip if this version is already on npm
+        id: guard
+        run: |
+          VERSION=$(node -p "require('./packages/webmcp-profiler/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if npm view "webmcp-profiler@$VERSION" version >/dev/null 2>&1; then
+            echo "webmcp-profiler@$VERSION already published — nothing to do"
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.guard.outputs.published == 'false'
+        run: npm ci
+      - if: steps.guard.outputs.published == 'false'
+        run: npm test
+      - if: steps.guard.outputs.published == 'false'
+        run: npm run build --workspace webmcp-profiler
+      - if: steps.guard.outputs.published == 'false'
+        run: npm publish --workspace webmcp-profiler --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
