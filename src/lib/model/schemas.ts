@@ -38,7 +38,7 @@ export const formParamsSchema = z.object({
     .int()
     .min(3)
     .max(8)
-    .describe("Number of flat sides for type 'faceted' (3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon). Ignored for round forms."),
+    .describe("Number of flat sides for type 'faceted' (3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon, 8 = octagon). Ignored for round forms."),
 })
 
 /**

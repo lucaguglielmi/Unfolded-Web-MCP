@@ -286,7 +286,7 @@ function FiveMinutes() {
           {"?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5"}
         </pre>
         <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-500">
-          <Code>type</Code> also accepts triangle, square, pentagon, hexagon;{" "}
+          <Code>type</Code> also accepts triangle, square, pentagon, hexagon, octagon;{" "}
           <Code>paper=A4|A3|Letter</Code> and <Code>units=cm|in</Code> work too — the model
           itself stays metric, units only change what you see and print. After the first edit
           the address bar live-tracks the design, the header's share button copies it (with a

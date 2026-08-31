@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
-import { Grid, Html, Line, OrbitControls } from "@react-three/drei"
+import { ContactShadows, Html, Line, OrbitControls } from "@react-three/drei"
 import { cn } from "@/lib/utils"
 import { registerPreviewCanvas } from "@/lib/previewCapture"
 import { formatLength, type Unit } from "@/lib/units"
@@ -22,8 +22,8 @@ const CLAY_OUTER = "#b08968"
 const CLAY_INNER = "#7a5c42"
 const CLAY_RIM = "#a37e5f"
 
-/* dimension callouts: quiet technical-drawing gray, sized in scene units */
-const MEASURE_LINE = "#c6c1bb"
+/* dimension callouts: quiet blue-gray that reads on the tinted stage, sized in scene units */
+const MEASURE_LINE = "#a4b2c9"
 const TICK = 0.045
 const DIM_GAP = 0.18
 
@@ -127,9 +127,14 @@ function MeasureLabel({
       position={position}
       center
       zIndexRange={[1, 0]}
-      className="text-muted-foreground/80 pointer-events-none text-[10px] font-medium whitespace-nowrap select-none"
+      className="pointer-events-none text-[10px] font-medium whitespace-nowrap select-none"
     >
-      <div ref={innerRef} style={{ opacity }}>
+      {/* the fader drives opacity on this inner div, so the whole pill fades */}
+      <div
+        ref={innerRef}
+        style={{ opacity }}
+        className="rounded-full bg-white/85 px-2 py-0.5 text-slate-600 shadow-sm"
+      >
         {children}
       </div>
     </Html>
@@ -446,17 +451,16 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
         <Measurements mode={measurementsMode} entries={measureEntries} />
       </group>
 
-      <Grid
-        position={[0, bottomY - 0.002, 0]}
-        args={[10, 10]}
-        cellSize={0.25}
-        cellThickness={0.5}
-        sectionSize={1}
-        sectionThickness={0.9}
-        cellColor="#e7e5e4"
-        sectionColor="#d6d3d1"
-        fadeDistance={11}
-        infiniteGrid
+      {/* No grid: the tinted stage container frames the vessel, and a soft
+          contact shadow grounds it — the shadow tracks the real silhouette,
+          so tapered and faceted forms all sit convincingly. */}
+      <ContactShadows
+        position={[0, bottomY - 0.001, 0]}
+        opacity={0.34}
+        scale={3.4}
+        blur={2.6}
+        far={1.4}
+        color="#33507e"
       />
     </>
   )
@@ -497,7 +501,11 @@ export function Viewport({
   }, [])
 
   return (
-    <div className="viewport-in relative h-full w-full">
+    // The 3D stage: a soft light-blue gradient container with 16px rounded
+    // corners on desktop, where it floats free of any panel borders. On
+    // mobile the thumbnail card / full-screen overlay does the clipping, so
+    // the gradient just fills whatever frame it sits in.
+    <div className="viewport-in relative h-full w-full overflow-hidden bg-gradient-to-b from-[#eef3fb] via-[#e7eef9] to-[#dbe5f4] lg:rounded-2xl">
       <Canvas
         key={glGeneration}
         camera={{ position: [2.4, 1.6, 2.4], fov: 38 }}
@@ -514,7 +522,8 @@ export function Viewport({
           rendererRef.current = state.gl
           registerPreviewCanvas(state.gl.domElement)
         }}
-        className="touch-none bg-background"
+        // transparent canvas — the stage's gradient shows through
+        className="touch-none"
       >
         <ambientLight intensity={0.65} />
         <directionalLight position={[4, 6, 3]} intensity={1.05} />
@@ -532,7 +541,7 @@ export function Viewport({
       </Canvas>
       <p
         className={cn(
-          "text-muted-foreground/70 pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap",
+          "pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap text-slate-500/70",
           showHintOnMobile ? "block" : "hidden lg:block"
         )}
       >

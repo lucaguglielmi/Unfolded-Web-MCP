@@ -52,6 +52,8 @@ export interface AnnularSectorPiece {
   /** developed length of the shorter curved edge */
   innerArcMm: number
   slantMm: number
+  /** short instruction printed on the piece itself (e.g. "bevel seam 45°") */
+  stamp?: string
   notes: string[]
 }
 
@@ -243,6 +245,7 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
       ...wall,
       id: "wall",
       label: "Wall",
+      stamp: "bevel seam 45°",
       notes: [
         `The ${midTopR > midBottomR ? "outer" : "inner"} curved edge is the rim`,
         "Straight edges join with a 45° bevel",

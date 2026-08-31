@@ -1,11 +1,9 @@
 import { type ReactNode } from "react"
 import {
-  Amphora,
-  Coffee,
   Cone,
-  CupSoda,
   Cylinder,
   Hexagon,
+  Octagon,
   Pentagon,
   RectangleVertical,
   Square,
@@ -15,7 +13,6 @@ import {
 import { IconOptionGroup } from "@/components/IconOptionGroup"
 import { InfoTip } from "@/components/InfoTip"
 import { UnitToggle } from "@/components/UnitToggle"
-import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
@@ -36,6 +33,7 @@ const SHAPE_OPTIONS = [
   { value: "f4", label: "Square", icon: Square },
   { value: "f5", label: "Pentagon", icon: Pentagon },
   { value: "f6", label: "Hexagon", icon: Hexagon },
+  { value: "f8", label: "Octagon", icon: Octagon },
 ]
 
 /** taper is its own axis: any shape can be straight or tapered */
@@ -55,13 +53,6 @@ const SHAPE_DESCRIPTIONS: Record<string, Record<string, string>> = {
     tapered:
       "Flat sides leaning in or out — unrolls to identical trapezoid panels + a polygon base.",
   },
-}
-
-const PRESET_ICONS: Record<string, typeof Coffee> = {
-  "classic-mug": Coffee,
-  tumbler: CupSoda,
-  "bud-vase": Amphora,
-  "hex-planter": Hexagon,
 }
 
 function SectionTitle({ children, tip }: { children: ReactNode; tip?: ReactNode }) {
@@ -280,24 +271,22 @@ export function ParamsPanel() {
 
       <section className="space-y-3">
         <SectionTitle>Presets</SectionTitle>
-        <div className="grid grid-cols-3 gap-2">
-          {Object.entries(PRESETS).map(([id, preset]) => {
-            const Icon = PRESET_ICONS[id] ?? Coffee
-            return (
-              <Button
-                key={id}
-                variant="outline"
-                className="h-auto flex-col gap-1.5 py-3 font-normal transition-all hover:-translate-y-0.5 hover:shadow-sm"
-                onClick={() => {
-                  feedback("select")
-                  applyPreset(id as keyof typeof PRESETS)
-                }}
-              >
-                <Icon className="size-5" />
-                <span className="text-xs leading-tight">{preset.name}</span>
-              </Button>
-            )
-          })}
+        {/* quiet text tags, not icon cards — presets are shortcuts, and the
+            row of pills reads lighter than a second grid of buttons */}
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(PRESETS).map(([id, preset]) => (
+            <button
+              key={id}
+              type="button"
+              className="border-border text-muted-foreground hover:border-foreground/30 hover:bg-accent hover:text-foreground rounded-full border px-3 py-1.5 text-xs font-medium transition-colors active:scale-[0.98]"
+              onClick={() => {
+                feedback("select")
+                applyPreset(id as keyof typeof PRESETS)
+              }}
+            >
+              {preset.name}
+            </button>
+          ))}
         </div>
       </section>
     </div>

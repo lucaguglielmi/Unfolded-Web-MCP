@@ -112,7 +112,8 @@ export default function App() {
           {/* Settings: the main page on mobile, fixed sidebar on desktop */}
           <div
             onScroll={handleSettingsScroll}
-            className="order-2 min-h-0 w-full flex-1 overflow-y-auto p-4 sm:p-5 lg:order-1 lg:w-72 lg:flex-none lg:border-r xl:w-80"
+            // no border-r: the viewport's rounded stage separates the panels
+            className="order-2 min-h-0 w-full flex-1 overflow-y-auto p-4 sm:p-5 lg:order-1 lg:w-72 lg:flex-none xl:w-80"
           >
             <ParamsPanel />
           </div>
