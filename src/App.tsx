@@ -12,10 +12,11 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { useIsDesktop } from "@/lib/useIsDesktop"
 import { useWebMCP } from "@/mcp/useWebMCP"
 
-/* Most visitors never open the explainer — keep it out of the shell chunk. */
+/* Most visitors never open the explainer pages — keep them out of the shell chunk. */
 const WebMCPPage = lazy(() =>
   import("@/pages/WebMCPPage").then((m) => ({ default: m.WebMCPPage }))
 )
+const WhyPage = lazy(() => import("@/pages/WhyPage").then((m) => ({ default: m.WhyPage })))
 
 export default function App() {
   useWebMCP()
@@ -37,14 +38,15 @@ export default function App() {
     setPreviewCollapsed((collapsed) => (collapsed ? top > 8 : top > 48))
   }
 
-  // /webmcp: the explainer page the header's WebMCP pill links to. The
-  // Worker serves index.html for every path (SPA fallback), so this one
-  // check is all the routing the app needs. Tools register on this page
-  // too (useWebMCP above), so it can show the live connection status.
-  if (window.location.pathname.replace(/\/+$/, "") === "/webmcp") {
+  // The two explainer pages. The Worker serves index.html for every path
+  // (SPA fallback), so this check is all the routing the app needs. Tools
+  // register on these pages too (useWebMCP above), so /webmcp can show the
+  // live connection status.
+  const path = window.location.pathname.replace(/\/+$/, "")
+  if (path === "/webmcp" || path === "/why") {
     return (
       <Suspense fallback={<div className="min-h-dvh bg-white" />}>
-        <WebMCPPage />
+        {path === "/webmcp" ? <WebMCPPage /> : <WhyPage />}
       </Suspense>
     )
   }
@@ -56,9 +58,13 @@ export default function App() {
           <div className="flex min-w-0 items-baseline gap-2.5">
             <LogoMark animated className="h-5 w-auto shrink-0 self-center" />
             <h1 className="text-base font-semibold tracking-tight">unfolded</h1>
-            <p className="text-muted-foreground hidden truncate text-xs sm:block">
+            {/* the tagline doubles as the door to /why */}
+            <a
+              href="/why"
+              className="text-muted-foreground hover:text-foreground hidden truncate text-xs transition-colors sm:block"
+            >
               slab pottery templates — design in 3D, print flat, build in clay
-            </p>
+            </a>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <FeedbackToggle />

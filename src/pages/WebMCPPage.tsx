@@ -236,6 +236,12 @@ export function WebMCPPage() {
           </p>
           <div className="flex items-center gap-3">
             <a
+              href="/why"
+              className="text-sm font-medium text-stone-600 transition-colors hover:text-stone-900"
+            >
+              Why Unfolded
+            </a>
+            <a
               href="https://github.com/lucaguglielmi/Unfolded-Web-MCP"
               target="_blank"
               rel="noreferrer"

@@ -248,6 +248,19 @@ try {
   )
   await plainPage.close()
 
+  // /why: the README-as-a-page explainer renders with the full tool list
+  const whyPage = await ctx.newPage()
+  await whyPage.goto(`${BASE}/why`, { waitUntil: "networkidle" })
+  await whyPage.waitForTimeout(800)
+  const whyHero = await whyPage.getByRole("heading", { level: 1 }).textContent()
+  const whyTools = await whyPage.locator("dt").count()
+  check(
+    "/why renders the README-as-a-page with every tool listed",
+    /print flat/.test(whyHero ?? "") && whyTools === EXPECTED_TOOLS.length,
+    `hero: ${whyHero}, tools: ${whyTools}`
+  )
+  await whyPage.close()
+
   // 2. agent-minted link (?via=chatgpt), still no direct API -> solid green
   const viaPage = await ctx.newPage()
   await viaPage.goto(`${BASE}/?type=hexagon&height=120&via=chatgpt`, { waitUntil: "networkidle" })
