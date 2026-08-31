@@ -48,20 +48,26 @@ export function loadPersistedProject(): void {
 /** Save the design (debounced) so a mid-demo refresh doesn't lose work. */
 export function startProjectPersistence(): void {
   if (typeof window === "undefined") return
+  const write = () => {
+    try {
+      const { form, clay, paperSize, unit } = useProjectStore.getState()
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, clay, paperSize, unit }))
+    } catch {
+      // quota exceeded or private mode — persistence is best-effort
+    }
+  }
+  // Write once right away: boot applies share-link/localStorage patches
+  // before this subscription exists, so a design opened via link and never
+  // edited would otherwise not survive a refresh.
+  write()
   let timer: number | undefined
   // subscribe to the persisted slice only — agent-status churn (badge
   // updates, lastAgentCall) never schedules a write
   useProjectStore.subscribe(
     (s) => [s.form, s.clay, s.paperSize, s.unit] as const,
-    ([form, clay, paperSize, unit]) => {
+    () => {
       window.clearTimeout(timer)
-      timer = window.setTimeout(() => {
-        try {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ form, clay, paperSize, unit }))
-        } catch {
-          // quota exceeded or private mode — persistence is best-effort
-        }
-      }, 400)
+      timer = window.setTimeout(write, 400)
     },
     { equalityFn: shallow }
   )

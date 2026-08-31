@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { ArrowUpRight, Check, Copy, X } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
 import { useProjectStore } from "@/store/useProjectStore"
+import { useDesignHref } from "@/lib/useStudioHref"
 
 /**
  * A one-time, dismissible nudge for Chrome users: Chrome ships WebMCP
@@ -42,6 +43,7 @@ function isRealChrome(): boolean {
 }
 
 export function ChromeFlagNudge() {
+  const webmcpHref = useDesignHref("/webmcp")
   const agentStatus = useProjectStore((s) => s.agentStatus)
   const [visible, setVisible] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -110,7 +112,7 @@ export function ChromeFlagNudge() {
           </div>
           <div className="mt-2.5 flex items-center gap-3">
             <a
-              href="/webmcp"
+              href={webmcpHref}
               className="text-foreground inline-flex items-center gap-1 text-xs font-medium hover:underline"
             >
               How it works <ArrowUpRight className="size-3" />

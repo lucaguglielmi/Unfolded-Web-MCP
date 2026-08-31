@@ -30,8 +30,21 @@ function useLiveSync() {
   )
 }
 
-export function PairDialog() {
-  const [open, setOpen] = useState(false)
+export function PairDialog({
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+} = {}) {
+  // uncontrolled by default (own trigger in the desktop header); controlled
+  // from the mobile menu, which then renders no trigger — same pattern as
+  // ShareDialog
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : uncontrolledOpen
+  const setOpen = (next: boolean) =>
+    isControlled ? onOpenChange?.(next) : setUncontrolledOpen(next)
   const [code, setCode] = useState<{ code: string; expiresAt: number } | null>(null)
   const [minting, setMinting] = useState(false)
   const [entry, setEntry] = useState("")
@@ -113,11 +126,13 @@ export function PairDialog() {
         if (!next) setNotice(null)
       }}
     >
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Pair a device" title="Pair a device">
-          <MonitorSmartphone className="size-4" />
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Pair a device" title="Pair a device">
+            <MonitorSmartphone className="size-4" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Pair a device</DialogTitle>

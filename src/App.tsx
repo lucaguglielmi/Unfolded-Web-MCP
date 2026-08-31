@@ -4,6 +4,7 @@ import { ChromeFlagNudge } from "@/components/ChromeFlagNudge"
 import { LogoMark } from "@/components/LogoMark"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { FeedbackToggle } from "@/components/FeedbackToggle"
+import { MobileMenu } from "@/components/MobileMenu"
 import { PairDialog } from "@/components/PairDialog"
 import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { PreviewCluster, type PreviewView } from "@/components/PreviewCluster"
@@ -12,6 +13,7 @@ import { SyncBadge } from "@/components/SyncBadge"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useIsDesktop } from "@/lib/useIsDesktop"
+import { useDesignHref } from "@/lib/useStudioHref"
 import { useWebMCP } from "@/mcp/useWebMCP"
 
 /* Most visitors never open the explainer pages — keep them out of the shell chunk. */
@@ -32,6 +34,7 @@ export default function App() {
   const [previewView, setPreviewView] = useState<PreviewView>("3d")
   const [previewCollapsed, setPreviewCollapsed] = useState(false)
   const isDesktop = useIsDesktop()
+  const whyHref = useDesignHref("/why")
 
   const handleSettingsScroll = (event: UIEvent<HTMLDivElement>) => {
     if (isDesktop) return
@@ -62,18 +65,33 @@ export default function App() {
             <h1 className="text-base font-semibold tracking-tight">unfolded</h1>
             {/* the tagline doubles as the door to /why */}
             <a
-              href="/why"
+              href={whyHref}
               className="text-muted-foreground hover:text-foreground hidden truncate text-xs transition-colors sm:block"
             >
               slab pottery templates — design in 3D, print flat, build in clay
             </a>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
+            {/* audio toggle lives in the header at every size */}
             <FeedbackToggle />
+            {/* live-sync presence: invisible until paired, shown at every size */}
             <SyncBadge />
-            <PairDialog />
-            <ShareDialog />
-            <AgentBadge />
+            {/* sm+ shows everything side by side… */}
+            <div className="hidden items-center gap-1.5 sm:flex">
+              <a
+                href={whyHref}
+                className="px-1.5 text-xs font-medium whitespace-nowrap text-[#0A5BFF] underline-offset-4 transition-colors hover:underline"
+              >
+                Why Unfolded
+              </a>
+              <PairDialog />
+              <ShareDialog />
+              <AgentBadge />
+            </div>
+            {/* …phones gather it into one menu */}
+            <div className="sm:hidden">
+              <MobileMenu />
+            </div>
           </div>
         </header>
 

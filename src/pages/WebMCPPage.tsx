@@ -1,7 +1,9 @@
 import { useState, useSyncExternalStore } from "react"
-import { ArrowLeft, ArrowUpRight } from "lucide-react"
+import { ArrowLeft, ArrowUpRight, Check } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
+import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
+import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 // the tool list renders from its single source next to the registrations
 import { TOOL_SUMMARIES } from "@/mcp/tools"
@@ -341,6 +343,62 @@ function FiveMinutes() {
 
 /* --------------------------------------------------------- I am not human */
 
+/**
+ * The kick-start prompt a human copies into any ChatGPT chat to hand their
+ * agent this app. Deliberately long — it briefs the agent on the tools and
+ * the etiquette — but the page shows only its first line: it's for pasting,
+ * not reading.
+ */
+const KICKSTART_PROMPT = `Open https://tryunfolded.com in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get eleven typed tools: describe_project, open_model, update_form, set_clay, set_units, set_capacity, get_template_summary, get_preview_image, export_templates, apply_preset, undo_last_change. Start by calling describe_project to see the current design. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it through the tools — all dimensions are FIRED sizes in millimeters; for a target volume use set_capacity, which solves the exact height in one call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and give me the shareUrl from your last tool result so I can reopen the design anywhere. If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
+
+function HumanEasterEgg() {
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(KICKSTART_PROMPT)
+      feedback("success")
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1800)
+    } catch {
+      // clipboard can be unavailable (permissions, older webviews)
+      window.prompt("Copy this prompt for your agent:", KICKSTART_PROMPT)
+    }
+  }
+
+  return (
+    <section className="py-14">
+      <div className="rounded-2xl border border-[#0A5BFF]/25 bg-[#0A5BFF]/[0.03] p-6">
+        <h3 className="font-semibold tracking-tight">
+          If you are human and clicked on this page — congratulations!
+        </h3>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-stone-600">
+          The world is more interesting when people don't always do what they are told. If you
+          want your agent to get started, copy this prompt and paste it inside any ChatGPT chat:
+        </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <code className="min-w-0 flex-1 truncate rounded-md border border-stone-200 bg-white px-3 py-2 font-mono text-[12px] text-stone-500">
+            {KICKSTART_PROMPT.slice(0, 72)}…
+          </code>
+          <button
+            type="button"
+            onClick={copy}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
+          >
+            {copied ? (
+              <>
+                <Check className="size-3.5" /> Copied
+              </>
+            ) : (
+              "Copy prompt"
+            )}
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 const AGENT_CONNECTION: [string, string][] = [
   ["Registration", "document.modelContext.registerTool preferred; navigator/window fallbacks; provideContext({tools}) for hosts without registerTool. Registration is automatic — there is nothing for you to enable."],
   ["Late injection", "the app never stops watching for the API: 500 ms polling for 15 s, then a 3 s heartbeat (paused while the tab is hidden), plus focus/visibility re-checks. Executing any tool flips the app to connected."],
@@ -362,6 +420,7 @@ const AGENT_PLAYBOOK: string[] = [
 ]
 
 function ForAgents() {
+  const whyHref = useDesignHref("/why")
   return (
     <>
       <section className="pt-12 pb-14">
@@ -375,7 +434,7 @@ function ForAgents() {
           surface, and the playbook that uses it well. For the data model, its exact ranges,
           and the geometry formulas, switch{" "}
           <a
-            href="/why"
+            href={whyHref}
             className="font-medium text-stone-600 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
           >
             /why
@@ -383,6 +442,8 @@ function ForAgents() {
           to &ldquo;I am not human&rdquo;.
         </p>
       </section>
+
+      <HumanEasterEgg />
 
       <section className="border-t border-stone-100 py-14">
         <SectionLabel>How the connection works</SectionLabel>
@@ -430,17 +491,19 @@ function ForAgents() {
 
 export function WebMCPPage() {
   const [depth, setDepth] = useState<ReadingDepth>("5min")
+  const studioHref = useStudioHref()
+  const whyHref = useDesignHref("/why")
 
   return (
     <div className="webmcp-page app-fade-in min-h-dvh bg-white text-stone-900 antialiased">
       {/* top bar */}
       <header className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
-        <a href="/" className="flex items-center gap-2.5">
+        <a href={studioHref} className="flex items-center gap-2.5">
           <LogoMark animated className="h-5 w-auto" />
           <span className="text-base font-semibold tracking-tight">unfolded</span>
         </a>
         <a
-          href="/"
+          href={studioHref}
           className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-50"
         >
           <ArrowLeft className="size-3.5" />
@@ -464,7 +527,7 @@ export function WebMCPPage() {
           </p>
           <div className="flex items-center gap-3">
             <a
-              href="/why"
+              href={whyHref}
               className="text-sm font-medium text-stone-600 transition-colors hover:text-stone-900"
             >
               Why Unfolded
@@ -478,7 +541,7 @@ export function WebMCPPage() {
               GitHub <ArrowUpRight className="size-3.5" />
             </a>
             <a
-              href="/"
+              href={studioHref}
               className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
             >
               Open the studio

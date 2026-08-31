@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { ArrowLeft, ArrowUpRight } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
+import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 // the tool list renders from its single source next to the registrations
 import { TOOL_SUMMARIES } from "@/mcp/tools"
@@ -131,6 +132,7 @@ const UNROLLINGS = [
 ]
 
 function FiveMinutes() {
+  const webmcpHref = useDesignHref("/webmcp")
   return (
     <>
       {/* hero */}
@@ -158,10 +160,29 @@ function FiveMinutes() {
         <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
           Slab building is the most common hand-building technique in ceramics, and its paper
           step is still manual: potters draw templates on cereal boxes, wrap paper around
-          forms, and do the sizing math by hand. Two errors are endemic to that math — and both
-          ruin pieces only <em>after</em> the firing:
+          forms, and do the sizing math by hand. The math is genuinely hard, two errors are
+          endemic — both ruin pieces only <em>after</em> the firing — and even when everything
+          is right, the workflow fights you:
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-stone-200 p-6">
+            <h3 className="font-semibold tracking-tight">Capacity math under constraints</h3>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+              &ldquo;How much will it hold?&rdquo; is already awkward math for a straight
+              cylinder — add a taper, wall thickness, and shrinkage, then pin a constraint like
+              a fixed height or a silhouette you love, and solving for an exact volume by hand
+              turns into guesswork. Most potters settle for &ldquo;close enough&rdquo;.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 p-6">
+            <h3 className="font-semibold tracking-tight">Hard shapes, wrong PDFs</h3>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+              A tapered hexagon or a flared pentagon is hard to visualize and harder to unroll
+              by hand — and asking an AI chat to generate the template PDF fails most of the
+              time: non-deterministic output, wrong bevels, and broken tiling the moment a
+              piece spans multiple pages.
+            </p>
+          </div>
           <div className="rounded-2xl border border-stone-200 p-6">
             <h3 className="font-semibold tracking-tight">Shrinkage scaled the wrong way</h3>
             <p className="mt-3 text-sm leading-relaxed text-stone-600">
@@ -177,6 +198,23 @@ function FiveMinutes() {
               A slab bends along its middle, so a wrapped wall must be developed on the
               mid-surface <Code>(r − t/2)</Code>; using the outer dimension makes the wall come
               out too long and the seam overlap.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 p-6">
+            <h3 className="font-semibold tracking-tight">Printing that fights you</h3>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+              Anything bigger than a sheet of paper — a planter wall, an unrolled cone — has to
+              be split across pages and rejoined at exact scale: tiling, alignment marks, and
+              glue margins all done by hand, with a fresh chance for a scale error on every
+              sheet.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 p-6">
+            <h3 className="font-semibold tracking-tight">No preview without the work</h3>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+              There's no way to see the piece before committing to it — checking proportions or
+              capacity means building the whole template (or the pot itself), so every tweak to
+              a height or a taper costs hours instead of a slider drag.
             </p>
           </div>
         </div>
@@ -226,7 +264,7 @@ function FiveMinutes() {
         <p className="mt-6 max-w-xl text-sm leading-relaxed text-stone-400">
           How to connect a browser, what the header pill means, and prompts to try live on the{" "}
           <a
-            href="/webmcp"
+            href={webmcpHref}
             className="font-medium text-stone-600 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
           >
             WebMCP guide
@@ -444,17 +482,18 @@ function ForAgents() {
 
 export function WhyPage() {
   const [depth, setDepth] = useState<ReadingDepth>("5min")
+  const studioHref = useStudioHref()
 
   return (
     <div className="webmcp-page app-fade-in min-h-dvh bg-white text-stone-900 antialiased">
       {/* top bar */}
       <header className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
-        <a href="/" className="flex items-center gap-2.5">
+        <a href={studioHref} className="flex items-center gap-2.5">
           <LogoMark animated className="h-5 w-auto" />
           <span className="text-base font-semibold tracking-tight">unfolded</span>
         </a>
         <a
-          href="/"
+          href={studioHref}
           className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-50"
         >
           <ArrowLeft className="size-3.5" />
@@ -486,7 +525,7 @@ export function WhyPage() {
               GitHub <ArrowUpRight className="size-3.5" />
             </a>
             <a
-              href="/"
+              href={studioHref}
               className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
             >
               Open the studio

@@ -18,9 +18,23 @@ import { useProjectStore } from "@/store/useProjectStore"
  * continue in ChatGPT's browser there) plus one-tap copy. The address bar
  * already tracks the design live (see startShareLinkSync) — this is the
  * way to grab it, especially in in-app browsers that hide the URL bar.
+ *
+ * Uncontrolled by default (renders its own icon-button trigger, as in the
+ * desktop header); pass `open`/`onOpenChange` to control it from elsewhere
+ * (the mobile menu), in which case no trigger is rendered.
  */
-export function ShareDialog() {
-  const [open, setOpen] = useState(false)
+export function ShareDialog({
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+} = {}) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const isControlled = controlledOpen !== undefined
+  const open = isControlled ? controlledOpen : uncontrolledOpen
+  const setOpen = (next: boolean) =>
+    isControlled ? onOpenChange?.(next) : setUncontrolledOpen(next)
   const [copied, setCopied] = useState(false)
   const [qr, setQr] = useState<string | null>(null)
 
@@ -68,11 +82,13 @@ export function ShareDialog() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Share this design" title="Share this design">
-          <Share2 className="size-4" />
-        </Button>
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Share this design" title="Share this design">
+            <Share2 className="size-4" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Share this design</DialogTitle>

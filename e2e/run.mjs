@@ -221,7 +221,7 @@ try {
   await latePage.waitForTimeout(4500) // slow-poll heartbeat is 3s
   const lateCount = await latePage.evaluate(() => Object.keys(window.__mcpToolsLate).length)
   const lateBadge = await latePage.evaluate(
-    () => !!document.querySelector('a[href="/webmcp"] .animate-ping')
+    () => !!document.querySelector('a[href^="/webmcp"] .animate-ping')
   )
   check(
     "tools register and the pill lights even when the API is injected late",
@@ -240,8 +240,8 @@ try {
   await plainPage.goto(BASE, { waitUntil: "networkidle" })
   await plainPage.waitForTimeout(1200)
   const plainPill = await plainPage.evaluate(() => ({
-    text: document.querySelector('a[href="/webmcp"]')?.textContent?.trim(),
-    ping: !!document.querySelector('a[href="/webmcp"] .animate-ping'),
+    text: document.querySelector('a[href^="/webmcp"]')?.textContent?.trim(),
+    ping: !!document.querySelector('a[href^="/webmcp"] .animate-ping'),
   }))
   check(
     "no API and no signal shows plain 'WebMCP' (grey, no pulse)",
@@ -280,10 +280,15 @@ try {
   const guideTools = await guidePage.locator("dt").count()
   await guidePage.getByRole("radio", { name: "I am not human" }).click()
   const guideAgentHero = await guidePage.getByRole("heading", { level: 1 }).textContent()
+  const humanEgg = await guidePage.getByText("congratulations").isVisible()
+  const copyBtn = await guidePage.getByRole("button", { name: "Copy prompt" }).isVisible()
   check(
-    "/webmcp has the depth toolbar and an agent-addressed deep dive",
-    guideTools === EXPECTED_TOOLS.length && /Hello, agent/.test(guideAgentHero ?? ""),
-    `tools: ${guideTools}, agent hero: ${guideAgentHero}`
+    "/webmcp has the depth toolbar, agent deep dive, and the human easter egg",
+    guideTools === EXPECTED_TOOLS.length &&
+      /Hello, agent/.test(guideAgentHero ?? "") &&
+      humanEgg &&
+      copyBtn,
+    `tools: ${guideTools}, agent hero: ${guideAgentHero}, egg: ${humanEgg}/${copyBtn}`
   )
   await guidePage.close()
 
@@ -292,8 +297,8 @@ try {
   await viaPage.goto(`${BASE}/?type=hexagon&height=120&via=chatgpt`, { waitUntil: "networkidle" })
   await viaPage.waitForTimeout(1200)
   const viaPill = await viaPage.evaluate(() => ({
-    text: document.querySelector('a[href="/webmcp"]')?.textContent?.trim(),
-    ping: !!document.querySelector('a[href="/webmcp"] .animate-ping'),
+    text: document.querySelector('a[href^="/webmcp"]')?.textContent?.trim(),
+    ping: !!document.querySelector('a[href^="/webmcp"] .animate-ping'),
   }))
   check(
     "an agent-minted link shows 'Connected via ChatGPT' (solid green, no pulse)",
@@ -358,7 +363,7 @@ try {
   const navCount = await navPage.evaluate(() => Object.keys(window.__mcpTools).length)
   check("tools also register via navigator.modelContext", navCount === EXPECTED_TOOLS.length)
   const badgeConnected = await navPage.evaluate(
-    () => !!document.querySelector('a[href="/webmcp"] .animate-ping')
+    () => !!document.querySelector('a[href^="/webmcp"] .animate-ping')
   )
   check("the WebMCP pill pulses green when connected", badgeConnected)
   await navPage.close()
