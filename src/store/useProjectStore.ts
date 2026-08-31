@@ -2,15 +2,13 @@ import { create } from "zustand"
 import { subscribeWithSelector } from "zustand/middleware"
 import {
   DEFAULT_CLAY,
-  normalizeLegacyFormPatch,
   PRESETS,
-  setClayInputSchema,
-  updateFormInputSchema,
   type ClaySettings,
   type FormParams,
   type SetClayInput,
   type UpdateFormInput,
 } from "@/lib/model/schemas"
+import { applyClayPatch, applyFormPatch } from "@/lib/model/applyPatch"
 import { buildPieces, shrinkageScale, type Piece } from "@/lib/geometry/unroll"
 import type { PaperSize } from "@/lib/export/svg"
 import type { ExportResult } from "@/lib/export/pdf"
@@ -180,26 +178,9 @@ export function createProjectStore({
 
     updateForm: (patch) =>
       set((state) => {
-        const parsed = updateFormInputSchema.parse(
-          normalizeLegacyFormPatch(patch as Record<string, unknown>)
-        )
-        const form = { ...state.form, ...parsed }
-        // Turning taper on from a straight form would otherwise start with
-        // top === bottom — i.e. a preview that doesn't look tapered at all.
-        // Unless the caller set an explicit top, flare it so the change is
-        // immediately visible.
-        const becameTapered = parsed.tapered === true && !state.form.tapered
-        if (
-          becameTapered &&
-          parsed.topDiameterMm === undefined &&
-          Math.abs(form.topDiameterMm - form.bottomDiameterMm) < 0.05
-        ) {
-          form.topDiameterMm = Math.min(300, Math.round(form.bottomDiameterMm * 1.4))
-        }
-        // Straight forms have one width: keep top mirroring bottom.
-        if (!form.tapered) {
-          form.topDiameterMm = form.bottomDiameterMm
-        }
+        // validation, legacy normalization, and the taper/mirror invariants
+        // all live in applyFormPatch — shared with the live-sync server
+        const form = applyFormPatch(state.form, patch)
         // no-op patches shouldn't burn an undo step
         if ((Object.keys(form) as (keyof FormParams)[]).every((k) => form[k] === state.form[k])) {
           return {}
@@ -209,7 +190,7 @@ export function createProjectStore({
 
     setClay: (patch) =>
       set((state) => {
-        const clay = { ...state.clay, ...setClayInputSchema.parse(patch) }
+        const clay = applyClayPatch(state.clay, patch)
         if (clay.shrinkagePct === state.clay.shrinkagePct && clay.wallThicknessMm === state.clay.wallThicknessMm) {
           return {}
         }
