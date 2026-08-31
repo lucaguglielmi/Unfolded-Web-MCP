@@ -2,7 +2,7 @@ import { z } from "zod"
 import { capacityMl, heightForCapacityMl } from "@/lib/geometry/unroll"
 import { setClayInputSchema, updateFormInputSchema, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
-import { capturePreviewPng } from "@/lib/previewCapture"
+import { capturePreviewImage } from "@/lib/previewCapture"
 import { liveSync } from "@/store/syncClient"
 import { useProjectStore } from "@/store/useProjectStore"
 import { describeState, describeTemplates } from "./describe"
@@ -195,7 +195,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "get_preview_image",
       description:
-        "See what the potter sees: a PNG snapshot of the live 3D preview — the hollow clay render with its dimension callouts. Use it to visually confirm a change or to describe the current form. If the canvas can't be captured in this environment, a text description of the design is returned instead. Read-only.",
+        "See what the potter sees: a compact JPEG snapshot (320 px) of the live 3D preview — the hollow clay render with its dimension callouts, deliberately small so it costs little context. Use it to visually confirm a change or to describe the current form. If the canvas can't be captured in this environment, a text description of the design is returned instead. Read-only.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true, title: "See the 3D preview" },
       execute: () =>
@@ -206,15 +206,15 @@ export function buildTools(): ToolDescriptor[] {
             (state.form.type === "faceted" ? ` (${state.form.facets} sides)` : "") +
             `, ${state.form.heightMm} mm tall x ${state.form.bottomDiameterMm} mm wide (fired), ` +
             `holds ~${state.capacityMl} ml.`
-          const png = capturePreviewPng()
-          if (!png) {
+          const image = capturePreviewImage()
+          if (!image) {
             return textResult(
               `Preview image unavailable (the 3D canvas hasn't rendered in this environment). ${summary}`
             )
           }
           return {
             content: [
-              { type: "image", data: png, mimeType: "image/png" },
+              { type: "image", data: image.data, mimeType: image.mimeType },
               { type: "text", text: summary },
             ],
           }

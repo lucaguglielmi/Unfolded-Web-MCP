@@ -170,7 +170,7 @@ try {
   // ---------------------------------------------------------- preview image
   const img = await callTool(page, "get_preview_image")
   check(
-    "get_preview_image returns PNG content",
+    "get_preview_image returns compact image content",
     img.types[0] === "image" && img.imageBytes > 5000,
     `types: ${img.types.join("+")}, bytes: ${img.imageBytes}`
   )
@@ -367,6 +367,42 @@ try {
   )
   check("the WebMCP pill pulses green when connected", badgeConnected)
   await navPage.close()
+
+  // ------------------------------------------------- webmcp profiler
+  // ?perf=1 attaches the profiler before tools register; every host call
+  // must land as a span with payload accounting. Own context: the flag
+  // persists in localStorage and must not leak into other checks.
+  const perfCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } })
+  const perfPage = await perfCtx.newPage()
+  await perfPage.addInitScript(mcpHostInit)
+  await perfPage.goto(`${BASE}/?perf=1`, { waitUntil: "networkidle" })
+  await perfPage.waitForTimeout(2500)
+  await callTool(perfPage, "describe_project")
+  await callTool(perfPage, "update_form", { heightMm: 210 })
+  const perf = await perfPage.evaluate(() => {
+    const p = window.__webmcpPerf
+    if (!p) return null
+    const spans = p.spans()
+    const report = p.report()
+    return {
+      spanCount: spans.length,
+      tools: spans.map((s) => s.tool),
+      bytesOk: spans.every((s) => s.resultBytes > 100 && s.estTokens > 0),
+      format: report.format,
+      registered: report.ledger.registeredTools.length,
+    }
+  })
+  check(
+    "?perf=1 profiles host tool calls into spans with payload accounting",
+    perf !== null &&
+      perf.spanCount >= 2 &&
+      perf.tools.includes("describe_project") &&
+      perf.bytesOk &&
+      perf.format === "webmcp-perf-report/1" &&
+      perf.registered === EXPECTED_TOOLS.length,
+    JSON.stringify(perf)
+  )
+  await perfCtx.close()
 
   await browser.close()
 } catch (error) {

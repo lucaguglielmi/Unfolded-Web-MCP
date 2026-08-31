@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { installGlobalFeedback } from '@/lib/feedback'
+import { maybeAttachProfiler } from '@/profiler/attach'
 import { startAgentContinuity } from '@/mcp/agentContinuity'
 import { loadPersistedProject, startProjectPersistence } from '@/store/persistence'
 import { startLiveSync } from '@/store/syncClient'
@@ -13,6 +14,9 @@ import { applyShareLinkFromLocation, startShareLinkSync } from '@/store/urlSync'
 // tracks the design live and every change is persisted for reloads. Live
 // sync connects last (a paired tab's session state outranks both) and is a
 // no-op unless this tab has been paired.
+// Profiler first (?perf=1 / off by default): it must wrap the modelContext
+// registry BEFORE tool registration starts polling for a host.
+maybeAttachProfiler()
 loadPersistedProject()
 applyShareLinkFromLocation()
 startShareLinkSync()

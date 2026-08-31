@@ -20,7 +20,7 @@ parts no `console.time` inside the page can see:
 | segment | typical cost | owned by |
 | --- | --- | --- |
 | tool `execute()` — page compute | 1–15 ms | the site |
-| result payload → model context | scales with bytes (ours: ~800 B text, ~130 KB for the preview image) | both — the site chooses the size, the host pays the serialization, the model pays the tokens |
+| result payload → model context | scales with bytes (ours: ~800 B text; the preview image was ~130 KB as a 480 px PNG, now ~7 KB as a 320 px JPEG) | both — the site chooses the size, the host pays the serialization, the model pays the tokens |
 | host scheduling + bridge overhead | unknown — invisible from inside the page alone | the host |
 | model round trip per tool call | seconds | the platform |
 | tool registration after host injection | up to one poll heartbeat (this app: ≤ 3 s, once) | the site |
@@ -305,9 +305,18 @@ overlay are both views over this same document.
 
 1. `npm run perf` (shipped) — Playwright bench of every tool, the
    numbers in §1.
-2. Extract the in-page interceptor + collector and run it on
-   tryunfolded.com behind `?perf=1`; ship the console API.
-3. Overlay + BroadcastChannel relay (profile the ChatGPT hidden browser
-   from a visible tab — the scenario that motivated all of this).
+2. (shipped) In-page interceptor + collector + console API, live on
+   tryunfolded.com behind `?perf=1` — `src/profiler/`, deliberately free
+   of app imports so it lifts out unchanged.
+3. (shipped) Overlay (`?perf=overlay` or `__webmcpPerf.overlay()`) +
+   BroadcastChannel relay: a visible same-origin tab renders spans from
+   a hidden agent tab. Note: ChatGPT's hidden and in-app browsers are
+   separate browsing contexts, so BroadcastChannel may not bridge them —
+   the WebSocket relay (§7) remains the answer there.
 4. Split out as the standalone `webmcp-profiler` package; this site
    becomes its first consumer instead of its host.
+
+Shipped alongside step 2: the first finding acted on —
+`get_preview_image` went from a 480 px PNG (~130 KB ≈ 32 K tokens per
+call) to a 320 px JPEG (~7 KB ≈ 1.7 K tokens), a 19× cut in the single
+largest site-owned cost in the agent loop.
