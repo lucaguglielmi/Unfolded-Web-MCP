@@ -69,7 +69,7 @@ export default function App() {
           <div className="flex shrink-0 items-center gap-1.5">
             <a
               href="/why"
-              className="text-muted-foreground hover:text-foreground px-1.5 text-xs font-medium whitespace-nowrap transition-colors"
+              className="px-1.5 text-xs font-medium whitespace-nowrap text-[#0A5BFF] underline-offset-4 transition-colors hover:underline"
             >
               {/* phones get the short label — the pill needs the room */}
               <span className="sm:hidden">Why</span>
