@@ -52,7 +52,7 @@ export default function App() {
   const path = window.location.pathname.replace(/\/+$/, "")
   if (path === "/webmcp" || path === "/why") {
     return (
-      <Suspense fallback={<div className="min-h-dvh bg-white" />}>
+      <Suspense fallback={<div className="bg-background min-h-dvh" />}>
         {path === "/webmcp" ? <WebMCPPage /> : <WhyPage />}
       </Suspense>
     )
