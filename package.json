@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "e2e": "node e2e/run.mjs",
     "e2e:worker": "node e2e/worker-smoke.mjs",
-    "e2e:pairing": "node e2e/pairing.mjs"
+    "e2e:pairing": "node e2e/pairing.mjs",
+    "perf": "node e2e/perf.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",
