@@ -47,7 +47,8 @@ export class PairingDO extends DurableObject<Env> {
       if (typeof sid !== "string" || sid.length === 0) {
         return Response.json({ ok: false }, { status: 400 })
       }
-      const minted = core.mint(sid, Date.now())
+      const minted =
+        body.kind === "token" ? core.mintToken(sid, Date.now()) : core.mint(sid, Date.now())
       await this.persist(core)
       return Response.json({ ok: true, ...minted })
     }

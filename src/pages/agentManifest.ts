@@ -16,7 +16,7 @@ import {
   PAPERS,
 } from "@/lib/export/svg"
 import { SESSION_STORAGE_KEY, SYNC_PROTOCOL_VERSION } from "@/store/syncClient"
-import { CODE_ALPHABET, CODE_LENGTH, CODE_TTL_MS } from "../../worker/pairingCore"
+import { CODE_ALPHABET, CODE_LENGTH, CODE_TTL_MS, TOKEN_TTL_MS } from "../../worker/pairingCore"
 
 /**
  * The machine manifest rendered on /webmcp's "I am not human" view — one
@@ -111,6 +111,13 @@ export function buildAgentManifest(): Record<string, unknown> {
         ttlMs: CODE_TTL_MS,
         singleUse: true,
         miss: "unknown, expired, and already-used codes are indistinguishable by design",
+      },
+      joinToken: {
+        what: "the URL-borne sibling of a code: while an agent drives this tab, every shareUrl in your tool results carries ?join=<single-use token> — the tab that opens it silently follows YOUR session (both ways) and strips the parameter. Hand your latest shareUrl to the potter and their visible browser stays live with you.",
+        regex: "^[A-Za-z0-9_-]{20,64}$",
+        ttlMs: TOKEN_TTL_MS,
+        singleUse: true,
+        privacyRule: "no URL ever carries a durable capability — at most this single-use, short-lived claim ticket, dead after its first open; the printed PDF QR stays parameter-only",
       },
       transport: {
         endpoint: "wss://<origin>/api/session/{sid}/ws",

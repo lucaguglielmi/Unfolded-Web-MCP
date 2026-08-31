@@ -126,24 +126,29 @@ export class SessionDO extends DurableObject<Env> {
         await this.persist()
         return
       }
-      case "mint_code": {
+      case "mint_code":
+      case "mint_token": {
         ws.serializeAttachment(attachment)
         const sid = this.ctx.id.name
         if (!sid) {
           this.send(ws, { kind: "error", code: "unaddressable", message: "session has no name" })
           return
         }
+        const wantToken = msg.kind === "mint_token"
         const stub = this.env.PAIRING.get(this.env.PAIRING.idFromName("global"))
         const response = await stub.fetch("https://pairing/mint", {
           method: "POST",
-          body: JSON.stringify({ sid }),
+          body: JSON.stringify({ sid, kind: wantToken ? "token" : "code" }),
         })
         if (!response.ok) {
-          this.send(ws, { kind: "error", code: "mint_failed", message: "could not mint a code" })
+          this.send(ws, { kind: "error", code: "mint_failed", message: "could not mint" })
           return
         }
         const minted: unknown = await response.json()
-        this.send(ws, { kind: "code", ...(minted as Record<string, unknown>) })
+        this.send(ws, {
+          kind: wantToken ? "token" : "code",
+          ...(minted as Record<string, unknown>),
+        })
         return
       }
       case "bye": {

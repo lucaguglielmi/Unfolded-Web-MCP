@@ -187,6 +187,13 @@ export interface ShareUrlOptions {
   /** preferred display unit to carry on the link (default "cm") */
   unit?: Unit
   /**
+   * Attach a single-use live-session join token (?join=…). The opening tab
+   * claims it, follows the session, and strips the parameter; a claimed or
+   * expired token degrades to a plain design link. Never the session id —
+   * see docs/live-sync-spec.md v3 for the amended privacy rule.
+   */
+  joinToken?: string
+  /**
    * Tag the link as minted by an agent session (?via=chatgpt). A tab that
    * opens such a link shows "Connected via ChatGPT" — the explicit signal
    * that this design is open in the conversation's internal browser.
@@ -204,6 +211,7 @@ export function shareUrl(
 ): string {
   const params = buildShareParams(form, clay, paperSize, opts.unit ?? "cm")
   if (opts.viaChatGpt) params.set("via", "chatgpt")
+  if (opts.joinToken) params.set("join", opts.joinToken)
   const qs = params.toString()
   // via globalThis so this module also compiles for the sync Worker,
   // which has no DOM lib (and no window — it takes the relative branch)

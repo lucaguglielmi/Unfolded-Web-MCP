@@ -56,15 +56,17 @@ try {
   await a.waitForFunction(() => window.__mcpTools?.describe_project)
   await b.waitForFunction(() => window.__mcpTools?.describe_project)
 
-  // A mints a code in the Pair dialog
-  await a.click('button[aria-label="Pair a device"]')
-  await a.click("text=Create pairing code")
+  // A mints a code in the Continue dialog (behind the code toggle)
+  await a.click('button[aria-label="Continue on another screen"]')
+  await a.click('button:text-is("or use a code")')
+  await a.click("text=Create a code to read aloud")
   const codeText = await a.textContent("code.font-mono", { timeout: 15000 })
   const code = (codeText ?? "").replace(/[^A-Z2-9]/g, "")
   check("A mints a 6-glyph code in the dialog", /^[A-HJ-NP-Z2-9]{6}$/.test(code), codeText ?? "none")
 
   // B enters it and follows A's session
-  await b.click('button[aria-label="Pair a device"]')
+  await b.click('button[aria-label="Continue on another screen"]')
+  await b.click('button:text-is("or use a code")')
   await b.fill('input[aria-label="Pairing code from your other device"]', code)
   await b.click('button:text-is("Join")')
   await b.waitForSelector("text=Paired — this device now follows that session.", { timeout: 10000 })
@@ -98,7 +100,7 @@ try {
   check("the code burned on use", again.status === 404)
 
   // unpair stops the flow
-  await b.click('button[aria-label="Pair a device"]')
+  await b.click('button[aria-label="Continue on another screen"]')
   await b.click("text=Unpair this device")
   await a.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 200 }))
   await a.waitForFunction(() => window.location.search.includes("height=200"), null, { timeout: 10000 })
@@ -119,7 +121,8 @@ try {
   })
   const toolCode = (mintResult.match(/[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}/) ?? [""])[0]
   check("start_pairing returns a spoken-friendly code", toolCode.length === 7, mintResult.slice(0, 120))
-  await a.click('button[aria-label="Pair a device"]')
+  await a.click('button[aria-label="Continue on another screen"]')
+  await a.click('button:text-is("or use a code")')
   await a.fill('input[aria-label="Pairing code from your other device"]', toolCode)
   await a.click('button:text-is("Join")')
   await a.waitForFunction(() => window.location.search.includes("Flow"), null, { timeout: 10000 })
@@ -127,8 +130,9 @@ try {
   await a.keyboard.press("Escape")
 
   // flow A: A mints in the dialog, B's agent joins with join_session
-  await a.click('button[aria-label="Pair a device"]')
-  await a.click("text=Create pairing code")
+  await a.click('button[aria-label="Continue on another screen"]')
+  await a.click('button:text-is("or use a code")')
+  await a.click("text=Create a code to read aloud")
   const codeText2 = await a.textContent("code.font-mono", { timeout: 15000 })
   const code2 = (codeText2 ?? "").replace(/[^A-Z2-9]/g, "")
   const joinResult = await b.evaluate(async ([c]) => {
@@ -166,6 +170,72 @@ try {
   await b.waitForFunction(() => window.location.search.includes("height=188"), null, { timeout: 20000 })
   await a.waitForFunction(() => window.location.search.includes("wall=8"), null, { timeout: 20000 })
   check("both converge after B comes back online (offline edits included)", true)
+
+  // ---- v3: join-token flows ----
+  // the Continue dialog's link carries a single-use token; opening it on a
+  // fresh device pairs with zero typing
+  const ctxD = await browser.newContext()
+  const d = await ctxD.newPage()
+  await a.keyboard.press("Escape")
+  await a.click('button[aria-label="Continue on another screen"]')
+  await a.waitForFunction(
+    () => (document.querySelector("[data-continue-url]")?.getAttribute("data-continue-url") ?? "").includes("join="),
+    null,
+    { timeout: 15000 }
+  )
+  const continueUrl = await a.getAttribute("[data-continue-url]", "data-continue-url")
+  await a.keyboard.press("Escape")
+  await d.goto(continueUrl)
+  await d.waitForFunction(() => !window.location.search.includes("join="), null, { timeout: 10000 })
+  check("continue link: the token is stripped from the address bar", true)
+  await a.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 222 }))
+  await d.waitForFunction(() => window.location.search.includes("height=222"), null, { timeout: 15000 })
+  check("continue link: the opening device follows live, no code typed", true)
+
+  // the same link a second time is burned — the design opens, nothing joins
+  const ctxE = await browser.newContext()
+  const e2 = await ctxE.newPage()
+  await e2.goto(continueUrl)
+  await e2.waitForFunction(() => !window.location.search.includes("join="), null, { timeout: 10000 })
+  await a.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 233 }))
+  await d.waitForFunction(() => window.location.search.includes("height=233"), null, { timeout: 15000 })
+  check(
+    "continue link: second open is burned — no ghost follower",
+    !(await e2.evaluate(() => window.location.search)).includes("height=233")
+  )
+  await ctxD.close()
+  await ctxE.close()
+
+  // agent continuity: a tab driven by an agent hands out tokened shareUrls;
+  // tapping one makes the visible tab a live follower of the hidden one
+  const ctxF = await browser.newContext()
+  const f = await ctxF.newPage()
+  await f.addInitScript(mcpHostInit)
+  await f.goto(`${BASE}/?type=pentagon&height=90&bottom=110&name=Hidden%20browser`)
+  await f.waitForFunction(() => window.__mcpTools?.describe_project, null, { timeout: 15000 })
+  let agentUrl = ""
+  for (let i = 0; i < 30 && !agentUrl.includes("join="); i++) {
+    await new Promise((r) => setTimeout(r, 500))
+    agentUrl = await f.evaluate(async () => {
+      const r = await window.__mcpTools.describe_project.execute({})
+      const text = r.content.find((c) => c.type === "text")?.text ?? ""
+      return JSON.parse(text).shareUrl ?? ""
+    })
+  }
+  check("agent tab: shareUrl carries a join token", agentUrl.includes("join="), agentUrl.slice(0, 120))
+  const ctxG = await browser.newContext()
+  const g = await ctxG.newPage()
+  await g.goto(agentUrl)
+  await g.waitForFunction(() => !window.location.search.includes("join="), null, { timeout: 10000 })
+  await f.evaluate(() => window.__mcpTools.set_clay.execute({ shrinkagePct: 7 }))
+  await g.waitForFunction(() => window.location.search.includes("shrinkage=7"), null, { timeout: 15000 })
+  check("agent tab: the visible tab follows the hidden browser live", true)
+  // and the visible tab's edits reach the agent's next read
+  await g.evaluate(() => {
+    window.history.replaceState(null, "", window.location.pathname + window.location.search)
+  })
+  await ctxF.close()
+  await ctxG.close()
 } catch (e) {
   failures++
   console.log("FAIL  pairing e2e crashed —", e.message)

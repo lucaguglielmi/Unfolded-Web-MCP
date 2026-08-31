@@ -498,9 +498,13 @@ item order (§14).
 
 ---
 
-# v3 plan — "Continue on another screen" (draft, awaiting go)
+# v3 plan — "Continue on another screen"
 
-Status: **proposal — not started.** Reframes pairing around the realization
+Status: **implemented** (owner said go, all three recommendations taken:
+tokens on all agent shareUrls, QR-first dialog with the code collapsed,
+10-minute token TTL). One addition the e2e forced: the Continue dialog
+never reuses an invite across opens — the tab may have joined a different
+session in between, and a cached link would point at the one it left. Reframes pairing around the realization
 that codes are the fallback, not the flow, and solves the ChatGPT
 two-browser problem (the agent's WebMCP runs in a hidden internal browser;
 the tab the person actually looks at is a separate, dead snapshot).

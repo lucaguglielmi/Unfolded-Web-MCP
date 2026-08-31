@@ -1,5 +1,6 @@
 import { shallow } from "zustand/shallow"
 import { buildShareParams, parseShareParams } from "@/lib/model/shareLink"
+import { liveSync } from "./syncClient"
 import { useProjectStore } from "./useProjectStore"
 
 /**
@@ -17,6 +18,17 @@ export function applyShareLinkFromLocation(): void {
     useProjectStore.setState((state) =>
       state.agentStatus === "native" ? {} : { agentStatus: "chatgpt" }
     )
+  }
+  // A ?join= token is a single-use invitation to follow a live session
+  // (e.g. the agent's hidden ChatGPT browser). Claim it silently and strip
+  // it from the address bar either way — a burned or expired token just
+  // leaves the plain design link, which already opened above.
+  const joinToken = new URLSearchParams(search).get("join")
+  if (joinToken) {
+    const url = new URL(window.location.href)
+    url.searchParams.delete("join")
+    window.history.replaceState(null, "", url.toString())
+    void liveSync.joinWithCode(joinToken)
   }
 }
 

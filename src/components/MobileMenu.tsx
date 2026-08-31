@@ -67,7 +67,7 @@ export function MobileMenu() {
               }}
             >
               <MonitorSmartphone className="text-muted-foreground size-4" />
-              Pair a device
+              Continue on desktop
             </button>
             <button
               type="button"

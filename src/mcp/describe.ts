@@ -10,6 +10,7 @@ import {
 import { countPages, layoutPieces, PAGE_OVERLAP_MM, type PaperSize } from "@/lib/export/svg"
 import { shareUrl } from "@/lib/model/shareLink"
 import type { Unit } from "@/lib/units"
+import { takeJoinToken } from "./agentContinuity"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -43,11 +44,15 @@ export function describeState(): {
     clay,
     paperSize,
     units: unit,
-    // agent snapshots tag the link so a tab that opens it can show it is
-    // connected through the agent's session (see AgentStatus)
+    // agent snapshots tag the link (?via=chatgpt) so an opening tab knows
+    // it came through the agent's session — and carry a single-use join
+    // token, so tapping it makes the visible tab a LIVE follower of this
+    // (possibly hidden) one. Null token = plain link; the next result
+    // carries a fresh one.
     shareUrl: shareUrl(form, clay, paperSize, {
       unit,
       viaChatGpt: useProjectStore.getState().agentStatus === "native",
+      joinToken: takeJoinToken() ?? undefined,
     }),
     capacityMl: capacityMl(form, clay),
     pieces: pieces.map((p) => describePiece(p, scale, unit)),

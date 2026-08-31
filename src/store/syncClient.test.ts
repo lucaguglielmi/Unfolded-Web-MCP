@@ -340,6 +340,17 @@ describe("pairing operations", () => {
     await expect(minted).resolves.toEqual({ code: "K7F3QP", expiresAt: 999_999 })
   })
 
+  it("mintToken() resolves the server's URL join token", async () => {
+    client.start()
+    socket.open()
+    const minted = client.mintToken()
+    socket.receive({ kind: "welcome", state: slice(store), version: 1, peers: 1 })
+    await Promise.resolve()
+    expect(socket.sentOfKind("mint_token")).toHaveLength(1)
+    socket.receive({ kind: "token", token: "u".repeat(32), expiresAt: 999_999 })
+    await expect(minted).resolves.toEqual({ token: "u".repeat(32), expiresAt: 999_999 })
+  })
+
   it("joinWithCode() claims, follows the new session, and reports misses", async () => {
     const records: Record<string, string> = {}
     const sockets: FakeSocket[] = []

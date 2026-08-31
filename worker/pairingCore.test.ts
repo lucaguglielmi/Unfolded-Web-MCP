@@ -4,6 +4,7 @@ import {
   normalizeCode,
   CODE_ALPHABET,
   CODE_TTL_MS,
+  TOKEN_TTL_MS,
   PairingCore,
 } from "./pairingCore"
 
@@ -89,6 +90,30 @@ describe("PairingCore", () => {
     const { code } = core.mint(SID, 0)
     const revived = new PairingCore(core.snapshot())
     expect(revived.claim(code, "ip", 1)).toEqual({ ok: true, sid: SID })
+  })
+
+  it("mints URL-safe join tokens with the longer TTL, claimable once", () => {
+    const core = new PairingCore()
+    const { token, expiresAt } = core.mintToken(SID, 1_000)
+    expect(token).toMatch(/^[A-Za-z0-9_-]{20,64}$/)
+    expect(expiresAt).toBe(1_000 + TOKEN_TTL_MS)
+    expect(core.claim(token, "ip", 2_000)).toEqual({ ok: true, sid: SID })
+    expect(core.claim(token, "ip2", 2_001)).toEqual({ ok: false, reason: "invalid" })
+  })
+
+  it("tokens expire after their own TTL", () => {
+    const core = new PairingCore()
+    const { token } = core.mintToken(SID, 0)
+    expect(core.claim(token, "ip", TOKEN_TTL_MS)).toEqual({ ok: false, reason: "invalid" })
+  })
+
+  it("tokens and codes share one table and survive a snapshot", () => {
+    const core = new PairingCore()
+    const { code } = core.mint(SID, 0)
+    const { token } = core.mintToken("t".repeat(22), 0)
+    const revived = new PairingCore(core.snapshot())
+    expect(revived.claim(code, "ip", 1)).toEqual({ ok: true, sid: SID })
+    expect(revived.claim(token, "ip", 2)).toEqual({ ok: true, sid: "t".repeat(22) })
   })
 
   it("never mints a colliding code", () => {

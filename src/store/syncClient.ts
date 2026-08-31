@@ -115,6 +115,8 @@ export interface SyncClient {
   pair(): void
   /** mint a pairing code for this tab's session — pairs first if needed */
   mintCode(): Promise<{ code: string; expiresAt: number } | null>
+  /** mint a single-use URL join token (codes' URL-borne sibling, longer TTL) */
+  mintToken(): Promise<{ token: string; expiresAt: number } | null>
   /** claim a code from another device; on success this tab follows that session */
   joinWithCode(rawCode: string): Promise<{ ok: true } | { ok: false; retryable: boolean }>
   /** leave the session and forget it on this device */
@@ -187,6 +189,7 @@ export function createSyncClient({
   let removeWakeListeners: (() => void) | undefined
   const listeners = new Set<() => void>()
   let pendingMint: ((code: { code: string; expiresAt: number } | null) => void) | null = null
+  let pendingToken: ((token: { token: string; expiresAt: number } | null) => void) | null = null
 
   const notify = () => {
     for (const l of listeners) l()
@@ -355,6 +358,13 @@ export function createSyncClient({
         }
         break
       }
+      case "token": {
+        if (pendingToken && typeof msg.token === "string" && typeof msg.expiresAt === "number") {
+          pendingToken({ token: msg.token, expiresAt: msg.expiresAt })
+          pendingToken = null
+        }
+        break
+      }
       default:
       // unknown kinds are ignored — same forgiving posture as share links
     }
@@ -459,6 +469,8 @@ export function createSyncClient({
     removeWakeListeners = undefined
     pendingMint?.(null)
     pendingMint = null
+    pendingToken?.(null)
+    pendingToken = null
     const s = socket
     socket = null
     setStatus("off")
@@ -525,6 +537,23 @@ export function createSyncClient({
     })
   }
 
+  /** mint a URL-borne join token for this tab's session — pairs first if needed */
+  const mintToken = async (): Promise<{ token: string; expiresAt: number } | null> => {
+    pair()
+    if (!(await whenSyncing(8_000))) return null
+    return new Promise((resolve) => {
+      pendingToken?.(null)
+      pendingToken = resolve
+      send({ kind: "mint_token" })
+      setTimeout(() => {
+        if (pendingToken === resolve) {
+          pendingToken = null
+          resolve(null)
+        }
+      }, 8_000)
+    })
+  }
+
   const joinWithCode = async (
     rawCode: string
   ): Promise<{ ok: true } | { ok: false; retryable: boolean }> => {
@@ -555,6 +584,7 @@ export function createSyncClient({
     isPaired: () => storedSid() !== null,
     pair,
     mintCode,
+    mintToken,
     joinWithCode,
     unpair,
     subscribe: (listener) => {
