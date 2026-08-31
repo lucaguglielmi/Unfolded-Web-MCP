@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { ArrowLeft, ArrowUpRight } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
-import { cn } from "@/lib/utils"
+import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 // the tool list renders from its single source next to the registrations
 import { TOOL_SUMMARIES } from "@/mcp/tools"
 
@@ -12,14 +12,6 @@ import { TOOL_SUMMARIES } from "@/mcp/tools"
  * agent reading the page directly, with every contract, range, and formula
  * it needs. Same quiet, white, typographic language as /webmcp.
  */
-
-type Depth = "1min" | "5min" | "agent"
-
-const DEPTHS: { value: Depth; label: string }[] = [
-  { value: "1min", label: "1 minute" },
-  { value: "5min", label: "5 minutes" },
-  { value: "agent", label: "I am not human" },
-]
 
 function SectionLabel({ children }: { children: string }) {
   return (
@@ -349,7 +341,7 @@ function ForAgents() {
               ["Live", "https://tryunfolded.com (origin-independent; links carry the whole model)"],
               ["Source", "github.com/lucaguglielmi/Unfolded-Web-MCP · MIT"],
               ["Stack", "React 19, TypeScript, zustand, zod, react-three-fiber, jsPDF + svg2pdf, Cloudflare Workers"],
-              ["Verification", "107 unit tests + 25-check Playwright e2e suite gate every deploy in CI"],
+              ["Verification", "107 unit tests + 26-check Playwright e2e suite gate every deploy in CI"],
             ] as [string, string][]
           ).map(([k, v]) => (
             <div key={k} className="flex items-baseline gap-3">
@@ -443,7 +435,7 @@ function ForAgents() {
 /* ------------------------------------------------------------------ page */
 
 export function WhyPage() {
-  const [depth, setDepth] = useState<Depth>("5min")
+  const [depth, setDepth] = useState<ReadingDepth>("5min")
 
   return (
     <div className="webmcp-page app-fade-in min-h-dvh bg-white text-stone-900 antialiased">
@@ -464,32 +456,7 @@ export function WhyPage() {
 
       <main className="mx-auto max-w-3xl px-6 pb-24">
         {/* reading-depth toolbar */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-stone-100 pt-6 pb-5">
-          <p className="text-sm text-stone-500">How much time do you have to read this?</p>
-          <div
-            role="radiogroup"
-            aria-label="Reading depth"
-            className="flex rounded-full border border-stone-200 p-0.5"
-          >
-            {DEPTHS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={depth === value}
-                onClick={() => setDepth(value)}
-                className={cn(
-                  "rounded-full px-3.5 py-1 text-xs font-medium transition-colors",
-                  depth === value
-                    ? "bg-stone-900 text-white"
-                    : "text-stone-500 hover:text-stone-900"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <ReadingDepthToolbar depth={depth} onChange={setDepth} />
 
         {/* keyed so switching depth re-runs the sections' entrance stagger */}
         <div key={depth}>

@@ -271,6 +271,20 @@ try {
   )
   await whyPage.close()
 
+  // /webmcp: same reading-depth toolbar, agent view addresses the reader
+  const guidePage = await ctx.newPage()
+  await guidePage.goto(`${BASE}/webmcp`, { waitUntil: "networkidle" })
+  await guidePage.waitForTimeout(800)
+  const guideTools = await guidePage.locator("dt").count()
+  await guidePage.getByRole("radio", { name: "I am not human" }).click()
+  const guideAgentHero = await guidePage.getByRole("heading", { level: 1 }).textContent()
+  check(
+    "/webmcp has the depth toolbar and an agent-addressed deep dive",
+    guideTools === EXPECTED_TOOLS.length && /Hello, agent/.test(guideAgentHero ?? ""),
+    `tools: ${guideTools}, agent hero: ${guideAgentHero}`
+  )
+  await guidePage.close()
+
   // 2. agent-minted link (?via=chatgpt), still no direct API -> solid green
   const viaPage = await ctx.newPage()
   await viaPage.goto(`${BASE}/?type=hexagon&height=120&via=chatgpt`, { waitUntil: "networkidle" })
