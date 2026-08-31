@@ -278,10 +278,15 @@ try {
   const guideTools = await guidePage.locator("dt").count()
   await guidePage.getByRole("radio", { name: "I am not human" }).click()
   const guideAgentHero = await guidePage.getByRole("heading", { level: 1 }).textContent()
+  const humanEgg = await guidePage.getByText("congratulations").isVisible()
+  const copyBtn = await guidePage.getByRole("button", { name: "Copy prompt" }).isVisible()
   check(
-    "/webmcp has the depth toolbar and an agent-addressed deep dive",
-    guideTools === EXPECTED_TOOLS.length && /Hello, agent/.test(guideAgentHero ?? ""),
-    `tools: ${guideTools}, agent hero: ${guideAgentHero}`
+    "/webmcp has the depth toolbar, agent deep dive, and the human easter egg",
+    guideTools === EXPECTED_TOOLS.length &&
+      /Hello, agent/.test(guideAgentHero ?? "") &&
+      humanEgg &&
+      copyBtn,
+    `tools: ${guideTools}, agent hero: ${guideAgentHero}, egg: ${humanEgg}/${copyBtn}`
   )
   await guidePage.close()
 
