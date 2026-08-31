@@ -1,0 +1,302 @@
+import { shallow } from "zustand/shallow"
+import type { SharePatches } from "@/lib/model/shareLink"
+import { applyClayPatch, applyFormPatch } from "@/lib/model/applyPatch"
+import { PAPERS, type PaperSize } from "@/lib/export/svg"
+import { isUnit, type Unit } from "@/lib/units"
+import type { ClaySettings, FormParams } from "@/lib/model/schemas"
+import { useProjectStore, type ProjectStore } from "./useProjectStore"
+
+/**
+ * Live-sync client core (docs/live-sync-spec.md §7, work item 3): keeps a
+ * paired tab's design slice converged with its session's Durable Object
+ * over a WebSocket. Wire shape for every state change is SharePatches —
+ * the exact contract share links already speak — applied through the same
+ * validated `openModel` path, so a peer's edit is one undoable step and
+ * can never smuggle out-of-contract values into the store.
+ *
+ * This module is inert until the tab is paired: without a stored session
+ * (`unfolded:session:v1`) start() does nothing, and the app is exactly the
+ * offline app. Pairing UI/tools (spec items 5-7) create that record;
+ * reconnect backoff and the offline queue arrive with item 9.
+ */
+
+/** localStorage record for a paired tab — a NEW key; the frozen existing keys are untouched */
+export const SESSION_STORAGE_KEY = "unfolded:session:v1"
+
+export const SYNC_PROTOCOL_VERSION = 1
+/** trailing debounce before a local edit is diffed and sent */
+const SEND_DEBOUNCE_MS = 250
+
+/** the synced design slice — exactly what persistence.ts persists */
+export interface DesignSlice {
+  form: FormParams
+  clay: ClaySettings
+  paperSize: PaperSize
+  unit: Unit
+}
+
+/**
+ * Changed fields of `next` relative to `prev`, as SharePatches — null when
+ * nothing differs. Field-level, so two devices editing different knobs in
+ * the same instant both win (per-field LWW, spec §7.3).
+ */
+export function diffDesign(prev: DesignSlice, next: DesignSlice): SharePatches | null {
+  const out: SharePatches = {}
+  const form: Record<string, unknown> = {}
+  for (const k of Object.keys(next.form) as (keyof FormParams)[]) {
+    if (next.form[k] !== prev.form[k]) form[k] = next.form[k]
+  }
+  if (Object.keys(form).length > 0) out.form = form
+  const clay: Record<string, unknown> = {}
+  for (const k of Object.keys(next.clay) as (keyof ClaySettings)[]) {
+    if (next.clay[k] !== prev.clay[k]) clay[k] = next.clay[k]
+  }
+  if (Object.keys(clay).length > 0) out.clay = clay
+  if (next.paperSize !== prev.paperSize) out.paperSize = next.paperSize
+  if (next.unit !== prev.unit) out.unit = next.unit
+  return Object.keys(out).length > 0 ? out : null
+}
+
+/**
+ * Forgiving parse of a peer's (or the server's) SharePatches — same posture
+ * as share-link parsing: unknown keys ignored, wrong-typed fields dropped.
+ * Full validation/clamping happens in the store's own actions; this only
+ * keeps obviously-foreign shapes from reaching them.
+ */
+function sanitizePatches(raw: unknown): SharePatches | null {
+  if (typeof raw !== "object" || raw === null) return null
+  const r = raw as Record<string, unknown>
+  const out: SharePatches = {}
+  if (typeof r.form === "object" && r.form !== null) out.form = r.form as SharePatches["form"]
+  if (typeof r.clay === "object" && r.clay !== null) out.clay = r.clay as SharePatches["clay"]
+  if (typeof r.paperSize === "string" && r.paperSize in PAPERS) {
+    out.paperSize = r.paperSize as PaperSize
+  }
+  if (isUnit(r.unit)) out.unit = r.unit
+  return Object.keys(out).length > 0 ? out : null
+}
+
+/** the subset of WebSocket the client uses — injectable for tests */
+export interface SocketLike {
+  send(data: string): void
+  close(): void
+  onopen: (() => void) | null
+  onmessage: ((ev: { data: unknown }) => void) | null
+  onclose: (() => void) | null
+  onerror: (() => void) | null
+}
+
+export type SyncStatus = "off" | "connecting" | "syncing"
+
+export interface SyncClientDeps {
+  store?: ProjectStore
+  storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">
+  /** open a socket to the session — default: wss to /api/session/:sid/ws */
+  createSocket?: (sid: string) => SocketLike
+  randomId?: () => string
+}
+
+export interface SyncClient {
+  /** connect if this tab has a stored session; no-op otherwise */
+  start(): void
+  /** disconnect and go inert (the stored session, if any, is kept) */
+  stop(): void
+  status(): SyncStatus
+  /** peers currently in the session, as last reported by the server (self included) */
+  peers(): number
+}
+
+function defaultSocket(sid: string): SocketLike {
+  const proto = window.location.protocol === "https:" ? "wss" : "ws"
+  // a real WebSocket satisfies SocketLike at runtime; the cast only papers
+  // over the DOM lib's event-object parameter types being wider than ours
+  return new WebSocket(`${proto}://${window.location.host}/api/session/${sid}/ws`) as unknown as SocketLike
+}
+
+function defaultRandomId(): string {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
+
+export function createSyncClient({
+  store = useProjectStore,
+  storage = typeof window === "undefined" ? undefined : window.localStorage,
+  createSocket = defaultSocket,
+  randomId = defaultRandomId,
+}: SyncClientDeps = {}): SyncClient {
+  const clientId = randomId()
+  let socket: SocketLike | null = null
+  let status: SyncStatus = "off"
+  let peers = 1
+  let version = 0
+  let lastSynced: DesignSlice | null = null
+  let sendTimer: ReturnType<typeof setTimeout> | undefined
+  let unsubscribe: (() => void) | undefined
+
+  const slice = (): DesignSlice => {
+    const { form, clay, paperSize, unit } = store.getState()
+    return { form, clay, paperSize, unit }
+  }
+
+  const send = (msg: Record<string, unknown>) => {
+    try {
+      socket?.send(JSON.stringify(msg))
+    } catch {
+      // a closing socket mid-send — the reconnect path owns recovery
+    }
+  }
+
+  const storedSid = (): string | null => {
+    try {
+      const raw = storage?.getItem(SESSION_STORAGE_KEY)
+      if (!raw) return null
+      const data: unknown = JSON.parse(raw)
+      if (typeof data !== "object" || data === null) return null
+      const sid = (data as Record<string, unknown>).sid
+      return typeof sid === "string" && sid.length > 0 ? sid : null
+    } catch {
+      return null
+    }
+  }
+
+  /** adopt a server snapshot (welcome/resync): apply, then move the diff
+      baseline in the same frame so the publisher sees nothing to send */
+  const adoptServerState = (raw: unknown, newVersion: number) => {
+    const patches = sanitizePatches(raw)
+    try {
+      if (patches) store.getState().openModel(patches)
+    } catch {
+      // an out-of-contract snapshot can't be adopted — keep the local state
+    }
+    lastSynced = slice()
+    version = newVersion
+  }
+
+  const flushLocalEdits = () => {
+    if (!lastSynced || status !== "syncing") return
+    const patches = diffDesign(lastSynced, slice())
+    if (!patches) return
+    send({ kind: "patch", patchId: randomId(), baseVersion: version, patches })
+    lastSynced = slice()
+  }
+
+  const onMessage = (data: unknown) => {
+    let msg: Record<string, unknown>
+    try {
+      const parsed: unknown = JSON.parse(String(data))
+      if (typeof parsed !== "object" || parsed === null) return
+      msg = parsed as Record<string, unknown>
+    } catch {
+      return
+    }
+    switch (msg.kind) {
+      case "welcome":
+      case "resync": {
+        status = "syncing"
+        if (typeof msg.peers === "number") peers = msg.peers
+        adoptServerState(msg.state, typeof msg.version === "number" ? msg.version : 0)
+        // edits made while the snapshot was in flight still go out
+        flushLocalEdits()
+        break
+      }
+      case "patch": {
+        if (msg.clientId === clientId) break // own echo
+        const newVersion = typeof msg.version === "number" ? msg.version : version + 1
+        if (newVersion > version + 1) {
+          // missed a broadcast — a fresh hello makes the server re-welcome
+          // this client with a full snapshot
+          send({ kind: "hello", protocolVersion: SYNC_PROTOCOL_VERSION, clientId, actor: "human" })
+          break
+        }
+        const patches = sanitizePatches(msg.patches)
+        if (patches && lastSynced) {
+          try {
+            store.getState().openModel(patches)
+            // Move the baseline by applying the SAME patch to it (through
+            // the shared applyPatch semantics) rather than snapshotting the
+            // store: the store may also hold a not-yet-flushed local edit,
+            // which must keep differing from the baseline so it still goes
+            // out — per-field LWW, both sides win (spec §7.3). For the
+            // no-pending-edit case the two are identical, which is the
+            // echo suppression.
+            lastSynced = {
+              form: patches.form ? applyFormPatch(lastSynced.form, patches.form) : lastSynced.form,
+              clay: patches.clay ? applyClayPatch(lastSynced.clay, patches.clay) : lastSynced.clay,
+              paperSize: patches.paperSize ?? lastSynced.paperSize,
+              unit: patches.unit ?? lastSynced.unit,
+            }
+          } catch {
+            // out-of-contract values from a peer — patch ignored whole; the
+            // version still advances and any real divergence heals on the
+            // next gap-triggered resync
+          }
+        }
+        version = newVersion
+        break
+      }
+      case "presence": {
+        if (typeof msg.peers === "number") peers = msg.peers
+        break
+      }
+      default:
+      // unknown kinds are ignored — same forgiving posture as share links
+    }
+  }
+
+  const start = () => {
+    const sid = storedSid()
+    if (!sid || socket) return
+    let s: SocketLike
+    try {
+      s = createSocket(sid)
+    } catch {
+      return // no /api in this deployment — the app stays the offline app
+    }
+    socket = s
+    status = "connecting"
+    s.onopen = () => {
+      send({ kind: "hello", protocolVersion: SYNC_PROTOCOL_VERSION, clientId, actor: "human" })
+    }
+    s.onmessage = (ev) => onMessage(ev.data)
+    s.onclose = () => {
+      if (socket === s) stop() // reconnect/backoff arrives with spec item 9
+    }
+    s.onerror = () => {
+      /* onclose follows and owns teardown */
+    }
+
+    unsubscribe = store.subscribe(
+      (st) => [st.form, st.clay, st.paperSize, st.unit] as const,
+      () => {
+        clearTimeout(sendTimer)
+        sendTimer = setTimeout(flushLocalEdits, SEND_DEBOUNCE_MS)
+      },
+      { equalityFn: shallow }
+    )
+  }
+
+  const stop = () => {
+    clearTimeout(sendTimer)
+    unsubscribe?.()
+    unsubscribe = undefined
+    const s = socket
+    socket = null
+    status = "off"
+    peers = 1
+    lastSynced = null
+    try {
+      s?.close()
+    } catch {
+      /* already closed */
+    }
+  }
+
+  return { start, stop, status: () => status, peers: () => peers }
+}
+
+/** App-boot entry point: one shared client, connected only when paired. */
+export const liveSync = createSyncClient()
+
+export function startLiveSync(): void {
+  if (typeof window === "undefined") return
+  liveSync.start()
+}
