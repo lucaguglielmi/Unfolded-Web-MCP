@@ -1,39 +1,46 @@
 # Live Sync Spec v2 — WebSocket session layer with 6-character code pairing
 
-Status: **draft — not started**. Supersedes and replaces the v1 spec (which
-paired devices via a `sid` query parameter on share links). Direction change:
-**pairing happens by relaying a short-lived 6-character code between devices —
-spoken or typed through the agent chat — and the session id never appears in
-any URL.** Nothing here is implemented.
+Status: **draft — not started**. Supersedes the v1 spec (link/QR `sid`
+pairing). Direction: **pairing happens by relaying a short-lived 6-character
+code between devices — spoken or typed through the agent chat — and the
+session id never appears in any URL.** Nothing here is implemented.
 
-**Deadline context:** `docs/refactor-spec.md` freezes features until the WebMCP
-Challenge submission (Sep 3). This entire spec is **post-deadline work**. The
-freeze also covers the WebMCP tool surface; the new tool in §7 lands only
-after it lifts.
+Decisions taken 2026-08-31 (previously open):
+- **Code TTL: 5 minutes.** Confirmed.
+- **Eager session creation.** Minting a code on a never-synced tab creates
+  the session immediately, so the code keeps working even if the minting tab
+  closes before it is claimed.
+- **Agent-minted codes (`start_pairing`) are v1, not stretch** — forced by
+  user flow B (§5.2): without the reverse direction, moving phone-born work
+  to a desktop adopts state the wrong way.
+
+**Deadline context:** `docs/refactor-spec.md` freezes features until the
+WebMCP Challenge submission (Sep 3). This entire spec is **post-deadline
+work**; the tools in §8 change the frozen tool surface and wait for the
+freeze to lift.
 
 ## 1. Problem
 
-WebMCP is tab-scoped: the agent in a phone tab (ChatGPT's internal browser, or
-Chrome with `#enable-webmcp-testing`) mutates that tab's zustand store only.
-All persistence is device-local. Goal: pair a phone and a desktop so that when
-any actor (human or agent, either device) edits the design, every paired tab
-reflects it within ~1 s, bidirectionally — with a pairing gesture that works
-*inside a chat conversation*, where links are broken (tapping a link in
-ChatGPT opens the ordinary in-app browser, a separate session without WebMCP).
+WebMCP is tab-scoped: the agent in a phone tab (ChatGPT's internal browser,
+or Chrome with `#enable-webmcp-testing`) mutates that tab's zustand store
+only. All persistence is device-local. Goal: pair a phone and a desktop so
+that when any actor (human or agent, either device) edits the design, every
+paired tab reflects it within ~1 s, bidirectionally — with a pairing gesture
+that works *inside a chat conversation*, where links are broken (tapping a
+link in ChatGPT opens the ordinary in-app browser, a separate session without
+WebMCP).
 
 ## 2. Non-goals (v1)
 
-- **Accounts or identity.** Pairing proves "this person can read that screen,"
-  nothing more. WebMCP passes no caller identity to the page (by design of the
-  proposal), and "Sign in with ChatGPT" is a partner-beta OAuth product that
+- **Accounts or identity.** Pairing proves "this person can read that
+  screen." WebMCP passes no caller identity to the page (by design of the
+  proposal); "Sign in with ChatGPT" is a partner-beta OAuth product that
   would force accounts into a no-login app. Possession of the code is the
   authentication.
-- **Session ids in URLs.** v1 of this spec put `sid` on share links; that made
-  every synced share link — and any chat transcript holding one — a live edit
-  capability. Dropped entirely: share links stay exactly as inert as today,
-  the printed PDF QR needs no special-casing, and transcripts hold at most a
-  dead 6-character code.
-- **Shared cross-device undo history** (per-tab undo converges, §6.4).
+- **Session ids in URLs.** Share links, the address bar, the printed QR, and
+  agent-returned `shareUrl`s stay exactly as inert as today; a chat
+  transcript holds at most a dead 6-character code.
+- **Shared cross-device undo history** (per-tab undo converges, §7.4).
 - **CRDTs / merging beyond per-field last-write-wins** (a dozen scalars).
 - Syncing anything beyond the design slice `{form, clay, paperSize, unit}`.
 
@@ -52,55 +59,60 @@ phone tab ──ws──▶ ┌────────────────�
 ```
 
 - **`SessionDO`** — one Durable Object per session (`sid`: 128-bit
-  crypto-random, server-known only), canonical design state + monotonic
-  `version`, WebSocket Hibernation API so idle sessions cost nothing.
-- **`PairingDO`** — one well-known singleton (`idFromName("global")`) holding
-  *active pairing codes only*: `code → {sid, expiresAt, attempts}`. Codes are
+  crypto-random, known only to the server and paired clients' localStorage),
+  canonical design state + monotonic `version`, WebSocket Hibernation API so
+  idle sessions cost nothing.
+- **`PairingDO`** — one well-known singleton (`idFromName("global")`)
+  holding *active pairing codes only*: `code → {sid, expiresAt}`. Codes are
   global (a claimer knows only the code), so resolution needs one authority;
-  KV is ruled out (eventual consistency breaks one-time-use).
-- Tabs exchange **patches** whose wire shape is `SharePatches` — the exact
-  shape `parseShareParams` produces and `openModel` consumes. No new model
-  vocabulary; the share-link contract stays the single model contract.
+  KV is ruled out (eventual consistency breaks one-time use).
+- Tabs exchange **patches** whose wire shape is `SharePatches` — exactly what
+  `parseShareParams` produces and `openModel` consumes. No new model
+  vocabulary.
 - **Progressive enhancement:** without `/api/*` (plain `vite dev`, a static
   mirror) the sync module stays off and the app is exactly today's app.
 
-## 4. Pairing by code (the core of v2)
+## 4. Pairing by code
 
 ### 4.1 Code format
 
-- **6 characters** from the 31-glyph alphabet `ABCDEFGHJKMNPQRSTUVWXYZ23456789`
-  (no `I L O 0 1` — nothing ambiguous to read aloud or retype). 31⁶ ≈ 8.9×10⁸.
-- Displayed grouped for reading: `K7F-3QP`. Input is normalized: uppercase,
+- **6 characters** from the 31-glyph alphabet
+  `ABCDEFGHJKMNPQRSTUVWXYZ23456789` (no `I L O 0 1` — nothing ambiguous to
+  read aloud or retype). 31⁶ ≈ 8.9×10⁸.
+- Displayed grouped for reading: `K7F-3QP`. Input normalized: uppercase,
   separators/whitespace stripped.
-- **TTL 5 minutes, single use** (burned on successful claim), minted fresh on
-  every "Pair" click. A code is *only* a pairing ticket — it never identifies
-  the session afterwards.
+- **TTL 5 minutes** (decided), **single use** (burned on successful claim),
+  minted fresh on every request. A code is *only* a pairing ticket — it
+  never identifies the session afterwards.
 
-### 4.2 Primary flow (desktop shows, agent joins)
+### 4.2 The two directions
 
-1. Desktop header → **"Pair a device"** → the tab (already connected to its
-   `SessionDO`, connecting on demand if not) requests a code; the dialog shows
-   `K7F-3QP` with a 5-minute countdown and the copy *"tell your assistant:
-   join my session, code K7F-3QP — anyone who enters this code within 5
-   minutes can edit this design live."*
-2. On the phone — ChatGPT's internal browser or Chrome-with-flag, app open —
-   the user tells the agent: *"join my desktop session, code K7F3QP."*
-3. The agent calls the **`join_session`** tool (§7). The app claims the code,
-   receives the `sid`, connects its WebSocket, and adopts the session's
-   current state (one undoable step). Both tabs show "2 devices".
-4. From then on sync is fully bidirectional (§6); the code is dead.
+Both exist in v1; they share the one rule in §4.3.
 
-The same dialog also offers manual entry ("have a code? enter it") so pairing
-works human-to-human with no agent involved, in either direction.
+- **Screen mints, chat joins** (flow A): desktop header → **"Pair a
+  device"** → the tab requests a code from its `SessionDO` (created eagerly
+  if the tab has none — decided) and shows `K7F-3QP` with a 5-minute
+  countdown and the copy *"tell your assistant: join my session, code
+  K7F-3QP — anyone who enters this code within 5 minutes can edit this
+  design live."* The potter tells the agent on the phone, the agent calls
+  **`join_session`** (§8), the phone joins.
+- **Chat mints, screen joins** (flow B): the potter tells the agent *"give
+  me a code for my desktop"*; the agent calls **`start_pairing`** (§8),
+  which mints eagerly from the phone tab's session and shows the code in the
+  chat reply (and on the phone tab). On the desktop, the same "Pair a
+  device" dialog has an **"enter a code"** field; typing the code makes the
+  desktop join the *phone's* session.
+- The dialog's manual entry also makes both directions work human-to-human
+  with no agent at all.
 
-### 4.3 Join semantics
+### 4.3 Join semantics (one rule)
 
 **The claimer adopts the minted session's state.** Claiming a code means
-"follow that session": the joining tab's current design is replaced by the
-session's state, applied through `openModel` so it is one undo step (nothing
-is lost — undo restores the local design *and*, being a normal edit, syncs
-it back if that's what the potter wanted). After joining, no device is
-special: the mint/claim asymmetry exists only at pairing time.
+"follow that session": the joining tab's design is replaced by the session's
+current state, applied through `openModel` so it is one undo step. This is
+why flow B needs `start_pairing`: when the work lives on the phone, the
+*desktop* must be the claimer. After joining, no device is special; the
+mint/claim asymmetry exists only at pairing time.
 
 ### 4.4 Session persistence & unpairing
 
@@ -110,267 +122,355 @@ special: the mint/claim asymmetry exists only at pairing time.
   code by design.
 - **"Unpair this device"** in the dialog: disconnect + delete the local key.
   Server side, a session with zero connections for **30 days** deletes its
-  storage via alarm.
-- Mint-time note: "Pair a device" on a tab already in a session issues a code
-  for *that* session (n-device pairing falls out for free, capped at 16).
+  storage via alarm (still open, §Open questions).
+- "Pair a device" on a tab already in a session issues a code for *that*
+  session — n-device pairing falls out for free, capped at 16 sockets.
 
 ### 4.5 Abuse resistance (why 6 characters is enough)
 
-30 bits is guessable in the abstract; it is protected by process, not
-entropy: 5-minute TTL, single use, **claim rate limits** (per-IP: 10
-claims/min at the worker; global: PairingDO rejects when >100 claims/s), and
-a per-code attempt counter (a code with 10 failed... n/a — claims name a code;
-a *wrong* code is just a miss, so the limit that matters is per-IP+global).
-With ≤ ~100 codes live at any moment, one guess hits with p ≈ 10⁻⁷; a
-maxed-out attacker inside the rate limit expects centuries per hit, and a hit
-yields edit access to one stranger's mug dimensions for one session. Codes
-are compared constant-time; misses return a uniform error (no oracle for
-"code exists but expired").
+30 bits is protected by process, not entropy: 5-minute TTL, single use,
+claim rate limits (per-IP: 10 claims/min at the worker; global: PairingDO
+rejects when >100 claims/s). A wrong code is a uniform miss — no oracle for
+"exists but expired"; comparison is constant-time. With ≤ ~100 codes live at
+any moment, one guess hits with p ≈ 10⁻⁷; a maxed-out attacker inside the
+limits expects centuries per hit, and a hit yields edit access to one
+stranger's mug dimensions for one session.
 
-## 5. Wire protocol
+## 5. User flows
 
-JSON text frames, `protocolVersion: 1` in `hello`. Unknown kinds/fields are
-ignored (same forgiving posture as share-link parsing).
+The three ways a potter actually arrives, and what each one exercises.
 
-Client → server (SessionDO socket):
+### 5.1 Flow A — starts on the desktop, continues with the agent
 
-| kind | payload | notes |
-|---|---|---|
-| `hello` | `{protocolVersion, clientId, actor}` | `actor`: `"human"` \| `"agent"`; `clientId`: random per-tab, stable across reconnects |
-| `patch` | `{patchId, baseVersion, patches: SharePatches}` | debounced local diff (§6.2) |
-| `mint_code` | `{}` | reply: `code {code, expiresAt}`; registers with PairingDO |
-| `bye` | `{}` | best-effort clean leave on `pagehide` |
+The studio baseline: design at the bench on the big screen, then pick up the
+phone to talk it through. Desktop mints (`Pair a device`), potter dictates
+the code to the agent, agent `join_session`s, phone adopts the desktop's
+design. Every agent edit (*"make it hold 350 ml"*) lands on the desktop
+preview in ~1 s; every desktop slider move is visible to the agent's next
+`describe_project`. Exercises: UI mint, tool claim, adopt-on-join,
+bidirectional patches.
 
-Server → client:
+### 5.2 Flow B — starts with the agent
 
-| kind | payload | notes |
-|---|---|---|
-| `welcome` | `{state, version, peers}` | full snapshot on (re)join |
-| `patch` | `{version, patches, clientId, actor}` | a peer's accepted patch; sender drops its own echo by `clientId` |
-| `resync` | `{state, version}` | on detected gap or request |
-| `presence` | `{peers}` | count + actors, on join/leave |
-| `code` | `{code, expiresAt}` | reply to `mint_code` |
-| `error` | `{code, message}` | terminal errors close the socket |
+The headline WebMCP scenario: the whole design is born in conversation on
+the phone (ChatGPT's internal browser or Chrome-with-flag) — *"a hexagonal
+planter, 18 cm tall"* — and only later does the potter want it big on the
+desktop. Direction matters here: if the desktop minted and the phone joined,
+§4.3 would make the phone adopt the desktop's (default) design and bury the
+conversation's work under an undo step. So the potter asks the agent for a
+code (`start_pairing`), types it into the desktop's "enter a code" field,
+and the *desktop* adopts the phone's design. This flow is why
+`start_pairing` is v1 (decided). Exercises: tool mint, eager session
+creation on the phone tab, UI claim.
 
-HTTP (worker):
+### 5.3 Flow C — starts from the QR on an old printed template
 
-- `POST /api/pair/claim` `{code}` → `{sid}` or uniform failure. The **only**
-  place a `sid` crosses to a client; the client uses it solely to open
-  `GET /api/session/:sid/ws` and to persist `unfolded:session:v1`.
+Weeks or months later, the paper template comes out of the studio drawer for
+a re-run — new clay body, or a customer wants the mug 10% bigger. The potter
+scans the QR printed with the template; the phone's browser opens the app
+with that exact design's parameters (the QR encodes a plain share link —
+parameter-only, origin-absolute at print time, never a session capability).
+From there every path is open: tweak by hand, engage the agent in that tab
+(*"my new clay shrinks 14%, fix my templates"*), or bridge to the desktop
+via flow A or B and export a fresh PDF. Exercises: share-link boot →
+pairing from a link-opened tab; also §6's QR placement change, which makes
+this flow survive the overview page being thrown away.
 
-Versioning is for **gap detection only** (a client seeing
-`version > lastSeen + 1` requests `resync`). Patches are never rejected as
-stale — merging is per-field LWW (§6.3).
+## 6. PDF change: the QR moves into a template piece
 
-## 6. Sync semantics (carried from v1, unchanged in substance)
+Today the QR ("scan to reopen this design") sits on the overview page
+(`pdf.ts` page 1, top-right). But the overview is scaffolding — after
+cutting, what survives in the studio is the template pieces themselves, laid
+on clay, splashed and filed. Flow C depends on the paper that *survives*.
 
-### 6.1 Server state & the normalization problem
+**Change:** print the QR **inside the largest template piece's interior**
+(the wall rectangle/panel in practice), so every cut-out template physically
+carries the link to the software that reopens it with the right parameters.
+
+- Placement: centroid-ish, ≥ 8 mm clear of every cut/fold/miter line and of
+  the piece's dimension labels; standard quiet zone; same 22 mm size with
+  the unfolded mark inset, plus the "scan to reopen this design" caption.
+- Fallback: if no piece can host a 22 mm QR + quiet zone (tiny forms), keep
+  overview-only, as today. The overview QR stays in both cases (it's the
+  one visible without digging through cut pieces).
+- The QR remains a **parameter-only share link** — never a `sid`, never a
+  code. A found template grants a copy of the design, not entry to a live
+  session (§2).
+- Independent of the sync backend: pure `pdf.ts`/`svg.ts` layout work,
+  gated only by the feature freeze — it can ship before any Durable Object
+  exists and makes flow C real on its own.
+
+## 7. Sync semantics (carried from v1 of this spec, unchanged in substance)
+
+### 7.1 Server state & the normalization problem
 
 `updateForm` is not a plain merge: it flares the top when taper turns on and
 mirrors top←bottom for straight forms (`useProjectStore.ts`). A naively
-merging DO would diverge from every client and each `welcome`/`resync` would
-"correct" them wrongly. **Resolution:** extract the pure patch application
-(normalize → merge → taper/mirror rules) into `src/lib/model/applyPatch.ts`,
-used by **both** the store's `updateForm` and the DO. One implementation, two
-callers; prerequisite work item 1, valuable standalone. The DO validates every
-patch with the same zod schemas before applying; invalid → `error`, state
-untouched (mirroring the tools' `isError` posture).
+merging DO would diverge from every client, and each `welcome`/`resync`
+would "correct" them wrongly. **Resolution:** extract the pure patch
+application (normalize → merge → taper/mirror) into
+`src/lib/model/applyPatch.ts`, used by **both** the store's `updateForm` and
+the DO. Prerequisite work item 1, valuable standalone. The DO validates
+every patch with the same zod schemas; invalid → `error`, state untouched
+(mirroring the tools' `isError` posture).
 
-### 6.2 Publisher (local edits → out)
+### 7.2 Publisher (local edits → out)
 
-The `persistence.ts` pattern: subscribe to the design slice, debounce ~250 ms,
-diff against `lastSyncedState`, send only changed fields as `SharePatches`,
-advance `lastSyncedState` on send. Diffing *state* covers every mutation path
-— sliders, agent tools, presets, `open_model`, undo/redo — with no action
-instrumentation.
+The `persistence.ts` pattern: subscribe to the design slice, debounce
+~250 ms, diff against `lastSyncedState`, send only changed fields as
+`SharePatches`, advance `lastSyncedState` on send. Diffing *state* covers
+every mutation path — sliders, agent tools, presets, `open_model`,
+undo/redo — with no action instrumentation.
 
-### 6.3 Receiver & echo suppression
+### 7.3 Receiver & echo suppression
 
-On a peer's `patch`: apply via `openModel(patches)` (validated, one undo step
-via its coalescing scope), then set `lastSyncedState` to the result in the
-same synchronous frame so the publisher's next diff is empty. Self-echoes drop
-by `clientId`. Field-level LWW: simultaneous edits to different fields both
-win; same-field races resolve to the later arrival, and the loser *sees* the
-winning value within a second.
+On a peer's `patch`: apply via `openModel(patches)` (validated, one undo
+step), then set `lastSyncedState` to the result in the same synchronous
+frame so the publisher's next diff is empty. Self-echoes drop by `clientId`.
+Field-level LWW: different-field concurrency both win; same-field races
+resolve to the later arrival, and the loser sees the winning value within a
+second.
 
-### 6.4 Undo across devices
+### 7.4 Undo across devices
 
-Remote patches enter local undo history as ordinary steps, preserving "human
-and agent are peers": undo on the desktop reverts the phone agent's last edit
-locally, and the publisher broadcasts the reversion as a normal patch, so all
-devices converge. Accepted quirk: two devices undoing "the same" step
-double-revert; convergence still holds because everything is state-diff
-patches.
+Remote patches enter local undo history as ordinary steps, preserving
+"human and agent are peers": undo on the desktop reverts the phone agent's
+last edit locally, and the publisher broadcasts the reversion as a normal
+patch, so all devices converge. Accepted quirk: two devices undoing "the
+same" step double-revert; convergence still holds.
 
-### 6.5 Reconnection & offline
+### 7.5 Reconnection & offline
 
 Exponential backoff (1 s → 30 s, jittered); reconnect also on
 `visibilitychange`→visible, `online`, `focus` — mobile Chrome freezes
 background sockets, so every return to the phone tab is a resync. On
-`welcome` after a gap: apply server state, then send surviving local edits as
-one diff (per-field local-wins for offline edits, documented LWW). Pending
-patches while disconnected collapse into the diff for free. A claimed-then
-unreachable session (claim OK, WS fails) rolls back to unpaired with a toast.
+`welcome` after a gap: apply server state, then send surviving local edits
+as one diff (per-field local-wins for offline edits, documented LWW). A
+claimed-then-unreachable session (claim OK, WS fails) rolls back to
+unpaired with a toast.
 
-### 6.6 Presence UI
+### 7.6 Presence UI
 
-The three-state agent pill's semantics are **frozen** — sync must not become
-a fourth `agentStatus`. A separate small indicator: nothing when unpaired;
-"syncing" (grey) while connecting; "n devices" (green) when ≥2. States only
-what the socket confirms.
+The three-state agent pill's semantics are **frozen** — sync must not
+become a fourth `agentStatus`. A separate small indicator: nothing when
+unpaired; "syncing" (grey) while connecting; "n devices" (green) when ≥2.
+States only what the socket confirms.
 
-## 7. WebMCP tool surface change
+## 8. WebMCP tool surface change (two new tools)
 
-One new tool, `join_session` — registered like the others in
-`src/mcp/tools.ts`, with entries added to `TOOL_SUMMARIES`, the README table,
-the `/webmcp` page (renders from `TOOL_SUMMARIES`), and the e2e
-`EXPECTED_TOOLS` (updated deliberately — it is the independent contract
-check). This changes the frozen tool surface, so it waits for the freeze to
-lift.
+Both registered in `src/mcp/tools.ts` with entries in `TOOL_SUMMARIES` (the
+`/webmcp` page renders and counts from it; the unit test fails the build if
+a summary is missing), the README table, and the e2e `EXPECTED_TOOLS`
+(updated deliberately — it is the independent contract check). Lands only
+after the freeze lifts.
 
 - **`join_session`** — *"Pair this tab into a live session using the
   6-character code shown on the potter's other device."*
   - input: `{code: string}` (zod: trimmed, separators stripped, uppercased,
     `/^[A-HJ-NP-Z2-9]{6}$/`)
-  - annotations: `{title: "Join live session", idempotentHint: false}`
-  - behavior: claim → connect → adopt session state; success returns the full
-    new state (as every mutating tool does) prefixed with
+  - annotations: `{title: "Join live session"}`
+  - behavior: claim → connect → adopt session state (§4.3); success returns
+    the full new state prefixed
     `"Joined live session — now syncing with N other device(s)."`; failure
-    returns `isError` with the unchanged state and the uniform message
+    returns `isError` with unchanged state and the uniform
     `"That code didn't work — codes expire after 5 minutes and can be used
-    once. Ask the potter to mint a fresh one."`
-  - description tells the agent when to use it: the potter says "join my
-    desktop/other session" and dictates a code.
+    once. Ask for a fresh one."` Client-side backoff after 3 failures; the
+    server rate limit is the real guarantee.
+- **`start_pairing`** — *"Mint a 6-character code so the potter's other
+  device can join THIS design's live session."*
+  - input: `{}` — annotations: `{title: "Start device pairing"}`
+  - behavior: eager-create session if the tab has none (decided), mint via
+    PairingDO, return
+    `"Pairing code: K7F-3QP — valid 5 minutes, one use. On the other
+    device: menu → Pair a device → enter this code. That device will adopt
+    this design."` plus the full state. The phone tab shows the same code +
+    countdown so the potter can read it off either surface.
 
 Everything else stays: the agent needs no tool to *sync* (transparent under
-the store) and none to mint (the desktop UI mints; agent-minted codes are a
-stretch item, §12).
+the store).
 
-## 8. Server implementation
+## 9. Page & doc copy changes
+
+The new way of working must be visible where visitors learn the app. All
+copy lands with the feature (work item 8), not before.
+
+- **`/webmcp` (`WebMCPPage.tsx`)** — the in-app WebMCP guide:
+  - New section **"Work across devices"** after the connection-states
+    section: the code-pairing model in potter's terms (mint on one screen,
+    speak it to the chat, both stay live), the §4.3 adopt rule ("the device
+    that enters the code follows the other one"), and the honesty note in
+    the house style: *a code is a 5-minute, one-use key; the app never puts
+    a live session in a link.*
+  - The tool table extends automatically via `TOOL_SUMMARIES` (count
+    updates from eleven to thirteen — check any hardcoded "eleven" in copy
+    here and in the README).
+  - "Things to try" gains: *"join my desktop session, code K7F-3QP"* and
+    *"give me a pairing code for my desktop."*
+  - The live connection-status block additionally shows this tab's pairing
+    state (unpaired / syncing / n devices), mirroring §7.6.
+- **`/why` (`WhyPage.tsx`)** — the README-as-page: inherits the README
+  rewrite below wherever it mirrors those sections; its narrative gains one
+  paragraph in the workflow story: design doesn't live in one chair — start
+  at the bench, continue in chat, come back from a printed template
+  (flows A–C, §5).
+- **`README.md`**:
+  - New **"Sync live between devices"** section: the three flows, the code
+    ceremony, the privacy line — *the design slice is the only thing that
+    ever leaves the device, sessions are unlisted and expire after 30 idle
+    days, and no URL is ever a live capability.*
+  - Tool table + "non-trivial WebMCP parts" updated for the two new tools;
+    the share-links section states explicitly that links (and the printed
+    QR) stay parameter-only.
+  - PDF/"Why this exists" copy notes the QR now travels inside the largest
+    template piece (§6).
+- **Pair dialog** copy as specced in §4.2/§8.
+
+## 10. Wire protocol
+
+JSON text frames, `protocolVersion: 1` in `hello`. Unknown kinds/fields
+ignored (same forgiving posture as share-link parsing).
+
+Client → server (SessionDO socket): `hello {protocolVersion, clientId,
+actor}` · `patch {patchId, baseVersion, patches: SharePatches}` ·
+`mint_code {}` (reply `code`) · `bye {}`.
+
+Server → client: `welcome {state, version, peers}` · `patch {version,
+patches, clientId, actor}` · `resync {state, version}` ·
+`presence {peers}` · `code {code, expiresAt}` · `error {code, message}`.
+
+HTTP (worker): `POST /api/pair/claim {code}` → `{sid}` or uniform failure —
+the **only** place a `sid` crosses to a client, used solely to open
+`GET /api/session/:sid/ws` and to persist `unfolded:session:v1`.
+
+Versioning is for gap detection only (`version > lastSeen + 1` → request
+`resync`); patches are never rejected as stale — merging is per-field LWW.
+
+## 11. Server implementation
 
 - `wrangler.jsonc`: `durable_objects` bindings `SESSION` → `SessionDO`,
-  `PAIRING` → `PairingDO`; `migrations` with `new_sqlite_classes` (free-tier
-  compatible); `/api/*` handled in the worker before assets (already
+  `PAIRING` → `PairingDO`; `migrations` with `new_sqlite_classes`
+  (free-tier compatible); `/api/*` handled before assets (already
   `run_worker_first: true`).
 - Worker (`worker.js` → `worker/index.ts`, TS so it can import the shared
-  schemas and `applyPatch`; wrangler bundles): routes
-  `POST /api/pair/claim` (per-IP rate limit here) and
-  `GET /api/session/:sid/ws` (validate `sid` shape → `idFromName(sid)` →
-  forward upgrade); everything else falls through to the www-redirect +
-  assets behavior exactly as today.
+  schemas and `applyPatch`): routes `POST /api/pair/claim` (per-IP limit
+  here) and `GET /api/session/:sid/ws` (validate `sid` shape →
+  `idFromName(sid)` → forward upgrade); everything else falls through to
+  the www-redirect + assets behavior exactly as today.
 - `SessionDO`: hibernation-aware; storage `state`, `version`, `updatedAt`;
-  alarm deletes storage after 30 idle days. `mint_code` calls `PairingDO`.
-- `PairingDO`: in-storage code table with TTL sweep by alarm; global claim
-  throttle; constant-time compare; uniform miss responses.
+  alarm deletes storage after 30 idle days; `mint_code` registers with
+  `PairingDO`.
+- `PairingDO`: in-storage code table, TTL sweep by alarm, global claim
+  throttle, constant-time compare, uniform misses.
 - Limits: frame ≤ 8 KB, ≤ 16 sockets/session, ≤ 20 msg/s/socket → `error` +
   close. All input zod-validated; unknown ignored.
 
-## 9. Privacy & security review
+## 12. Privacy & security review
 
-- **What leaves the device (new):** the design slice, coarse presence (actor
-  kind, tab count), and — only during pairing — a 6-character code. No names,
-  no chat content, no user agent stored. README privacy copy updated (item 9).
-- **v2's win over v1:** no URL is ever a live capability. Share links, the
-  address bar, the printed QR, and agent-returned `shareUrl`s are all exactly
-  as inert as today; a leaked chat transcript holds at worst an expired code.
+- **What leaves the device (new):** the design slice, coarse presence
+  (actor kind, tab count), and — during pairing only — a 6-character code.
+  No names, no chat content, no user agent stored. README updated (item 8).
+- **No URL is ever a live capability** — share links, address bar, printed
+  QR (§6 keeps it parameter-only *by specification*), agent `shareUrl`s.
 - **Residual threats:** shoulder-surfing an unclaimed code (5-min window,
-  visible countdown, potter sees "2 devices" appear); a paired device lost or
-  stolen (unpair by... any device can't evict peers in v1 — mint nothing,
-  stop using the session; eviction is a stretch item); brute force (§4.5);
-  malicious peer garbage (schemas + clamps); valid-but-unwanted edits
-  (inherent to pairing — undo works, sessions are abandonable, idle-expire).
-- **The `sid` is still the real key** — 128-bit, known to server and paired
-  clients' localStorage only. The code is a 5-minute front door to it.
+  countdown visible, potter sees the device count change); a lost paired
+  device (no peer eviction in v1 — abandon the session; eviction is
+  stretch); brute force (§4.5); malicious peer garbage (schemas + clamps);
+  valid-but-unwanted edits (inherent to pairing — undo works, sessions
+  abandonable, idle-expire).
+- **`start_pairing` in a transcript** shows a code that is dead within 5
+  minutes; showing it in chat is the feature and the risk window is the
+  TTL.
 
-## 10. Testing
+## 13. Testing
 
 - **Unit (pure):** `applyPatch.ts` parity with today's store behavior
-  (table-driven against current `updateForm` cases); diff/merge + echo
-  bookkeeping; code normalization/format.
+  (table-driven); diff/merge + echo bookkeeping; code normalize/format; QR
+  placement geometry (largest-piece selection, quiet-zone clearance,
+  too-small fallback) against `buildPieces` fixtures.
 - **DO tests (`@cloudflare/vitest-pool-workers`):** mint→claim→burn (second
-  claim fails uniformly), TTL expiry, rate-limit rejection, two-socket
-  fan-out, gap → resync, alarm deletion.
-- **e2e (extend `e2e/run.mjs`):** build + `wrangler dev`; context A mints via
-  UI, context B joins via `__unfoldedTools.join_session.execute({code})`;
-  drive `set_capacity` in B, poll A until `capacityMl` matches; edit in A,
-  assert B; offline/reconnect convergence; expired-code `isError` path.
-- **Contract guards:** tool-surface test (`TOOL_SUMMARIES` ↔ `buildTools`)
-  already fails the build if `join_session` misses its summary; a no-`/api`
-  boot test asserts the app degrades to today's behavior.
+  claim uniform-fails), TTL expiry, eager create (mint from a fresh tab,
+  claim after minter disconnects — decided behavior), rate limits, two-
+  socket fan-out, gap → resync, alarm deletion.
+- **e2e (extend `e2e/run.mjs`):** flow A (UI mint, `join_session` claim,
+  bidirectional edits converge); flow B (`start_pairing` on context "phone",
+  manual claim on "desktop", desktop adopts phone's design); flow C (boot
+  from a share-link URL, then pair); offline/reconnect; expired-code
+  `isError`.
+- **Contract guards:** `TOOL_SUMMARIES` ↔ `buildTools` test already forces
+  summaries for both tools; a no-`/api` boot test asserts today's behavior.
 
-## 11. Work items (ordered; each ships alone, green gates as in refactor-spec)
+## 14. Work items (ordered; each ships alone, green gates as in refactor-spec)
 
-1. **`applyPatch.ts` extraction** — store behavior byte-identical (existing
-   store tests unchanged). *Prerequisite; valuable standalone.*
-2. **`syncClient.ts` core (no UI, no pairing)** — connect/hello/welcome,
-   publisher diff, receiver apply, echo suppression; enabled only when
-   `unfolded:session:v1` exists. Accept: unit tests; app unchanged otherwise.
-3. **`SessionDO` + worker routing + wrangler config.** Accept: DO tests;
-   `wrangler dev` serves app + `/api`.
-4. **`PairingDO` + mint/claim + limits.** Accept: DO tests incl. burn/TTL.
-5. **Pairing UI** — "Pair a device" dialog (code display + countdown + manual
-   entry + unpair), localStorage rejoin. Accept: human-to-human pairing works
-   end to end with no agent.
-6. **`join_session` tool** + `TOOL_SUMMARIES`/README/e2e `EXPECTED_TOOLS`
-   updates. Accept: primary flow (§4.2) via `__unfoldedTools`; e2e two-context
-   test.
-7. **Reconnect/resync/offline queue.** Accept: e2e offline scenario.
-8. **Presence indicator.**
-9. **Docs** — README privacy + pairing section; `/webmcp` page copy.
+1. **`applyPatch.ts` extraction** — store behavior byte-identical.
+   *Prerequisite; valuable standalone.*
+2. **QR into the largest template piece (§6)** — pure PDF/SVG layout +
+   fallback + tests. *Independent of the backend; enables flow C alone.*
+3. **`syncClient.ts` core (no UI, no pairing)** — connect/welcome, publisher
+   diff, receiver apply, echo suppression; active only when
+   `unfolded:session:v1` exists.
+4. **`SessionDO` + worker routing + wrangler config.**
+5. **`PairingDO` + mint/claim + eager create + limits.**
+6. **Pairing UI** — dialog (code display + countdown + enter-a-code +
+   unpair), localStorage rejoin. Accept: flows A and B human-to-human, no
+   agent.
+7. **`join_session` + `start_pairing` tools** + `TOOL_SUMMARIES`/README/e2e
+   `EXPECTED_TOOLS`. Accept: flows A and B via `__unfoldedTools`; e2e.
+8. **Copy pass (§9)** — `/webmcp` section + pairing status, `/why`
+   narrative, README rewrite.
+9. **Reconnect/resync/offline queue.** Accept: e2e offline scenario.
+10. **Presence indicator.**
 
-Estimate: ~700 LOC production + ~450 LOC tests. Items 1–2 are half the risk
-and reviewable with no infrastructure.
+Estimate: ~800 LOC production + ~500 LOC tests. Items 1–3 carry half the
+risk and are reviewable with no infrastructure; item 2 ships value alone.
 
-## 12. Stretch (explicitly not in v1)
+## 15. Stretch (explicitly not in v1)
 
-- **Agent-minted codes** (`start_pairing` tool: agent shows a code in chat,
-  the potter types it on the desktop — the reverse direction; same claimer-
-  adopts rule).
 - Evicting a peer / rotating the `sid` from any device.
 - Read-only join codes.
 - Peer labels ("phone · agent active") in presence.
 - Server-ordered shared undo history.
 
-## 13. Design review
+## 16. Design review
 
-Reviewed against the codebase on 2026-08-31:
+Reviewed against the codebase on 2026-08-31 (updated same day for flows +
+decisions):
 
-- **v2 vs v1, net:** pairing UX in chat is strictly better (no links, which
-  ChatGPT breaks anyway; a code survives being spoken), and the capability
-  story is strictly better (no live-capability URLs). The costs: a second DO,
-  a claim endpoint, one new tool on a frozen-until-Sep-3 surface, and codes
-  are weaker secrets than a 128-bit link — mitigated by process (§4.5), and
-  the exposure window is 5 minutes versus a transcript's forever. Right
-  trade.
-- **Biggest real risk stays normalization drift (§6.1)** — unchanged from
-  v1; item 1 first, alone, with parity tests.
-- **PairingDO singleton is a global bottleneck** in theory; at this app's
-  scale (claims are human-paced) it is nowhere near one, and it's what makes
-  one-time-use actually atomic. Accepted.
-- **`join_session` gives agents a claim path** — an agent could brute-force
-  claims faster than a human. The worker's per-IP limit doesn't care who's
-  calling; the tool adds client-side backoff after 3 failures for
-  politeness, but the server limit is the guarantee.
-- **LWW can drop a same-field concurrent edit** (§6.3) — accepted knowingly,
-  as in v1: independent scalars, ~250 ms window, loser sees the winner.
-- **`unit` syncs** — kept from v1 (paired devices disagreeing about display
-  units would be more confusing than syncing a preference).
-- **Claimer-adopts (§4.3) can surprise**: joining from a tab holding an
-  unshared design replaces it. Mitigated: one undo step, and the dialog/tool
-  copy says "this device will follow the session". Watch in testing.
-- **What was cut and why:** identity (nothing to build it on — WebMCP passes
-  none, by design); URLs as capabilities (v1's weakest point); shared undo
-  (per-tab converges); CRDTs (state too small); a fourth pill state (frozen
-  contract; sync ≠ agent connection).
-- **Verdict:** sound to build as specced; sequencing unchanged — nothing
-  before the Sep 3 freeze lifts, then items 1–2 immediately (pure TS, no
-  infrastructure, worthwhile even if the backend never ships).
+- **Flow B forced a real change:** claimer-adopts (§4.3) is the right single
+  rule, but it makes direction load-bearing — the device holding the work
+  must mint. Promoting `start_pairing` to v1 costs one more tool on the
+  frozen surface and ~40 LOC; the alternative (heuristics about which design
+  "looks worked-on") was rejected as magic. Right call.
+- **Two tools, one rule** is the complexity ceiling: both tools share the
+  claim path and the §4.3 rule, so the mental model stays "mint where the
+  work is, type the code where it should follow."
+- **QR-in-piece (§6) is the sleeper item:** it's the only work item that
+  needs no backend and it completes the product loop — screen → paper →
+  clay → (months later) paper → screen — with the same parameter-only-link
+  guarantee as today. Risks are layout ones (QR colliding with fold marks
+  or labels on small pieces; ink where a potter cuts) — handled by the
+  clearance rule + fallback, verified by geometry tests, and worth one
+  manual print-and-scan check on A4 and Letter.
+- **Eager creation (decided)** trades a handful of possibly-never-claimed
+  DO creations for a code that never lies about being valid. Cheap
+  (SQLite-backed DOs, ≤1 KB state, 30-day sweep) and honest. Fine.
+- **Biggest technical risk stays normalization drift (§7.1)** — item 1
+  first, alone, with parity tests.
+- **PairingDO singleton** is a theoretical bottleneck, irrelevant at
+  human-paced claim rates, and what makes one-time use atomic. Accepted.
+- **LWW same-field races** and **`unit` syncing** — accepted as before
+  (independent scalars; paired devices disagreeing on display units is
+  worse than syncing a preference).
+- **Copy is specced as a work item (§9), not an afterthought** — the app's
+  differentiator is that its pages tell the truth about connection state;
+  pairing gets the same treatment (the indicator only states what the
+  socket confirms, the dialog names the 5-minute/one-use terms).
+- **Verdict:** sound to build; sequencing unchanged — nothing before the
+  Sep 3 freeze lifts; then items 1–3 (pure TS, no infrastructure), with
+  item 2 shippable value on its own.
 
-## Open questions (decide before item 4)
+## Open questions
 
-1. Code TTL 5 minutes — right for a spoken-through-agent round trip? (The
-   agent may take 30–60 s to act; 5 min has slack, but confirm.)
-2. Idle-session retention: 30 days?
-3. Should "Pair a device" on a *never-synced* tab create the session eagerly
-   (code works even if the desktop tab closes) or lazily (session exists only
-   once claimed)? Leaning eager — simpler and matches the countdown promise.
+1. Idle-session retention: 30 days — confirm.
+2. QR size inside pieces: keep 22 mm (matches overview, easier scanning on
+   curved/cut paper) or drop to 18 mm to fit more pieces? Leaning 22 mm
+   with the fallback.
