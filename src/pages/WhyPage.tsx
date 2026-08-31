@@ -150,11 +150,29 @@ function FiveMinutes() {
         <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
           Slab building is the most common hand-building technique in ceramics, and its paper
           step is still manual: potters draw templates on cereal boxes, wrap paper around
-          forms, and do the sizing math by hand. Two errors are endemic to that math — both
-          ruin pieces only <em>after</em> the firing — and even when the math is right, the
-          workflow fights you:
+          forms, and do the sizing math by hand. The math is genuinely hard, two errors are
+          endemic — both ruin pieces only <em>after</em> the firing — and even when everything
+          is right, the workflow fights you:
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-stone-200 p-6">
+            <h3 className="font-semibold tracking-tight">Capacity math under constraints</h3>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+              &ldquo;How much will it hold?&rdquo; is already awkward math for a straight
+              cylinder — add a taper, wall thickness, and shrinkage, then pin a constraint like
+              a fixed height or a silhouette you love, and solving for an exact volume by hand
+              turns into guesswork. Most potters settle for &ldquo;close enough&rdquo;.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 p-6">
+            <h3 className="font-semibold tracking-tight">Hard shapes, wrong PDFs</h3>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+              A tapered hexagon or a flared pentagon is hard to visualize and harder to unroll
+              by hand — and asking an AI chat to generate the template PDF fails most of the
+              time: non-deterministic output, wrong bevels, and broken tiling the moment a
+              piece spans multiple pages.
+            </p>
+          </div>
           <div className="rounded-2xl border border-stone-200 p-6">
             <h3 className="font-semibold tracking-tight">Shrinkage scaled the wrong way</h3>
             <p className="mt-3 text-sm leading-relaxed text-stone-600">
