@@ -147,6 +147,21 @@ try {
     badJoin.isError && badJoin.text.includes("used once"),
     badJoin.text.slice(0, 120)
   )
+
+  // offline resilience: B drops off the network, A keeps editing, B's own
+  // offline edit survives the reconnect and both converge
+  await ctxB.setOffline(true)
+  await a.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 188 }))
+  await b.evaluate(() => window.__mcpTools.set_clay.execute({ wallThicknessMm: 8 }))
+  await new Promise((r) => setTimeout(r, 1200))
+  check(
+    "offline B hasn't seen A's edit yet",
+    !(await b.evaluate(() => window.location.search)).includes("height=188")
+  )
+  await ctxB.setOffline(false)
+  await b.waitForFunction(() => window.location.search.includes("height=188"), null, { timeout: 20000 })
+  await a.waitForFunction(() => window.location.search.includes("wall=8"), null, { timeout: 20000 })
+  check("both converge after B comes back online (offline edits included)", true)
 } catch (e) {
   failures++
   console.log("FAIL  pairing e2e crashed —", e.message)

@@ -26,6 +26,9 @@ export const SESSION_STORAGE_KEY = "unfolded:session:v1"
 export const SYNC_PROTOCOL_VERSION = 1
 /** trailing debounce before a local edit is diffed and sent */
 const SEND_DEBOUNCE_MS = 250
+/** reconnect backoff bounds — 1 s doubling to 30 s, jittered */
+const RECONNECT_MIN_MS = 1_000
+const RECONNECT_MAX_MS = 30_000
 
 /** the synced design slice — exactly what persistence.ts persists */
 export interface DesignSlice {
@@ -164,6 +167,11 @@ export function createSyncClient({
   let lastSynced: DesignSlice | null = null
   let sendTimer: ReturnType<typeof setTimeout> | undefined
   let unsubscribe: (() => void) | undefined
+  /** true between start() and stop() — a lost socket reconnects only while set */
+  let wantConnected = false
+  let reconnectDelay = RECONNECT_MIN_MS
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined
+  let removeWakeListeners: (() => void) | undefined
   const listeners = new Set<() => void>()
   let pendingMint: ((code: { code: string; expiresAt: number } | null) => void) | null = null
 
@@ -209,9 +217,17 @@ export function createSyncClient({
     }
   }
 
-  /** adopt a server snapshot (welcome/resync): apply, then move the diff
-      baseline in the same frame so the publisher sees nothing to send */
+  /**
+   * Adopt a server snapshot (welcome/resync): apply it, then move the diff
+   * baseline in the same frame so the publisher sees nothing to send. Edits
+   * made while disconnected survive: the baseline is kept across a lost
+   * socket, so the delta the potter built up offline is re-applied ON TOP
+   * of the server state (per-field local-wins, spec §7.5) and the follow-up
+   * flush sends it to the peers. A first join has no baseline — there the
+   * session's state wins whole, which is the §4.3 adopt rule.
+   */
   const adoptServerState = (raw: unknown, newVersion: number) => {
+    const offlineDelta = lastSynced ? diffDesign(lastSynced, slice()) : null
     const patches = sanitizeSharePatches(raw)
     try {
       if (patches) store.getState().openModel(patches)
@@ -220,6 +236,13 @@ export function createSyncClient({
     }
     lastSynced = slice()
     version = newVersion
+    if (offlineDelta) {
+      try {
+        store.getState().openModel(offlineDelta)
+      } catch {
+        // the offline edit no longer applies — the server state stands
+      }
+    }
   }
 
   const flushLocalEdits = () => {
@@ -243,6 +266,7 @@ export function createSyncClient({
       case "welcome":
       case "resync": {
         setStatus("syncing")
+        reconnectDelay = RECONNECT_MIN_MS // the link is healthy again
         if (typeof msg.peers === "number") setPeers(msg.peers)
         adoptServerState(msg.state, typeof msg.version === "number" ? msg.version : 0)
         // edits made while the snapshot was in flight still go out
@@ -305,14 +329,17 @@ export function createSyncClient({
     }
   }
 
-  const start = () => {
+  const connect = () => {
     const sid = storedSid()
     if (!sid || socket) return
     let s: SocketLike
     try {
       s = createSocket(sid)
     } catch {
-      return // no /api in this deployment — the app stays the offline app
+      // no /api in this deployment — retry on the slow cadence, the app
+      // stays fully usable offline in the meantime
+      scheduleReconnect()
+      return
     }
     socket = s
     setStatus("connecting")
@@ -329,13 +356,42 @@ export function createSyncClient({
     }
     s.onmessage = (ev) => onMessage(ev.data)
     s.onclose = () => {
-      if (socket === s) stop() // reconnect/backoff arrives with spec item 9
+      if (socket !== s) return
+      socket = null
+      setPeers(1)
+      if (wantConnected) {
+        // lost, not left: keep the baseline (offline edits diff against
+        // it on the next welcome) and come back on backoff
+        setStatus("connecting")
+        scheduleReconnect()
+      }
     }
     s.onerror = () => {
       /* onclose follows and owns teardown */
     }
+  }
 
-    unsubscribe = store.subscribe(
+  const scheduleReconnect = () => {
+    if (!wantConnected) return
+    clearTimeout(reconnectTimer)
+    const jitter = 1 + Math.random() * 0.3
+    reconnectTimer = setTimeout(connect, reconnectDelay * jitter)
+    reconnectDelay = Math.min(RECONNECT_MAX_MS, reconnectDelay * 2)
+  }
+
+  /** mobile Chrome freezes background sockets — every return to the tab
+      (focus, visibility, network back) is an immediate reconnect check */
+  const wake = () => {
+    if (!wantConnected || socket) return
+    clearTimeout(reconnectTimer)
+    reconnectDelay = RECONNECT_MIN_MS
+    connect()
+  }
+
+  const start = () => {
+    if (!storedSid() || wantConnected) return
+    wantConnected = true
+    unsubscribe ??= store.subscribe(
       (st) => [st.form, st.clay, st.paperSize, st.unit] as const,
       () => {
         clearTimeout(sendTimer)
@@ -343,12 +399,30 @@ export function createSyncClient({
       },
       { equalityFn: shallow }
     )
+    if (!removeWakeListeners && typeof window !== "undefined") {
+      const onVisible = () => {
+        if (document.visibilityState === "visible") wake()
+      }
+      window.addEventListener("focus", wake)
+      window.addEventListener("online", wake)
+      document.addEventListener("visibilitychange", onVisible)
+      removeWakeListeners = () => {
+        window.removeEventListener("focus", wake)
+        window.removeEventListener("online", wake)
+        document.removeEventListener("visibilitychange", onVisible)
+      }
+    }
+    connect()
   }
 
   const stop = () => {
+    wantConnected = false
     clearTimeout(sendTimer)
+    clearTimeout(reconnectTimer)
     unsubscribe?.()
     unsubscribe = undefined
+    removeWakeListeners?.()
+    removeWakeListeners = undefined
     pendingMint?.(null)
     pendingMint = null
     const s = socket
@@ -356,6 +430,7 @@ export function createSyncClient({
     setStatus("off")
     setPeers(1)
     lastSynced = null
+    reconnectDelay = RECONNECT_MIN_MS
     try {
       s?.close()
     } catch {

@@ -231,12 +231,75 @@ describe("createSyncClient", () => {
     expect(store.getState().unit).toBe("cm")
   })
 
-  it("goes inert when the socket closes (reconnect is item 9)", () => {
+  it("reconnects with backoff after a lost socket", () => {
+    const sockets: FakeSocket[] = []
+    const fresh = createSyncClient({
+      store,
+      storage: fakeStorage({ [SESSION_STORAGE_KEY]: JSON.stringify({ sid: "s".repeat(22) }) }),
+      createSocket: () => {
+        const s = new FakeSocket()
+        sockets.push(s)
+        return s
+      },
+      randomId: () => "tab-a",
+    })
+    fresh.start()
+    sockets[0].open()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+    expect(fresh.status()).toBe("syncing")
+
+    sockets[0].onclose?.() // the network dropped, not the user
+    expect(fresh.status()).toBe("connecting") // lost, not off
+    expect(fresh.peers()).toBe(1) // only confirmed facts
+    vi.advanceTimersByTime(1_500) // first retry: ~1s + jitter
+    expect(sockets).toHaveLength(2)
+    sockets[1].open()
+    sockets[1].receive({ kind: "welcome", state: slice(store), version: 5, peers: 2 })
+    expect(fresh.status()).toBe("syncing")
+    fresh.stop()
+  })
+
+  it("sends edits made while offline after the reconnect welcome (local wins per-field)", () => {
+    const sockets: FakeSocket[] = []
+    const fresh = createSyncClient({
+      store,
+      storage: fakeStorage({ [SESSION_STORAGE_KEY]: JSON.stringify({ sid: "s".repeat(22) }) }),
+      createSocket: () => {
+        const s = new FakeSocket()
+        sockets.push(s)
+        return s
+      },
+      randomId: () => "tab-a",
+    })
+    fresh.start()
+    sockets[0].open()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+
+    sockets[0].onclose?.()
+    store.getState().updateForm({ heightMm: 177 }) // offline edit
+    vi.advanceTimersByTime(1_500)
+    sockets[1].open()
+    // meanwhile a peer changed the clay on the server
+    const serverState = { ...slice(store), form: { ...slice(store).form, heightMm: 100 }, clay: { shrinkagePct: 8, wallThicknessMm: 4 } }
+    sockets[1].receive({ kind: "welcome", state: serverState, version: 9, peers: 2 })
+    // the peer's clay landed, AND the offline height survived on top…
+    expect(store.getState().clay.shrinkagePct).toBe(8)
+    expect(store.getState().form.heightMm).toBe(177)
+    // …and went out to the session as a patch
+    const patches = sockets[1].sentOfKind("patch")
+    expect(patches).toHaveLength(1)
+    expect(patches[0].patches).toEqual({ form: { heightMm: 177 } })
+    fresh.stop()
+  })
+
+  it("stop() means left, not lost — no reconnect is scheduled", () => {
     startSynced()
-    socket.onclose?.()
+    client.stop()
+    expect(client.status()).toBe("off")
+    vi.advanceTimersByTime(60_000)
     expect(client.status()).toBe("off")
     store.getState().updateForm({ heightMm: 150 })
-    vi.runAllTimers()
+    vi.advanceTimersByTime(1_000)
     expect(socket.sentOfKind("patch")).toHaveLength(0)
   })
 
