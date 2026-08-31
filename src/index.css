@@ -4,6 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  color-scheme: light;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.147 0.004 49.25);
@@ -38,38 +39,41 @@
   --sidebar-ring: oklch(0.709 0.01 56.259);
 }
 
+/* Dark mode: very dark blue into black, with the logo's cobalt (#0A5BFF)
+   as the primary — every surface is a cool navy, never warm gray. */
 .dark {
-  --background: oklch(0.147 0.004 49.25);
-  --foreground: oklch(0.985 0.001 106.423);
-  --card: oklch(0.216 0.006 56.043);
-  --card-foreground: oklch(0.985 0.001 106.423);
-  --popover: oklch(0.216 0.006 56.043);
-  --popover-foreground: oklch(0.985 0.001 106.423);
-  --primary: oklch(0.923 0.003 48.717);
-  --primary-foreground: oklch(0.216 0.006 56.043);
-  --secondary: oklch(0.268 0.007 34.298);
-  --secondary-foreground: oklch(0.985 0.001 106.423);
-  --muted: oklch(0.268 0.007 34.298);
-  --muted-foreground: oklch(0.709 0.01 56.259);
-  --accent: oklch(0.268 0.007 34.298);
-  --accent-foreground: oklch(0.985 0.001 106.423);
+  color-scheme: dark;
+  --background: #070b14;
+  --foreground: #e6ecf8;
+  --card: #0b1120;
+  --card-foreground: #e6ecf8;
+  --popover: #0d1424;
+  --popover-foreground: #e6ecf8;
+  --primary: #0a5bff;
+  --primary-foreground: #ffffff;
+  --secondary: #101a2e;
+  --secondary-foreground: #e6ecf8;
+  --muted: #0f1729;
+  --muted-foreground: #8b9cbd;
+  --accent: #12203a;
+  --accent-foreground: #e6ecf8;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.553 0.013 58.071);
-  --chart-1: oklch(0.488 0.243 264.376);
+  --border: #1c2942;
+  --input: #223252;
+  --ring: #0a5bff;
+  --chart-1: #0a5bff;
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.216 0.006 56.043);
-  --sidebar-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-accent: oklch(0.268 0.007 34.298);
-  --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.553 0.013 58.071);
+  --sidebar: #0b1120;
+  --sidebar-foreground: #e6ecf8;
+  --sidebar-primary: #0a5bff;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #12203a;
+  --sidebar-accent-foreground: #e6ecf8;
+  --sidebar-border: #1c2942;
+  --sidebar-ring: #0a5bff;
 }
 
 @theme inline {
@@ -150,6 +154,12 @@
 
 .logo-slab {
   transform-box: fill-box;
+}
+
+/* the blue-black middle slab reads as a hole on dark surfaces — swap it
+   to the light foreground so the mark keeps its three-slab shape */
+.dark .logo-ink {
+  fill: #dbe4f5;
 }
 
 .logo-slab-2 {

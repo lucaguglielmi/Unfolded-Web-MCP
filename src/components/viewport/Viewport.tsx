@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
-import { ContactShadows, Html, Line, OrbitControls } from "@react-three/drei"
+import { ContactShadows, Grid, Html, Line, OrbitControls } from "@react-three/drei"
 import { cn } from "@/lib/utils"
 import { registerPreviewCanvas } from "@/lib/previewCapture"
+import { useTheme, type Theme } from "@/lib/theme"
 import { formatLength, type Unit } from "@/lib/units"
 import { useProjectStore } from "@/store/useProjectStore"
 
@@ -22,8 +23,12 @@ const CLAY_OUTER = "#b08968"
 const CLAY_INNER = "#7a5c42"
 const CLAY_RIM = "#a37e5f"
 
-/* dimension callouts: quiet blue-gray that reads on the tinted stage, sized in scene units */
-const MEASURE_LINE = "#a4b2c9"
+/* Scene colors that must react to the theme — three.js materials can't read
+   CSS tokens, so each carries a light and a dark value. The clay itself
+   stays the same in both. */
+const MEASURE_LINE: Record<Theme, string> = { light: "#a4b2c9", dark: "#4d6188" }
+const GRID_CELL: Record<Theme, string> = { light: "#e6ecf5", dark: "#141f36" }
+const GRID_SECTION: Record<Theme, string> = { light: "#d4deeb", dark: "#1e2c4a" }
 const TICK = 0.045
 const DIM_GAP = 0.18
 
@@ -133,7 +138,7 @@ function MeasureLabel({
       <div
         ref={innerRef}
         style={{ opacity }}
-        className="rounded-full bg-white/85 px-2 py-0.5 text-slate-600 shadow-sm"
+        className="rounded-full bg-white/85 px-2 py-0.5 text-slate-600 shadow-sm dark:bg-slate-900/85 dark:text-slate-300"
       >
         {children}
       </div>
@@ -167,10 +172,18 @@ function MeasureEntryView({
   groupRef?: React.RefObject<THREE.Group | null>
   labelRef?: (el: HTMLDivElement | null) => void
 }) {
+  const theme = useTheme()
   return (
     <group ref={groupRef}>
       {entry.lines.map((points, i) => (
-        <Line key={i} points={points} color={MEASURE_LINE} lineWidth={1} transparent opacity={opacity} />
+        <Line
+          key={i}
+          points={points}
+          color={MEASURE_LINE[theme]}
+          lineWidth={1}
+          transparent
+          opacity={opacity}
+        />
       ))}
       <MeasureLabel position={entry.labelPos} opacity={opacity} innerRef={labelRef}>
         {entry.label}
@@ -258,6 +271,7 @@ function Measurements({ entries, mode }: { entries: MeasureEntry[]; mode: Measur
 }
 
 function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
+  const theme = useTheme()
   const form = useProjectStore((s) => s.form)
   const wallThicknessMm = useProjectStore((s) => s.clay.wallThicknessMm)
   const unit: Unit = useProjectStore((s) => s.unit)
@@ -451,16 +465,29 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
         <Measurements mode={measurementsMode} entries={measureEntries} />
       </group>
 
-      {/* No grid: the tinted stage container frames the vessel, and a soft
-          contact shadow grounds it — the shadow tracks the real silhouette,
-          so tapered and faceted forms all sit convincingly. */}
+      {/* A soft contact shadow grounds the vessel — it tracks the real
+          silhouette, so tapered and faceted forms all sit convincingly. */}
       <ContactShadows
         position={[0, bottomY - 0.001, 0]}
-        opacity={0.34}
+        opacity={theme === "dark" ? 0.5 : 0.34}
         scale={3.4}
         blur={2.6}
         far={1.4}
-        color="#33507e"
+        color={theme === "dark" ? "#01040c" : "#33507e"}
+      />
+
+      {/* fine ground grid, in tune with the stage tint in either theme */}
+      <Grid
+        position={[0, bottomY - 0.002, 0]}
+        args={[10, 10]}
+        cellSize={0.125}
+        cellThickness={0.4}
+        sectionSize={0.5}
+        sectionThickness={0.8}
+        cellColor={GRID_CELL[theme]}
+        sectionColor={GRID_SECTION[theme]}
+        fadeDistance={11}
+        infiniteGrid
       />
     </>
   )
@@ -501,11 +528,12 @@ export function Viewport({
   }, [])
 
   return (
-    // The 3D stage: a soft light-blue gradient container with 16px rounded
-    // corners on desktop, where it floats free of any panel borders. On
-    // mobile the thumbnail card / full-screen overlay does the clipping, so
-    // the gradient just fills whatever frame it sits in.
-    <div className="viewport-in relative h-full w-full overflow-hidden bg-gradient-to-b from-[#eef3fb] via-[#e7eef9] to-[#dbe5f4] lg:rounded-2xl">
+    // The 3D stage: a subtle white-to-very-light-blue gradient container
+    // with 16px rounded corners on desktop, where it floats free of any
+    // panel borders (deep navy-to-black in dark mode). On mobile the
+    // thumbnail card / full-screen overlay does the clipping, so the
+    // gradient just fills whatever frame it sits in.
+    <div className="viewport-in relative h-full w-full overflow-hidden bg-gradient-to-b from-white via-[#f7fafd] to-[#e9f0fa] lg:rounded-2xl dark:from-[#0d1730] dark:via-[#091021] dark:to-[#05080f]">
       <Canvas
         key={glGeneration}
         camera={{ position: [2.4, 1.6, 2.4], fov: 38 }}
@@ -541,7 +569,7 @@ export function Viewport({
       </Canvas>
       <p
         className={cn(
-          "pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap text-slate-500/70",
+          "pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 text-xs whitespace-nowrap text-slate-500/70 dark:text-slate-400/70",
           showHintOnMobile ? "block" : "hidden lg:block"
         )}
       >

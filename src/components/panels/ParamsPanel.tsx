@@ -257,9 +257,12 @@ export function ParamsPanel() {
       </section>
 
       {warnings.length > 0 && (
-        <div className="rise-in space-y-1.5 rounded-md border border-amber-200 bg-amber-50 p-3">
+        <div className="rise-in space-y-1.5 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-400/25 dark:bg-amber-500/10">
           {warnings.map((warning) => (
-            <p key={warning} className="flex gap-2 text-xs leading-relaxed text-amber-800">
+            <p
+              key={warning}
+              className="flex gap-2 text-xs leading-relaxed text-amber-800 dark:text-amber-200/90"
+            >
               <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
               {warning}
             </p>

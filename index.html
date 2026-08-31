@@ -34,6 +34,16 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- apply the saved (or OS) theme before first paint — no white flash
+         for dark-mode visitors; src/lib/theme.ts owns it from then on -->
+    <script>
+      try {
+        var t = localStorage.getItem("unfolded-theme");
+        if (t === "dark" || (!t && matchMedia("(prefers-color-scheme: dark)").matches)) {
+          document.documentElement.classList.add("dark");
+        }
+      } catch (e) {}
+    </script>
     <style>
       /* boot loader: lives inside #root, so React's first render replaces it */
       .boot {
@@ -63,6 +73,9 @@
       @media (prefers-reduced-motion: reduce) {
         .boot svg, .boot span { animation: none; }
       }
+      .dark .boot { background: #05080f; }
+      .dark .boot span { color: #e6ecf8; }
+      .dark .boot .logo-ink { fill: #dbe4f5; }
     </style>
   </head>
   <body>
@@ -70,7 +83,7 @@
       <div class="boot" aria-label="Loading Unfolded">
         <svg viewBox="40 48 226 186" aria-hidden="true">
           <path fill="#0A5BFF" d="M46 58Q46 53 51 56l65 36q4 2 4 8v80q0 6-5 3l-65-36q-4-2-4-7V58Z"/>
-          <path fill="#111827" d="m128 94 65-36q5-3 5 3v79q0 5-4 7l-66 36q-5 3-5-3v-79q0-5 5-7Z"/>
+          <path class="logo-ink" fill="#111827" d="m128 94 65-36q5-3 5 3v79q0 5-4 7l-66 36q-5 3-5-3v-79q0-5 5-7Z"/>
           <path fill="#0646CC" d="m128 188 65-36q4-2 8 0l58 32q6 3 0 7l-65 36q-4 2-8 0l-58-32q-6-3 0-7Z"/>
         </svg>
         <span>unfolded</span>

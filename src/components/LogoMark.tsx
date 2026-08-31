@@ -68,7 +68,9 @@ export function LogoMark({
           key={p.fill}
           d={p.d}
           fill={p.fill}
-          className={animated ? `logo-slab logo-slab-${i + 1}` : undefined}
+          // .logo-ink: the blue-black middle slab would vanish on a dark
+          // header — index.css lightens it in dark mode
+          className={cn(animated && `logo-slab logo-slab-${i + 1}`, i === 1 && "logo-ink")}
         />
       ))}
     </svg>

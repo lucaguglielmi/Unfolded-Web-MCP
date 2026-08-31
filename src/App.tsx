@@ -10,6 +10,7 @@ import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { PreviewCluster, type PreviewView } from "@/components/PreviewCluster"
 import { ShareDialog } from "@/components/ShareDialog"
 import { SyncBadge } from "@/components/SyncBadge"
+import { ThemeToggle } from "@/components/ThemeToggle"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { feedback } from "@/lib/feedback"
@@ -59,7 +60,8 @@ export default function App() {
 
   return (
     <TooltipProvider>
-      <div className="bg-background text-foreground app-fade-in flex h-dvh flex-col overflow-hidden">
+      {/* dark mode swaps the flat background for a deep blue-to-black wash */}
+      <div className="bg-background text-foreground app-fade-in flex h-dvh flex-col overflow-hidden dark:bg-gradient-to-b dark:from-[#0a1122] dark:via-[#060a14] dark:to-[#04060c]">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-5">
           <div className="flex min-w-0 items-baseline gap-2.5">
             <LogoMark animated className="h-5 w-auto shrink-0 self-center" />
@@ -73,7 +75,8 @@ export default function App() {
             </a>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            {/* audio toggle lives in the header at every size */}
+            {/* theme + audio toggles live in the header at every size */}
+            <ThemeToggle />
             <FeedbackToggle />
             {/* live-sync presence: invisible until paired, shown at every size */}
             <SyncBadge />
