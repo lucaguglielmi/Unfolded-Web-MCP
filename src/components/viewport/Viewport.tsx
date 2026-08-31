@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { Grid, Html, Line, OrbitControls } from "@react-three/drei"
@@ -470,9 +470,36 @@ export function Viewport({
   /** "static" shows all dimension callouts; "cycle" (small thumbnail) fades through them one at a time */
   measurementsMode?: MeasurementsMode
 }) {
+  // Mobile browsers (Safari especially) reclaim the GPU context of a
+  // backgrounded tab. three.js recovers by itself when the browser fires
+  // webglcontextrestored — but after a real reclaim that event often never
+  // comes, leaving a frozen or blank canvas. So on every return to the
+  // tab, check the renderer: a context that is still lost means the only
+  // fix is a fresh canvas — bump the key and remount the whole Canvas.
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
+  const [glGeneration, setGlGeneration] = useState(0)
+  useEffect(() => {
+    const checkContext = () => {
+      if (document.visibilityState !== "visible") return
+      if (rendererRef.current?.getContext().isContextLost()) {
+        rendererRef.current = null
+        setGlGeneration((g) => g + 1)
+      }
+    }
+    document.addEventListener("visibilitychange", checkContext)
+    // pageshow covers restores from the back/forward cache, which don't
+    // always come with a visibilitychange
+    window.addEventListener("pageshow", checkContext)
+    return () => {
+      document.removeEventListener("visibilitychange", checkContext)
+      window.removeEventListener("pageshow", checkContext)
+    }
+  }, [])
+
   return (
     <div className="viewport-in relative h-full w-full">
       <Canvas
+        key={glGeneration}
         camera={{ position: [2.4, 1.6, 2.4], fov: 38 }}
         // preserveDrawingBuffer lets the get_preview_image WebMCP tool
         // snapshot the latest frame for the agent
@@ -483,7 +510,10 @@ export function Viewport({
         // element — so the pot stays visible through the whole transition
         // and snaps crisp right after it settles.
         resize={{ debounce: { scroll: 50, resize: 350 } }}
-        onCreated={(state) => registerPreviewCanvas(state.gl.domElement)}
+        onCreated={(state) => {
+          rendererRef.current = state.gl
+          registerPreviewCanvas(state.gl.domElement)
+        }}
         className="touch-none bg-background"
       >
         <ambientLight intensity={0.65} />
