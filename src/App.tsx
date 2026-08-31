@@ -8,6 +8,7 @@ import { PairDialog } from "@/components/PairDialog"
 import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { PreviewCluster, type PreviewView } from "@/components/PreviewCluster"
 import { ShareDialog } from "@/components/ShareDialog"
+import { SyncBadge } from "@/components/SyncBadge"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { useIsDesktop } from "@/lib/useIsDesktop"
@@ -69,6 +70,7 @@ export default function App() {
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <FeedbackToggle />
+            <SyncBadge />
             <PairDialog />
             <ShareDialog />
             <AgentBadge />

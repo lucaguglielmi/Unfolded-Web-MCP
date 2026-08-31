@@ -75,6 +75,10 @@ try {
     await b.evaluate(() => window.location.search)
   )
   check("both dialogs report 2 devices", (await b.textContent("body"))?.includes("Synced live — 2 devices") ?? false)
+  check(
+    "the header presence badge shows the live device count",
+    (await a.textContent('span[aria-label^="Live sync"]').catch(() => ""))?.includes("2 devices") ?? false
+  )
   await a.keyboard.press("Escape")
   await b.keyboard.press("Escape")
 
