@@ -15,7 +15,8 @@
 
 import { attachProfiler } from "./index"
 
-const STORAGE_KEY = "webmcp-perf:mode"
+export const PERF_STORAGE_KEY = "webmcp-perf:mode"
+const STORAGE_KEY = PERF_STORAGE_KEY
 
 export function maybeAttachProfiler(): void {
   try {

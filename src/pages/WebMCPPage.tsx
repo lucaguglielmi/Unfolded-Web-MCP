@@ -348,6 +348,54 @@ function FiveMinutes() {
           undo is one tap — yours or its.
         </p>
       </section>
+
+      {/* profiler */}
+      <section className="border-t border-stone-100 py-14">
+        <SectionLabel>Curious where the time goes?</SectionLabel>
+        <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
+          Agent conversations can feel slow, so we measured: the tools themselves run in
+          single-digit <em>milliseconds</em> — the seconds you feel are the model thinking
+          between calls. Unfolded ships the instrument that proves it. Open any page with{" "}
+          <code className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[13px]">?perf=overlay</code>{" "}
+          and a small live panel appears: every tool call your agent makes, its timing, the
+          size of what it read, and — the honest line — how much of the wait was the model,
+          not the pottery math.
+        </p>
+        <ul className="mt-6 max-w-xl space-y-3 text-sm leading-relaxed text-stone-600">
+          <li>
+            <span className="font-semibold text-stone-900">Off unless you ask:</span>{" "}
+            <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-xs">?perf=1</code>{" "}
+            turns it on for this browser (it remembers),{" "}
+            <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-xs">?perf=0</code>{" "}
+            turns it off. Nothing is measured, stored, or sent otherwise — and even when on,
+            everything stays in your tab.
+          </li>
+          <li>
+            <span className="font-semibold text-stone-900">For the console-inclined:</span>{" "}
+            <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-xs">__webmcpPerf.table()</code>{" "}
+            in DevTools prints the per-tool numbers;{" "}
+            <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-xs">.export()</code>{" "}
+            downloads the full report.
+          </li>
+          <li>
+            <span className="font-semibold text-stone-900">Built to travel:</span> the
+            profiler is a dependency-free module any WebMCP site can lift —{" "}
+            <a
+              className="font-medium text-stone-700 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
+              href="https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/src/profiler"
+              target="_blank"
+              rel="noreferrer"
+            >
+              src/profiler on GitHub
+            </a>
+            . One import, and your tools are measured too.
+          </li>
+        </ul>
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-400">
+          Its first catch, fixed here: the 3D preview snapshot agents request was ~130 KB per
+          look; it's ~7 KB now. Your agent got faster because the page timed itself.
+        </p>
+      </section>
     </>
   )
 }
@@ -456,6 +504,7 @@ function ForAgents() {
     dataModel: Record<string, unknown>
     shareLinks: unknown
     liveSync: unknown
+    profiler: unknown
     layoutConstants: unknown
     interactionModel: unknown
   }
@@ -565,6 +614,20 @@ function ForAgents() {
       <section className="border-t border-stone-100 py-14">
         <SectionLabel>Live-sync protocol</SectionLabel>
         <JsonBlock label="liveSync" data={m.liveSync} />
+      </section>
+
+      <section className="border-t border-stone-100 py-14">
+        <SectionLabel>Performance introspection — profile yourself</SectionLabel>
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-600">
+          This tool surface carries its own analyser. Open any URL here with{" "}
+          <Code>?perf=1</Code> (via <Code>open_model</Code>, if you like) and every call you
+          make is spanned: wall time, payload bytes, the tokens your result costs you to
+          read, and the gap the host + model spent thinking before your call arrived. Read
+          it back with <Code>window.__webmcpPerf.report()</Code>. Known baseline: every tool
+          here executes in single-digit milliseconds — if an interaction feels slow, the
+          ledger will show you it isn't the page.
+        </p>
+        <JsonBlock label="profiler" data={m.profiler} />
       </section>
 
       <section className="border-t border-stone-100 py-14">

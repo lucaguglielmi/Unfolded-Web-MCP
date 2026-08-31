@@ -15,6 +15,8 @@ import {
   PAGE_OVERLAP_MM,
   PAPERS,
 } from "@/lib/export/svg"
+import { PERF_STORAGE_KEY } from "@/profiler/attach"
+import { REPORT_FORMAT } from "@/profiler/collector"
 import { SESSION_STORAGE_KEY, SYNC_PROTOCOL_VERSION } from "@/store/syncClient"
 import { CODE_ALPHABET, CODE_LENGTH, CODE_TTL_MS, TOKEN_TTL_MS } from "../../worker/pairingCore"
 
@@ -146,6 +148,56 @@ export function buildAgentManifest(): Record<string, unknown> {
         "sessions are unlisted, hold only the design slice, and self-delete after 30 idle days",
       ],
       storageKey: SESSION_STORAGE_KEY,
+    },
+    profiler: {
+      summary:
+        "built-in performance analyser for this tool surface (webmcp-profiler). Off by default; opening any URL with ?perf=1 turns it on for the tab's origin (persisted — the flag survives the app rewriting its URL). Once on, every execute() you trigger is measured: wall time, main-thread blocking, payload bytes, estimated tokens, and the host gap before the call. You can profile yourself: open_model a ?perf=1 link, work normally, then read the report.",
+      activation: {
+        on: "?perf=1",
+        onWithPanel: "?perf=overlay",
+        off: "?perf=0",
+        persistence: `localStorage['${PERF_STORAGE_KEY}'] — set/cleared by the URL parameter, so one tokened link can arm a hidden tab`,
+        cost: "zero when off; when on, ~two clock reads and a ring-buffer push per call",
+      },
+      consoleApi: {
+        object: "window.__webmcpPerf",
+        methods: {
+          "table()": "console.table of per-tool aggregates (calls, p50, p95, payload, errors)",
+          "aggregates()": "the same rows as data",
+          "spans()": "the raw span ring buffer (default 500 newest)",
+          "report()": `the full versioned document — format '${REPORT_FORMAT}'`,
+          "export()": "download report() as a .json file",
+          "overlay()": "toggle the floating shadow-DOM panel",
+          "instrument(map)": "retrofit a {name: tool} registry wrapped after load",
+          "reset()": "clear spans and totals",
+          "detach()": "restore every original execute and stop observing",
+        },
+      },
+      span: {
+        fields: {
+          tool: "string", seq: "number",
+          invokedAt: "performance.now()", settledAt: "performance.now()",
+          wallMs: "execute() await, end to end",
+          blockingMs: "Long-Task overlap attributed to the call window (Chromium)",
+          inputBytes: "JSON size of your input",
+          resultBytes: "JSON size of the result you received",
+          contentTypes: "count per content type, e.g. {text: 1, image: 1}",
+          imageBytes: "base64 length of image content",
+          estTokens: "resultBytes/4 — what READING your result costs the model",
+          gapSincePrevCallMs: "idle from the previous result settling to this call arriving — host + model think time, by definition not page time",
+          isError: "boolean", error: "string | null",
+        },
+        devtools: "each call also emits performance.measure('webmcp:<tool>#<seq>') — spans render in the Performance panel",
+      },
+      ledger:
+        "session totals: calls, errors, wallMs, blockingMs, resultBytes, estTokens, hostGapMs — plus hostFoundAt, firstRegistrationAt, firstCallAt. The split to quote: tool compute vs payload weight vs host gaps.",
+      relay:
+        "spans mirror onto BroadcastChannel 'webmcp-perf:<origin>' so a visible same-origin tab can watch a hidden tab's calls live; separate browsing contexts (e.g. ChatGPT hidden vs in-app browser) don't bridge",
+      knownFindings: [
+        "every tool here executes in single-digit milliseconds (p50 <= 5 ms) — perceived latency is host/model round-trip time, not page compute",
+        "get_preview_image returns a deliberately compact 320px JPEG (~7 KB, ~1.7K tokens); it was a 480px PNG (~130 KB, ~32K tokens) before profiling flagged it",
+      ],
+      source: "src/profiler/ in the repo — dependency-free, lifts into any WebMCP project; spec at docs/webmcp-profiler-spec.md",
     },
     layoutConstants: {
       pageMarginMm: PAGE_MARGIN_MM,
