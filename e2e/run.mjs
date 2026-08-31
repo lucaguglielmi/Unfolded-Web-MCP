@@ -248,16 +248,26 @@ try {
   )
   await plainPage.close()
 
-  // /why: the README-as-a-page explainer renders with the full tool list
+  // /why: the README-as-a-page explainer with the reading-depth toolbar
   const whyPage = await ctx.newPage()
   await whyPage.goto(`${BASE}/why`, { waitUntil: "networkidle" })
   await whyPage.waitForTimeout(800)
   const whyHero = await whyPage.getByRole("heading", { level: 1 }).textContent()
   const whyTools = await whyPage.locator("dt").count()
   check(
-    "/why renders the README-as-a-page with every tool listed",
+    "/why defaults to the 5-minute read with every tool listed",
     /print flat/.test(whyHero ?? "") && whyTools === EXPECTED_TOOLS.length,
     `hero: ${whyHero}, tools: ${whyTools}`
+  )
+  await whyPage.getByRole("radio", { name: "1 minute" }).click()
+  const oneMin = await whyPage.getByText("That's the minute").isVisible()
+  await whyPage.getByRole("radio", { name: "I am not human" }).click()
+  const agentHero = await whyPage.getByRole("heading", { level: 1 }).textContent()
+  const agentDepth = await whyPage.locator("dt").count()
+  check(
+    "/why's depth toolbar switches between digest and agent deep-dive",
+    oneMin && /Hello, agent/.test(agentHero ?? "") && agentDepth > 30,
+    `1min: ${oneMin}, agent hero: ${agentHero}, agent facts: ${agentDepth}`
   )
   await whyPage.close()
 

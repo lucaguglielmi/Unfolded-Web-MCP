@@ -226,16 +226,24 @@ button[aria-checked="true"] > .icon-wobble {
   50%      { opacity: 1; transform: scale(1); }
 }
 
-/* staggered fade-up for the /webmcp page's sections */
+/* staggered fade-up for the explainer pages' sections (/webmcp, /why —
+   the latter nests its sections one div deep for the depth switcher,
+   which also re-runs the stagger on every switch) */
 .webmcp-page main > section,
+.webmcp-page main > div > section,
 .webmcp-page main > footer {
   animation: rise-in 0.5s ease-out both;
 }
-.webmcp-page main > *:nth-child(2) { animation-delay: 0.07s; }
-.webmcp-page main > *:nth-child(3) { animation-delay: 0.14s; }
-.webmcp-page main > *:nth-child(4) { animation-delay: 0.21s; }
-.webmcp-page main > *:nth-child(5) { animation-delay: 0.28s; }
-.webmcp-page main > *:nth-child(6) { animation-delay: 0.35s; }
+.webmcp-page main > *:nth-child(2),
+.webmcp-page main > div > *:nth-child(2) { animation-delay: 0.07s; }
+.webmcp-page main > *:nth-child(3),
+.webmcp-page main > div > *:nth-child(3) { animation-delay: 0.14s; }
+.webmcp-page main > *:nth-child(4),
+.webmcp-page main > div > *:nth-child(4) { animation-delay: 0.21s; }
+.webmcp-page main > *:nth-child(5),
+.webmcp-page main > div > *:nth-child(5) { animation-delay: 0.28s; }
+.webmcp-page main > *:nth-child(6),
+.webmcp-page main > div > *:nth-child(6) { animation-delay: 0.35s; }
 
 @media (prefers-reduced-motion: reduce) {
   .logo-folding .logo-slab-2,
@@ -247,6 +255,7 @@ button[aria-checked="true"] > .icon-wobble {
   button:hover > .icon-wobble,
   button[aria-checked="true"] > .icon-wobble,
   .webmcp-page main > section,
+  .webmcp-page main > div > section,
   .webmcp-page main > footer {
     animation: none;
   }
