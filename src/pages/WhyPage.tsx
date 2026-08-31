@@ -40,7 +40,7 @@ const DIGEST: { title: string; body: string }[] = [
   },
   {
     title: "The AI part",
-    body: "WebMCP-native: an agent browsing with you gets eleven typed tools and edits the same live design — \"make it hold 350 ml\" is one exact call, not a guessing loop.",
+    body: "WebMCP-native: an agent browsing with you gets thirteen typed tools and edits the same live design — \"make it hold 350 ml\" is one exact call, not a guessing loop.",
   },
   {
     title: "The output",
@@ -86,7 +86,7 @@ function OneMinute() {
 
 const NON_TRIVIAL: { title: string; body: string }[] = [
   {
-    title: "Eleven tools with real contracts",
+    title: "Thirteen tools with real contracts",
     body: "zod-validated inputs exported as JSON Schema, honest annotations (read-only / idempotent / destructive hints), and graceful error results that include the unchanged state.",
   },
   {
@@ -313,7 +313,7 @@ const WHY_FIT: string[] = [
   "set_capacity is a closed-form solver — never iterate update_form toward a target volume.",
   "get_preview_image lets you verify your own change visually before telling the potter it's done.",
   "Parsing is forgiving by design: legacy vocabulary is normalized, unknown link keys are ignored, out-of-range values clamp. Prefer canonical inputs anyway.",
-  "The human is your peer, not your environment: they may change anything between your calls (their edits show in your next read), and undo_last_change reverts either of you. Compose freely — variations at equal capacity, re-speccing for a new clay body, eyeballing a reference photo into parameters — the tools are eleven, what they compose into is open-ended.",
+  "The human is your peer, not your environment: they may change anything between your calls (their edits show in your next read), and undo_last_change reverts either of you. Compose freely — variations at equal capacity, re-speccing for a new clay body, eyeballing a reference photo into parameters — the tools are thirteen, what they compose into is open-ended.",
 ]
 
 function ForAgents() {
@@ -325,7 +325,7 @@ function ForAgents() {
         </h1>
         <p className="mt-6 max-w-xl text-lg leading-relaxed text-stone-500">
           Unfolded is a deterministic, parametric 3D editor for slab-built pottery that
-          registers eleven WebMCP tools the moment it loads. Below is everything you need to
+          registers thirteen WebMCP tools the moment it loads. Below is everything you need to
           use it well: the data model and its ranges, the tool surface and its contracts, the
           geometry it computes for you, and why handing you tools beats asking you to generate
           templates.

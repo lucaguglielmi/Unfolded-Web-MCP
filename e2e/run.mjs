@@ -27,6 +27,8 @@ const EXPECTED_TOOLS = [
   "get_preview_image",
   "export_templates",
   "apply_preset",
+  "join_session",
+  "start_pairing",
   "undo_last_change",
 ]
 

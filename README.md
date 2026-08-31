@@ -48,7 +48,7 @@ The short list of what makes this more than tools bolted onto a page
 (everything below is in [`src/mcp/`](./src/mcp/) and covered by the
 committed e2e suite):
 
-- **Eleven tools with real contracts** — zod-validated inputs exported as JSON
+- **Thirteen tools with real contracts** — zod-validated inputs exported as JSON
   Schema, honest annotations (`readOnlyHint` / `idempotentHint` /
   `destructiveHint`), and graceful `isError` results that include the unchanged
   state.
@@ -135,6 +135,8 @@ fallback for browsers that expose the API there — see
 | `get_preview_image` | PNG snapshot of the live 3D preview — the agent sees what the potter sees |
 | `export_templates` | Generate and download the multi-page PDF (A4 / A3 / Letter) |
 | `apply_preset` | Start from a preset (classic mug, tumbler, bud vase, hex planter) |
+| `join_session` | Pair this tab into a live cross-device session using the 6-character code from the potter's other device |
+| `start_pairing` | Mint a 6-character code so the potter's other device can join this design's live session |
 | `undo_last_change` | Revert the last change, whoever made it (up to 50 steps) |
 
 UI and agent tools share the same zustand store and zod schemas, so human and agent

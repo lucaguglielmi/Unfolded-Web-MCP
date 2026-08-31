@@ -108,6 +108,8 @@ export interface SyncClient {
   unpair(): void
   /** notify on status/peers transitions — for useSyncExternalStore */
   subscribe(listener: () => void): () => void
+  /** resolves true once the session is live, false on timeout/disconnect */
+  whenSyncing(timeoutMs: number): Promise<boolean>
 }
 
 function defaultSocket(sid: string): SocketLike {
@@ -448,6 +450,7 @@ export function createSyncClient({
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
+    whenSyncing,
   }
 }
 

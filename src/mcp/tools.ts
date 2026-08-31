@@ -3,6 +3,7 @@ import { capacityMl, heightForCapacityMl } from "@/lib/geometry/unroll"
 import { setClayInputSchema, updateFormInputSchema, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
 import { capturePreviewPng } from "@/lib/previewCapture"
+import { liveSync } from "@/store/syncClient"
 import { useProjectStore } from "@/store/useProjectStore"
 import { describeState, describeTemplates } from "./describe"
 import type { SetClayInput, UpdateFormInput } from "@/lib/model/schemas"
@@ -34,8 +35,15 @@ export const TOOL_SUMMARIES: { name: string; blurb: string }[] = [
   { name: "get_preview_image", blurb: "See the live 3D preview as an image — exactly what the potter sees." },
   { name: "export_templates", blurb: "Generate and download the true-scale, multi-page template PDF." },
   { name: "apply_preset", blurb: "Start from a classic mug, tumbler, bud vase, or hex planter." },
+  { name: "join_session", blurb: "Pair this tab into a live session with the 6-character code from the potter's other device." },
+  { name: "start_pairing", blurb: "Mint a 6-character code so the potter's other device can join THIS design live." },
   { name: "undo_last_change", blurb: "Revert the last change — the agent's or the potter's." },
 ]
+
+/** normalized pairing-code shape — uppercase, separators stripped, 6 glyphs
+    from the unambiguous alphabet (no I, L, O, 0, 1) */
+const PAIR_CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/
+const prettyCode = (code: string) => `${code.slice(0, 3)}-${code.slice(3)}`
 
 function stateText(prefix?: string): string {
   const state = describeState()
@@ -258,6 +266,90 @@ export function buildTools(): ToolDescriptor[] {
           useProjectStore.getState().applyPreset(preset as keyof typeof PRESETS)
           return textResult(stateText(`Preset '${preset}' applied.`))
         }),
+    },
+    {
+      name: "join_session",
+      description:
+        "Pair this tab into a live cross-device session. The potter reads you a 6-character code shown on their OTHER device (its 'Pair a device' dialog), e.g. 'K7F-3QP'; pass it here and this tab joins that session, adopting its current design (one undo step brings the previous design back). From then on every edit — yours or the potter's, on either device — syncs live to all paired devices within about a second. Codes expire after 5 minutes and work exactly once; on failure, ask the potter to mint a fresh one. Returns the full state after joining.",
+      inputSchema: z.toJSONSchema(
+        z.object({
+          code: z
+            .string()
+            .min(1)
+            .describe("The 6-character pairing code from the potter's other device, e.g. 'K7F-3QP' (case and dashes don't matter)"),
+        })
+      ),
+      annotations: { title: "Join live session" },
+      execute: async (input) => {
+        useProjectStore.getState().recordAgentCall("join_session")
+        try {
+          const { code: raw } = z.object({ code: z.string().min(1) }).parse(input ?? {})
+          const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, "")
+          if (!PAIR_CODE_RE.test(code)) {
+            return textResult(
+              "That doesn't look like a pairing code — expected 6 characters like 'K7F-3QP' " +
+                "(codes never contain I, L, O, 0 or 1).\n\n" +
+                `Current state unchanged:\n${stateText()}`,
+              true
+            )
+          }
+          const joined = await liveSync.joinWithCode(code)
+          if (!joined.ok) {
+            return textResult(
+              joined.retryable
+                ? "The pairing service is busy — wait a minute and try once more."
+                : "That code didn't work — codes expire after 5 minutes and can be used once. " +
+                    "Ask the potter to mint a fresh one.\n\n" +
+                    `Current state unchanged:\n${stateText()}`,
+              true
+            )
+          }
+          // the session's design arrives with the welcome — wait for it so
+          // the returned state is the adopted one
+          await liveSync.whenSyncing(8_000)
+          const others = Math.max(0, liveSync.peers() - 1)
+          return textResult(
+            stateText(`Joined live session — now syncing with ${others} other device(s).`)
+          )
+        } catch (error) {
+          if (error instanceof z.ZodError) {
+            return textResult(`Invalid input: code is required.\n\nCurrent state unchanged:\n${stateText()}`, true)
+          }
+          const message = error instanceof Error ? error.message : String(error)
+          return textResult(`Joining failed: ${message}`, true)
+        }
+      },
+    },
+    {
+      name: "start_pairing",
+      description:
+        "Mint a 6-character pairing code for THIS tab's live session (creating the session if none exists yet) and give it to the potter. On their other device they open the 'Pair a device' dialog and enter the code; that device then FOLLOWS this design — so use this when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop'. The code is valid for 5 minutes and works exactly once; both devices stay live peers afterwards. Tell the potter the code exactly as returned.",
+      inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      annotations: { title: "Start device pairing" },
+      execute: async () => {
+        useProjectStore.getState().recordAgentCall("start_pairing")
+        try {
+          const minted = await liveSync.mintCode()
+          if (!minted) {
+            return textResult(
+              "Couldn't reach the pairing service — it may not be available in this environment. " +
+                "The design is unaffected; try again in a moment.\n\n" +
+                `Current state:\n${stateText()}`,
+              true
+            )
+          }
+          return textResult(
+            stateText(
+              `Pairing code: ${prettyCode(minted.code)} — valid 5 minutes, one use. ` +
+                "On the other device: the 'Pair a device' dialog (two-screens icon in the header) → enter this code. " +
+                "That device will adopt this design; afterwards edits sync both ways."
+            )
+          )
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return textResult(`Pairing failed: ${message}`, true)
+        }
+      },
     },
     {
       name: "undo_last_change",

@@ -103,6 +103,50 @@ try {
     "unpaired B no longer follows",
     !(await b.evaluate(() => window.location.search)).includes("height=200")
   )
+
+  // ---- the agent-side tools (spec flows A and B) ----
+  // flow B: the work lives on B ("the phone") — its agent mints via
+  // start_pairing, and A joins B's session by entering the code
+  await b.keyboard.press("Escape")
+  await b.evaluate(() => window.__mcpTools.update_form.execute({ name: "Flow B planter" }))
+  const mintResult = await b.evaluate(async () => {
+    const r = await window.__mcpTools.start_pairing.execute({})
+    return r.content.find((c) => c.type === "text")?.text ?? ""
+  })
+  const toolCode = (mintResult.match(/[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}/) ?? [""])[0]
+  check("start_pairing returns a spoken-friendly code", toolCode.length === 7, mintResult.slice(0, 120))
+  await a.click('button[aria-label="Pair a device"]')
+  await a.fill('input[aria-label="Pairing code from your other device"]', toolCode)
+  await a.click('button:text-is("Join")')
+  await a.waitForFunction(() => window.location.search.includes("Flow"), null, { timeout: 10000 })
+  check("flow B: desktop adopts the phone's design via the tool-minted code", true)
+  await a.keyboard.press("Escape")
+
+  // flow A: A mints in the dialog, B's agent joins with join_session
+  await a.click('button[aria-label="Pair a device"]')
+  await a.click("text=Create pairing code")
+  const codeText2 = await a.textContent("code.font-mono", { timeout: 15000 })
+  const code2 = (codeText2 ?? "").replace(/[^A-Z2-9]/g, "")
+  const joinResult = await b.evaluate(async ([c]) => {
+    const r = await window.__mcpTools.join_session.execute({ code: c })
+    return { isError: r.isError ?? false, text: r.content.find((x) => x.type === "text")?.text ?? "" }
+  }, [code2.toLowerCase()]) // case-insensitive on purpose
+  check(
+    "flow A: join_session joins and reports the peers",
+    !joinResult.isError && joinResult.text.includes("Joined live session"),
+    joinResult.text.slice(0, 120)
+  )
+
+  // a burned/garbage code comes back as a graceful isError
+  const badJoin = await b.evaluate(async ([c]) => {
+    const r = await window.__mcpTools.join_session.execute({ code: c })
+    return { isError: r.isError ?? false, text: r.content.find((x) => x.type === "text")?.text ?? "" }
+  }, [code2])
+  check(
+    "join_session: burned code is a graceful isError",
+    badJoin.isError && badJoin.text.includes("used once"),
+    badJoin.text.slice(0, 120)
+  )
 } catch (e) {
   failures++
   console.log("FAIL  pairing e2e crashed —", e.message)
