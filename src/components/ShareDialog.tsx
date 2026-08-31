@@ -108,9 +108,10 @@ export function ShareDialog({
             </div>
           )}
           <p className="text-muted-foreground text-center text-xs leading-relaxed">
-            Scan with your phone to open this exact design there — for example in
-            ChatGPT's browser, where your agent can keep editing it. The link updates
-            live as you work.
+            This shares a <strong>copy</strong> of the design — safe to post anywhere; it
+            never grants access to your live session. Want your other screen to follow
+            this design live instead? Use <strong>Continue on another screen</strong> (the
+            two-screens icon).
           </p>
           {/* break-all + min-w-0: a long unbroken URL must never widen the
               dialog (iOS Safari doesn't zero a nowrap flex item's min-width,

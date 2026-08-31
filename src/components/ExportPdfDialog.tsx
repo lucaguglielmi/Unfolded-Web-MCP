@@ -76,7 +76,10 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
       <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Export template</DialogTitle>
-          <DialogDescription>Unfolded is free for everyone, forever.</DialogDescription>
+          <DialogDescription>
+            Unfolded is free for everyone, forever. The printed pages carry a QR — inside
+            the largest piece, so it survives cutting — that reopens this exact design.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">

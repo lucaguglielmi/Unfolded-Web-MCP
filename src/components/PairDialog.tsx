@@ -73,6 +73,7 @@ export function PairDialog({
   const peers = liveSync.peers()
   const paired = liveSync.isPaired()
 
+  const agentStatus = useProjectStore((s) => s.agentStatus)
   const form = useProjectStore((s) => s.form)
   const clay = useProjectStore((s) => s.clay)
   const paperSize = useProjectStore((s) => s.paperSize)
@@ -239,6 +240,23 @@ export function PairDialog({
               Synced live — {peers} devices
             </p>
           )}
+
+          {/* browser-aware guidance: say the most useful true thing for
+              where this tab actually is */}
+          {agentStatus === "chatgpt" ? (
+            <p className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-xs leading-relaxed">
+              You're viewing through ChatGPT. The easiest way to pair: <strong>ask your
+              agent for its latest link</strong> — every link it hands you is a live
+              invitation, and tapping it keeps this very tab in sync. The QR below works
+              for any <em>other</em> device.
+            </p>
+          ) : agentStatus === "native" ? (
+            <p className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-xs leading-relaxed">
+              An agent is connected to this tab — the links it shares already carry a live
+              invitation, so you can also just ask it to <em>&ldquo;send me the latest
+              link&rdquo;</em> for any other screen.
+            </p>
+          ) : null}
 
           {/* primary: scan or open the link — instant, no typing */}
           <div className="flex flex-col items-center gap-3">

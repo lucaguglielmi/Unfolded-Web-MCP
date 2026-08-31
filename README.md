@@ -73,10 +73,12 @@ committed e2e suite):
 - **Human and agent are true peers** — same store, same validation, shared
   undo/redo over both actors' edits, and concurrent PDF exports counted, not
   flag-locked.
-- **Live cross-device sessions, paired by voice** — a 6-character code spoken
-  through the chat pairs phone and desktop into one session (a Durable Object
-  per session, WebSocket hibernation, patches in the share-link vocabulary,
-  per-field last-write-wins); no URL is ever a live capability.
+- **Live cross-device sessions — scan, tap, or speak** — a QR or agent link
+  carrying a single-use join token (or a spoken 6-character code) pairs any
+  two screens into one session: a Durable Object per session, WebSocket
+  hibernation, patches in the share-link vocabulary, per-field
+  last-write-wins. No URL ever carries a durable capability — invitations
+  burn on first use.
 
 ## Run it
 
@@ -160,24 +162,28 @@ Things to try in a WebMCP-capable browser:
 
 ## Sync live between devices
 
-A design doesn't live in one chair. **Pair a device** (the two-screens icon in
-the header) shows a **6-character code** — read it to your other device, or
-tell your agent *"join my desktop session, code K7F-3QP"* (`join_session`).
-The reverse works too: ask the agent for a code (`start_pairing`) and type it
-on the desktop. One rule: **the device that enters the code follows the other
-one's design** (a single undo brings its previous design back); afterwards
-both are live peers — every edit by you or the agent, on either device,
-appears everywhere within about a second. Phones freezing background tabs is
-expected: every return to the tab reconnects and converges, and edits made
-offline are kept and sent.
+A design doesn't live in one chair — and the other chair needs no WebMCP,
+just a browser. **Continue on another screen** (the two-screens icon) shows
+a QR and a copyable link carrying a **single-use join token**: the device
+that opens it follows this design live, both ways, within about a second —
+whoever made the edit. In ChatGPT it's automatic: **every link the agent
+hands you is a live one** — tap it and the tab you're looking at stays
+current with the agent's hidden browser (and your edits there appear in the
+agent's next read). The spoken **6-character code** remains the fallback,
+collapsed behind "or use a code": read it aloud, or tell your agent *"join
+my desktop session, code K7F-3QP"* (`join_session`); the reverse direction
+is `start_pairing`. Phones freezing background tabs is expected: every
+return to the tab reconnects and converges, and edits made offline are kept
+and sent.
 
-Codes are honest capabilities: **5 minutes, one use**, from an alphabet with
-no ambiguous glyphs (never `I L O 0 1`) — anyone who enters one in that
-window can edit that design live, and nothing else. Privacy stays simple:
-the design parameters are the only thing that ever leaves the device,
-sessions are unlisted and expire after 30 idle days, and **no URL is ever a
-live capability** — share links, the address bar, and the printed QR stay
-plain design parameters (a found template grants a copy, not entry to your
+Invitations are honest capabilities: **single-use and short-lived** (a
+link's token dies on first open or within 10 minutes; a code within 5), and
+whoever uses one can edit that design live — nothing else. Privacy stays
+simple: the design parameters are the only thing that ever leaves the
+device, sessions are unlisted and expire after 30 idle days, and **no URL
+ever carries a durable capability** — a used link degrades to a plain
+design link, the address bar never holds a session, and the printed QR
+stays parameter-only (a found template grants a copy, not entry to your
 session).
 
 Three ways this plays out: start on the desktop and continue with the agent

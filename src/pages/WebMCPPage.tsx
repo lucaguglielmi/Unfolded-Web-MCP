@@ -29,7 +29,7 @@ const PROMPTS = [
   "My stoneware shrinks 13% — adjust and tell me the fired sizes.",
   "Make it hold about 350 ml, show me how it looks, then export the PDF.",
   "Join my desktop session, code K7F-3QP.",
-  "Give me a pairing code for my desktop.",
+  "Send me your latest link — I want to watch this live on my screen.",
 ]
 
 function StatusPill() {
@@ -121,7 +121,7 @@ const DIGEST: { title: string; body: string }[] = [
   },
   {
     title: "Across devices",
-    body: "Pair your phone and desktop with a spoken 6-character code (the two-screens icon in the header) — then every edit, yours or the agent's, appears on both within a second.",
+    body: "Scan the Continue QR (two-screens icon), open the copyable link, or — in ChatGPT — just tap any link your agent hands you: that screen follows the design live, both ways, no WebMCP needed there. A spoken 6-character code remains the fallback.",
   },
   {
     title: "Try saying",
@@ -251,10 +251,11 @@ function FiveMinutes() {
             <span className="mt-1 inline-flex size-2 shrink-0 rounded-full bg-emerald-500" />
             <p className="text-sm leading-relaxed text-stone-600">
               <span className="font-semibold text-stone-900">Connected via ChatGPT</span> — this
-              tab has no direct WebMCP, but the design arrived through a link the agent minted,
-              so it is open in the internal browser of your ChatGPT conversation. Edits made
-              here aren't automatically shared — send your link back to the chat and the agent
-              syncs with <Code>open_model</Code>.
+              tab has no direct WebMCP, but the design arrived through a link the agent minted
+              in your ChatGPT conversation. Those links carry a live invitation: tapping one
+              makes this tab follow the agent's session both ways, so your edits here show up
+              in its next read — the presence badge beside the pill tells you it's live. If
+              this tab somehow isn't following, ask the agent for its latest link.
             </p>
           </li>
           <li className="flex items-start gap-3">
@@ -277,27 +278,33 @@ function FiveMinutes() {
       <section className="border-t border-stone-100 py-14">
         <SectionLabel>Work across devices</SectionLabel>
         <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
-          A design doesn't live in one chair. Pair two devices — say, the phone where your
-          agent works and the desktop where you see the preview big — and every edit on
-          either appears on both within about a second, whoever made it. Pairing is a
-          spoken thing on purpose: one device shows a <strong>6-character code</strong>{" "}
-          (the two-screens icon in the header), and you read it to the other device — or
-          simply tell your agent <em>&ldquo;join my desktop session, code K7F&#8209;3QP&rdquo;</em>.
-          Chat is exactly where links break (a tapped link opens the wrong browser); a code
-          survives being said out loud.
+          A design doesn't live in one chair — and the other chair needs no WebMCP, just a
+          browser. Open <strong>Continue on another screen</strong> (the two-screens icon in
+          the header) and scan its QR, or copy its link: the device that opens it follows
+          this design live, both ways, within about a second — whoever made the edit, you
+          or an agent. In ChatGPT it's even simpler: <em>every link your agent hands you is
+          a live one</em> — tap it, and the tab you're looking at stays current with the
+          agent's own browser from then on.
         </p>
         <ul className="mt-6 max-w-xl space-y-3 text-sm leading-relaxed text-stone-600">
           <li>
             <span className="font-semibold text-stone-900">One rule:</span> the device that{" "}
-            <em>enters</em> the code follows the other one's design (a single undo brings
-            its previous design back). Mint where the work is; type the code where it
-            should follow. Afterwards no device is special.
+            <em>opens the link</em> (or enters the code) follows the other one's design — a
+            single undo brings its previous design back. Afterwards no device is special.
           </li>
           <li>
-            <span className="font-semibold text-stone-900">Honest terms:</span> a code lasts
-            5 minutes and works exactly once — anyone who enters it in that window can edit
-            the design live. The app never puts a live session in a link: share links, the
-            address bar, and the printed QR stay plain design parameters.
+            <span className="font-semibold text-stone-900">Honest terms:</span> an
+            invitation is single-use and short-lived — a link's token works once and dies
+            (10 minutes at most), a spoken code once within 5. Whoever uses one can edit
+            the design live. No URL ever carries a <em>durable</em> capability: a used link
+            degrades to a plain design link, and the printed PDF QR never carries a session
+            at all.
+          </li>
+          <li>
+            <span className="font-semibold text-stone-900">The code is the fallback:</span>{" "}
+            behind &ldquo;or use a code&rdquo; in the same dialog, for when you can't scan
+            or tap — read it aloud, or tell your agent{" "}
+            <em>&ldquo;join my desktop session, code K7F&#8209;3QP&rdquo;</em>.
           </li>
           <li>
             <span className="font-semibold text-stone-900">Comes back on its own:</span>{" "}
@@ -353,7 +360,7 @@ function FiveMinutes() {
  * the etiquette — but the page shows only its first line: it's for pasting,
  * not reading.
  */
-const KICKSTART_PROMPT = `Open https://tryunfolded.com in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get ${TOOL_COUNT} typed tools: ${TOOL_SUMMARIES.map((t) => t.name).join(", ")}. Start by calling describe_project to see the current design. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it through the tools — all dimensions are FIRED sizes in millimeters; for a target volume use set_capacity, which solves the exact height in one call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and give me the shareUrl from your last tool result so I can reopen the design anywhere. If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
+const KICKSTART_PROMPT = `Open https://tryunfolded.com in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get ${TOOL_COUNT} typed tools: ${TOOL_SUMMARIES.map((t) => t.name).join(", ")}. Start by calling describe_project to see the current design. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it through the tools — all dimensions are FIRED sizes in millimeters; for a target volume use set_capacity, which solves the exact height in one call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and give me the shareUrl from your last tool result — it doubles as a live link: when I open it, my browser follows your session and my edits show up in your next read. If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
 
 function HumanEasterEgg() {
   const [copied, setCopied] = useState(false)
@@ -424,11 +431,11 @@ const AGENT_CONNECTION: [string, string][] = [
   ["Registration", "document.modelContext.registerTool preferred; navigator/window fallbacks; provideContext({tools}) for hosts without registerTool. Registration is automatic — there is nothing for you to enable."],
   ["Late injection", "the app never stops watching for the API: 500 ms polling for 15 s, then a 3 s heartbeat (paused while the tab is hidden), plus focus/visibility re-checks. Executing any tool flips the app to connected."],
   ["Knowing you're in", "the header pill pulses green once your tools registered in this tab; the live status also renders at the top of this page. If it's grey, your host hasn't exposed WebMCP here."],
-  ["Link semantics", "shareUrl in your tool results carries ?via=chatgpt so a human tab opening it shows \"Connected via ChatGPT\". Links parse forgivingly: legacy vocabulary normalizes, unknown keys are ignored, out-of-range values clamp."],
+  ["Link semantics", "shareUrl in your tool results carries ?via=chatgpt AND a single-use ?join= token: the tab that opens it silently follows YOUR session (both ways) and strips the token. Hand the potter your latest shareUrl and their visible browser stays live with you. Links parse forgivingly: legacy vocabulary normalizes, unknown keys are ignored, out-of-range values clamp."],
   ["Units contract", "tool inputs and outputs are millimeters and milliliters, always. set_units only changes what the human sees (UI, warnings, printed PDF)."],
   ["Full-state returns", "every mutation returns the complete snapshot — form, clay, paperSize, units, capacityMl, annotated pieces, printedPages, warnings, shareUrl — so you never need a read-after-write."],
   ["Manual driving", "window.__unfoldedTools exposes each registered tool: __unfoldedTools.set_capacity.execute({capacityMl: 350})."],
-  ["Live sessions", "join_session (the potter reads you a code from their other device) and start_pairing (you mint one for them) put this tab in a cross-device session; after that, syncing is transparent — peers' edits simply appear in your next read, tagged like the potter's own."],
+  ["Live sessions", "your shareUrls invite the tap automatically; join_session (the potter reads you a code) and start_pairing (you mint one for them) cover the spoken path. Once any device joins, syncing is transparent — peers' edits simply appear in your next read, so re-read before assuming state."],
 ]
 
 const AGENT_PLAYBOOK: string[] = [
@@ -437,7 +444,7 @@ const AGENT_PLAYBOOK: string[] = [
   "After a visual change, get_preview_image shows you exactly what the potter sees — verify before you announce.",
   "Errors come back as isError text with per-field issues AND the unchanged state; recover by correcting the field, not by re-reading.",
   "The human is your peer: they may edit between your calls (you'll see it in your next result), and undo_last_change reverts either of you.",
-  "Pairing direction matters: the device that enters a code ADOPTS the other's design. Work lives here and the potter wants it elsewhere → start_pairing (they type the code there). Work lives on their other screen → ask for its code and join_session.",
+  "Pairing direction matters: the device that opens a link or enters a code ADOPTS this session's design. The potter wants to SEE your work elsewhere → just hand them your latest shareUrl (it already invites the tap), or start_pairing for a spoken code. The work lives on their other screen → ask for its code and join_session.",
 ]
 
 function ForAgents() {

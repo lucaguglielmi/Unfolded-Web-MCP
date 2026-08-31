@@ -32,7 +32,7 @@ const STATUS: Record<
   chatgpt: {
     label: "Connected via ChatGPT",
     tooltip:
-      "This tab does not have direct WebMCP access, but Unfolded is connected through the internal browser for this ChatGPT conversation. The agent can read and update the design there. Changes made in this tab are not automatically shared unless the design is synchronised.",
+      "This design arrived through a link your agent minted in ChatGPT. Agent links are live invitations: tapping one makes this tab follow the agent's session both ways — your edits here show up in its next read. The presence badge beside this pill shows the live status; if it's missing, ask the agent for its latest link.",
     dot: "bg-emerald-500",
     ping: false,
   },

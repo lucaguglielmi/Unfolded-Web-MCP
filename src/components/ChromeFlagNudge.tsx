@@ -95,7 +95,8 @@ export function ChromeFlagNudge() {
           <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
             This looks like Chrome — WebMCP is one experimental flag away. Copy the address
             below into a new tab, enable <span className="font-medium">WebMCP testing</span>,
-            and relaunch Chrome.
+            and relaunch Chrome. (Only agents need the flag — following a design live from
+            another screen works in any browser, via the two-screens icon.)
           </p>
           <div className="bg-muted mt-2.5 flex items-center gap-1.5 rounded-md py-1 pr-1 pl-2.5">
             <code className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-[11px]">

@@ -53,7 +53,7 @@ const DIGEST: { title: string; body: string }[] = [
   },
   {
     title: "It follows you around",
-    body: "Pair phone and desktop with a spoken 6-character code and both show the same live design — the agent edits on the phone, the big screen follows within a second.",
+    body: "Scan a QR, tap a link your agent hands you, or read a 6-character code aloud — the other screen (no WebMCP needed) follows the same live design within a second, edits flowing both ways.",
   },
   {
     title: "The deal",
@@ -120,7 +120,7 @@ const NON_TRIVIAL: { title: string; body: string }[] = [
   },
   {
     title: "The design doesn't live in one chair",
-    body: "start at the bench on the big screen, continue in chat on the phone, come back months later from the QR printed with the template — a spoken 6-character code pairs any two devices into one live session, and no URL is ever a live capability: codes last 5 minutes and work once, links and the printed QR stay plain parameters.",
+    body: "start at the bench, continue in chat, come back months later from the QR printed with the template — a scanned QR, a tapped agent link, or a spoken code pairs any two screens into one live session. Invitations are single-use and short-lived (a used link degrades to a plain design link), so no URL ever carries a durable capability, and the printed QR stays parameter-only.",
   },
 ]
 
@@ -351,7 +351,7 @@ const AGENT_MECHANICS: [string, string][] = [
   ["Late injection", "polling every 500 ms for 15 s, then a 3 s heartbeat forever (paused while the tab is hidden), plus focus/visibility re-checks. Any executed tool call flips the app to connected."],
   ["Units contract", "all tool inputs and outputs are millimeters and milliliters; set_units changes only what humans see (UI, warnings, printed PDF, its scale-check bar: 3 cm vs 1 in)."],
   ["State returns", "every mutating tool returns the complete state snapshot: form, clay, paperSize, units, capacityMl, pieces (annotated), printedPages, warnings, shareUrl."],
-  ["shareUrl", "the return channel. Agent-minted links carry ?via=chatgpt so a tab opening them shows \"Connected via ChatGPT\"; the PDF's printed QR is deliberately untagged (paper outlives a chat)."],
+  ["shareUrl", "the return channel — and a live one: agent-minted links carry ?via=chatgpt plus a single-use ?join= token, so the tab that opens one follows your session both ways. The PDF's printed QR is deliberately untagged (paper outlives a chat)."],
   ["Errors", "invalid input returns isError with per-field zod issues AND the unchanged state; out-of-range link values clamp instead of failing."],
   ["Console access", "window.__unfoldedTools exposes every registered tool for manual driving, e.g. __unfoldedTools.set_capacity.execute({capacityMl: 350})."],
 ]
