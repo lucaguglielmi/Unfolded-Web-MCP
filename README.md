@@ -71,6 +71,10 @@ committed e2e suite):
 - **Human and agent are true peers** — same store, same validation, shared
   undo/redo over both actors' edits, and concurrent PDF exports counted, not
   flag-locked.
+- **Live cross-device sessions, paired by voice** — a 6-character code spoken
+  through the chat pairs phone and desktop into one session (a Durable Object
+  per session, WebSocket hibernation, patches in the share-link vocabulary,
+  per-field last-write-wins); no URL is ever a live capability.
 
 ## Run it
 
@@ -152,6 +156,34 @@ Things to try in a WebMCP-capable browser:
 > *"My stoneware shrinks 13% — adjust and tell me the fired sizes."*
 > *"Make it hold about 350 ml, show me how it looks, then export the PDF for Letter paper."*
 
+## Sync live between devices
+
+A design doesn't live in one chair. **Pair a device** (the two-screens icon in
+the header) shows a **6-character code** — read it to your other device, or
+tell your agent *"join my desktop session, code K7F-3QP"* (`join_session`).
+The reverse works too: ask the agent for a code (`start_pairing`) and type it
+on the desktop. One rule: **the device that enters the code follows the other
+one's design** (a single undo brings its previous design back); afterwards
+both are live peers — every edit by you or the agent, on either device,
+appears everywhere within about a second. Phones freezing background tabs is
+expected: every return to the tab reconnects and converges, and edits made
+offline are kept and sent.
+
+Codes are honest capabilities: **5 minutes, one use**, from an alphabet with
+no ambiguous glyphs (never `I L O 0 1`) — anyone who enters one in that
+window can edit that design live, and nothing else. Privacy stays simple:
+the design parameters are the only thing that ever leaves the device,
+sessions are unlisted and expire after 30 idle days, and **no URL is ever a
+live capability** — share links, the address bar, and the printed QR stay
+plain design parameters (a found template grants a copy, not entry to your
+session).
+
+Three ways this plays out: start on the desktop and continue with the agent
+on the phone; start with the agent and bring the design to the desktop with
+an agent-minted code; or months later, scan the QR printed **inside the
+largest template piece** — it survives the overview page being binned — and
+re-derive the same design for a new clay body.
+
 ## Share links
 
 Every design is a URL. Query parameters describe the whole model, so a link like
@@ -166,7 +198,8 @@ model itself stays metric, `units` only sets how measurements are displayed and
 printed). After the first edit
 the address bar live-tracks the design, the header's link button copies it, and the
 `open_model` tool lets an agent continue from any pasted link. Links are
-origin-independent — they survive domain changes.
+origin-independent — they survive domain changes — and parameter-only: opening
+one grants a copy of the design, never entry to a live session.
 
 ## How the math works
 

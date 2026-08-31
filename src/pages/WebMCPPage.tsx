@@ -1,10 +1,11 @@
-import { useState } from "react"
+import { useState, useSyncExternalStore } from "react"
 import { ArrowLeft, ArrowUpRight } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 import { cn } from "@/lib/utils"
 // the tool list renders from its single source next to the registrations
 import { TOOL_SUMMARIES } from "@/mcp/tools"
+import { liveSync } from "@/store/syncClient"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -24,6 +25,8 @@ const PROMPTS = [
   "Make it a hexagonal planter, 18 cm tall and 14 cm wide.",
   "My stoneware shrinks 13% — adjust and tell me the fired sizes.",
   "Make it hold about 350 ml, show me how it looks, then export the PDF.",
+  "Join my desktop session, code K7F-3QP.",
+  "Give me a pairing code for my desktop.",
 ]
 
 function StatusPill() {
@@ -61,6 +64,23 @@ function StatusPill() {
   )
 }
 
+function LiveSyncStatus() {
+  const snapshot = useSyncExternalStore(
+    (cb) => liveSync.subscribe(cb),
+    () => `${liveSync.status()}:${liveSync.peers()}`
+  )
+  const [status, peers] = snapshot.split(":")
+  const text =
+    status === "off"
+      ? "This tab is not paired to a live session."
+      : status === "connecting"
+        ? "This tab is paired and reconnecting to its session…"
+        : Number(peers) > 1
+          ? `This tab is live in a session with ${peers} devices.`
+          : "This tab is paired to a live session — no other device is connected right now."
+  return <p className="mt-5 text-sm text-stone-400">Right here, right now: {text}</p>
+}
+
 function SectionLabel({ children }: { children: string }) {
   return (
     <p className="text-xs font-medium tracking-[0.18em] text-stone-400 uppercase">{children}</p>
@@ -93,6 +113,10 @@ const DIGEST: { title: string; body: string }[] = [
   {
     title: "What the agent can do",
     body: `${TOOL_COUNT[0].toUpperCase()}${TOOL_COUNT.slice(1)} tools: read the design, reshape it, solve capacity exactly, switch units, see the 3D preview, and export the printable PDF — all in the same live session you're looking at.`,
+  },
+  {
+    title: "Across devices",
+    body: "Pair your phone and desktop with a spoken 6-character code (the two-screens icon in the header) — then every edit, yours or the agent's, appears on both within a second.",
   },
   {
     title: "Try saying",
@@ -244,6 +268,41 @@ function FiveMinutes() {
         </p>
       </section>
 
+      {/* across devices */}
+      <section className="border-t border-stone-100 py-14">
+        <SectionLabel>Work across devices</SectionLabel>
+        <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
+          A design doesn't live in one chair. Pair two devices — say, the phone where your
+          agent works and the desktop where you see the preview big — and every edit on
+          either appears on both within about a second, whoever made it. Pairing is a
+          spoken thing on purpose: one device shows a <strong>6-character code</strong>{" "}
+          (the two-screens icon in the header), and you read it to the other device — or
+          simply tell your agent <em>&ldquo;join my desktop session, code K7F&#8209;3QP&rdquo;</em>.
+          Chat is exactly where links break (a tapped link opens the wrong browser); a code
+          survives being said out loud.
+        </p>
+        <ul className="mt-6 max-w-xl space-y-3 text-sm leading-relaxed text-stone-600">
+          <li>
+            <span className="font-semibold text-stone-900">One rule:</span> the device that{" "}
+            <em>enters</em> the code follows the other one's design (a single undo brings
+            its previous design back). Mint where the work is; type the code where it
+            should follow. Afterwards no device is special.
+          </li>
+          <li>
+            <span className="font-semibold text-stone-900">Honest terms:</span> a code lasts
+            5 minutes and works exactly once — anyone who enters it in that window can edit
+            the design live. The app never puts a live session in a link: share links, the
+            address bar, and the printed QR stay plain design parameters.
+          </li>
+          <li>
+            <span className="font-semibold text-stone-900">Comes back on its own:</span>{" "}
+            phones freeze background tabs; every return to the tab reconnects and
+            converges, and edits made offline are kept and sent.
+          </li>
+        </ul>
+        <LiveSyncStatus />
+      </section>
+
       {/* the tools */}
       <section className="border-t border-stone-100 py-14">
         <SectionLabel>What your agent can do</SectionLabel>
@@ -290,6 +349,7 @@ const AGENT_CONNECTION: [string, string][] = [
   ["Units contract", "tool inputs and outputs are millimeters and milliliters, always. set_units only changes what the human sees (UI, warnings, printed PDF)."],
   ["Full-state returns", "every mutation returns the complete snapshot — form, clay, paperSize, units, capacityMl, annotated pieces, printedPages, warnings, shareUrl — so you never need a read-after-write."],
   ["Manual driving", "window.__unfoldedTools exposes each registered tool: __unfoldedTools.set_capacity.execute({capacityMl: 350})."],
+  ["Live sessions", "join_session (the potter reads you a code from their other device) and start_pairing (you mint one for them) put this tab in a cross-device session; after that, syncing is transparent — peers' edits simply appear in your next read, tagged like the potter's own."],
 ]
 
 const AGENT_PLAYBOOK: string[] = [
@@ -298,6 +358,7 @@ const AGENT_PLAYBOOK: string[] = [
   "After a visual change, get_preview_image shows you exactly what the potter sees — verify before you announce.",
   "Errors come back as isError text with per-field issues AND the unchanged state; recover by correcting the field, not by re-reading.",
   "The human is your peer: they may edit between your calls (you'll see it in your next result), and undo_last_change reverts either of you.",
+  "Pairing direction matters: the device that enters a code ADOPTS the other's design. Work lives here and the potter wants it elsewhere → start_pairing (they type the code there). Work lives on their other screen → ask for its code and join_session.",
 ]
 
 function ForAgents() {

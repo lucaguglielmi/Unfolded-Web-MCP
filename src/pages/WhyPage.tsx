@@ -51,6 +51,10 @@ const DIGEST: { title: string; body: string }[] = [
     body: "The whole model lives in the URL — share it, scan it, or paste it to an agent to keep editing.",
   },
   {
+    title: "It follows you around",
+    body: "Pair phone and desktop with a spoken 6-character code and both show the same live design — the agent edits on the phone, the big screen follows within a second.",
+  },
+  {
     title: "The deal",
     body: "Free for everyone, forever. Open source, MIT.",
   },
@@ -112,6 +116,10 @@ const NON_TRIVIAL: { title: string; body: string }[] = [
   {
     title: "Human and agent are true peers",
     body: "same store, same validation, shared undo/redo over both actors' edits, and concurrent PDF exports counted rather than flag-locked.",
+  },
+  {
+    title: "The design doesn't live in one chair",
+    body: "start at the bench on the big screen, continue in chat on the phone, come back months later from the QR printed with the template — a spoken 6-character code pairs any two devices into one live session, and no URL is ever a live capability: codes last 5 minutes and work once, links and the printed QR stay plain parameters.",
   },
 ]
 

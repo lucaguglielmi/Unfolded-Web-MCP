@@ -1,9 +1,17 @@
 # Live Sync Spec v2 — WebSocket session layer with 6-character code pairing
 
-Status: **draft — not started**. Supersedes the v1 spec (link/QR `sid`
-pairing). Direction: **pairing happens by relaying a short-lived 6-character
-code between devices — spoken or typed through the agent chat — and the
-session id never appears in any URL.** Nothing here is implemented.
+Status: **implemented on this branch** (all ten work items, in order, each
+with green gates — see the branch history). Supersedes the v1 spec (link/QR
+`sid` pairing). Direction: **pairing happens by relaying a short-lived
+6-character code between devices — spoken or typed through the agent chat —
+and the session id never appears in any URL.** Two deviations from the letter
+of the spec, both recorded in §10: `hello` carries the tab's design slice for
+first-contact bootstrap (eager creation would otherwise welcome the minting
+tab with a default mug), and patch broadcasts include the sender so its own
+echo teaches it the version its edit landed at. Server tests run as pure-core
+vitest suites plus a live `wrangler dev` smoke suite with real sockets
+(`npm run e2e:worker`, `npm run e2e:pairing`) — vitest-pool-workers does not
+support this repo's vitest major.
 
 Decisions taken 2026-08-31 (previously open):
 - **Code TTL: 5 minutes.** Confirmed.
