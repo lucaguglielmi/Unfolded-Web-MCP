@@ -150,8 +150,9 @@ function FiveMinutes() {
         <p className="mt-5 max-w-xl leading-relaxed text-stone-600">
           Slab building is the most common hand-building technique in ceramics, and its paper
           step is still manual: potters draw templates on cereal boxes, wrap paper around
-          forms, and do the sizing math by hand. Two errors are endemic to that math — and both
-          ruin pieces only <em>after</em> the firing:
+          forms, and do the sizing math by hand. Two errors are endemic to that math — both
+          ruin pieces only <em>after</em> the firing — and even when the math is right, the
+          workflow fights you:
         </p>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-stone-200 p-6">
@@ -169,6 +170,23 @@ function FiveMinutes() {
               A slab bends along its middle, so a wrapped wall must be developed on the
               mid-surface <Code>(r − t/2)</Code>; using the outer dimension makes the wall come
               out too long and the seam overlap.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 p-6">
+            <h3 className="font-semibold tracking-tight">Printing that fights you</h3>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+              Anything bigger than a sheet of paper — a planter wall, an unrolled cone — has to
+              be split across pages and rejoined at exact scale: tiling, alignment marks, and
+              glue margins all done by hand, with a fresh chance for a scale error on every
+              sheet.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 p-6">
+            <h3 className="font-semibold tracking-tight">No preview without the work</h3>
+            <p className="mt-3 text-sm leading-relaxed text-stone-600">
+              There's no way to see the piece before committing to it — checking proportions or
+              capacity means building the whole template (or the pot itself), so every tweak to
+              a height or a taper costs hours instead of a slider drag.
             </p>
           </div>
         </div>
