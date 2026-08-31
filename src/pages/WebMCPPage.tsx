@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { ArrowLeft, ArrowUpRight, Check } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
+import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
@@ -358,6 +359,7 @@ const AGENT_PLAYBOOK: string[] = [
 ]
 
 function ForAgents() {
+  const whyHref = useDesignHref("/why")
   return (
     <>
       <section className="pt-12 pb-14">
@@ -371,7 +373,7 @@ function ForAgents() {
           surface, and the playbook that uses it well. For the data model, its exact ranges,
           and the geometry formulas, switch{" "}
           <a
-            href="/why"
+            href={whyHref}
             className="font-medium text-stone-600 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
           >
             /why
@@ -428,17 +430,19 @@ function ForAgents() {
 
 export function WebMCPPage() {
   const [depth, setDepth] = useState<ReadingDepth>("5min")
+  const studioHref = useStudioHref()
+  const whyHref = useDesignHref("/why")
 
   return (
     <div className="webmcp-page app-fade-in min-h-dvh bg-white text-stone-900 antialiased">
       {/* top bar */}
       <header className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
-        <a href="/" className="flex items-center gap-2.5">
+        <a href={studioHref} className="flex items-center gap-2.5">
           <LogoMark animated className="h-5 w-auto" />
           <span className="text-base font-semibold tracking-tight">unfolded</span>
         </a>
         <a
-          href="/"
+          href={studioHref}
           className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-50"
         >
           <ArrowLeft className="size-3.5" />
@@ -462,7 +466,7 @@ export function WebMCPPage() {
           </p>
           <div className="flex items-center gap-3">
             <a
-              href="/why"
+              href={whyHref}
               className="text-sm font-medium text-stone-600 transition-colors hover:text-stone-900"
             >
               Why Unfolded
@@ -476,7 +480,7 @@ export function WebMCPPage() {
               GitHub <ArrowUpRight className="size-3.5" />
             </a>
             <a
-              href="/"
+              href={studioHref}
               className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
             >
               Open the studio

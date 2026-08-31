@@ -1,5 +1,6 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useDesignHref } from "@/lib/useStudioHref"
 import { useProjectStore, type AgentStatus } from "@/store/useProjectStore"
 
 /**
@@ -48,6 +49,7 @@ export function AgentBadge() {
   const agentStatus = useProjectStore((s) => s.agentStatus)
   const lastAgentCall = useProjectStore((s) => s.lastAgentCall)
   const status = STATUS[agentStatus]
+  const webmcpHref = useDesignHref("/webmcp")
 
   return (
     <div className="flex min-w-0 items-center gap-2.5">
@@ -59,7 +61,7 @@ export function AgentBadge() {
       <Tooltip>
         <TooltipTrigger asChild>
           <a
-            href="/webmcp"
+            href={webmcpHref}
             aria-label={`${status.label} — learn more`}
             className="border-border text-foreground hover:bg-accent inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium whitespace-nowrap transition-colors"
           >

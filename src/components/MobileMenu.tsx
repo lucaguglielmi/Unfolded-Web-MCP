@@ -3,6 +3,7 @@ import { HelpCircle, Menu, Share2, X } from "lucide-react"
 import { AgentBadge } from "@/components/AgentBadge"
 import { ShareDialog } from "@/components/ShareDialog"
 import { Button } from "@/components/ui/button"
+import { useDesignHref } from "@/lib/useStudioHref"
 
 /**
  * Phone header menu: one button gathering what the narrow header can't fit
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button"
 export function MobileMenu() {
   const [open, setOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const whyHref = useDesignHref("/why")
 
   const rowClass =
     "flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
@@ -43,7 +45,7 @@ export function MobileMenu() {
             <div className="px-1.5 py-2" onClick={() => setOpen(false)}>
               <AgentBadge />
             </div>
-            <a href="/why" className={rowClass} onClick={() => setOpen(false)}>
+            <a href={whyHref} className={rowClass} onClick={() => setOpen(false)}>
               <HelpCircle className="text-muted-foreground size-4" />
               Why Unfolded
             </a>

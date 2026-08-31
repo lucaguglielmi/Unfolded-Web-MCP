@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { ArrowLeft, ArrowUpRight } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
+import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 // the tool list renders from its single source next to the registrations
 import { TOOL_SUMMARIES } from "@/mcp/tools"
@@ -123,6 +124,7 @@ const UNROLLINGS = [
 ]
 
 function FiveMinutes() {
+  const webmcpHref = useDesignHref("/webmcp")
   return (
     <>
       {/* hero */}
@@ -254,7 +256,7 @@ function FiveMinutes() {
         <p className="mt-6 max-w-xl text-sm leading-relaxed text-stone-400">
           How to connect a browser, what the header pill means, and prompts to try live on the{" "}
           <a
-            href="/webmcp"
+            href={webmcpHref}
             className="font-medium text-stone-600 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
           >
             WebMCP guide
@@ -472,17 +474,18 @@ function ForAgents() {
 
 export function WhyPage() {
   const [depth, setDepth] = useState<ReadingDepth>("5min")
+  const studioHref = useStudioHref()
 
   return (
     <div className="webmcp-page app-fade-in min-h-dvh bg-white text-stone-900 antialiased">
       {/* top bar */}
       <header className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
-        <a href="/" className="flex items-center gap-2.5">
+        <a href={studioHref} className="flex items-center gap-2.5">
           <LogoMark animated className="h-5 w-auto" />
           <span className="text-base font-semibold tracking-tight">unfolded</span>
         </a>
         <a
-          href="/"
+          href={studioHref}
           className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 px-3.5 py-1.5 text-xs font-medium text-stone-600 transition-colors hover:bg-stone-50"
         >
           <ArrowLeft className="size-3.5" />
@@ -514,7 +517,7 @@ export function WhyPage() {
               GitHub <ArrowUpRight className="size-3.5" />
             </a>
             <a
-              href="/"
+              href={studioHref}
               className="inline-flex items-center gap-1.5 rounded-full bg-stone-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-stone-700"
             >
               Open the studio
