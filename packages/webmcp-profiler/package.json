@@ -1,0 +1,47 @@
+{
+  "name": "webmcp-profiler",
+  "version": "0.1.0",
+  "description": "Drop-in performance analyser for WebMCP tool surfaces: per-call spans, payload and token accounting, host-gap ledger, live overlay. Zero dependencies.",
+  "license": "MIT",
+  "author": "Luca Guglielmi",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lucaguglielmi/Unfolded-Web-MCP.git",
+    "directory": "packages/webmcp-profiler"
+  },
+  "homepage": "https://tryunfolded.com/webmcp",
+  "bugs": "https://github.com/lucaguglielmi/Unfolded-Web-MCP/issues",
+  "keywords": [
+    "webmcp",
+    "mcp",
+    "modelcontext",
+    "performance",
+    "profiler",
+    "agents",
+    "instrumentation"
+  ],
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./attach": {
+      "types": "./dist/attach.d.ts",
+      "import": "./dist/attach.js"
+    },
+    "./iife": "./dist/webmcp-profiler.iife.js"
+  },
+  "scripts": {
+    "build": "vite build && vite build -c vite.iife.config.ts && tsc -p tsconfig.build.json",
+    "test": "vitest run"
+  }
+}

@@ -1,0 +1,34 @@
+# Publishes packages/webmcp-profiler to npm.
+#
+# Triggers: manually (workflow_dispatch), or by pushing a tag like
+# webmcp-profiler-v0.1.0. Needs the NPM_TOKEN repository secret (an npm
+# granular access token with read/write + bypass-2FA) until npm trusted
+# publishing is configured for the package — then the token can be
+# deleted and NODE_AUTH_TOKEN removed; the id-token permission below
+# already covers OIDC provenance either way.
+name: Publish webmcp-profiler
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["webmcp-profiler-v*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+      - run: npm ci
+      - run: npm test
+      - run: npm run build --workspace webmcp-profiler
+      - run: npm publish --workspace webmcp-profiler --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

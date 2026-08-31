@@ -382,11 +382,11 @@ function FiveMinutes() {
             profiler is a dependency-free module any WebMCP site can lift —{" "}
             <a
               className="font-medium text-stone-700 underline decoration-stone-300 underline-offset-4 transition-colors hover:text-stone-900"
-              href="https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/src/profiler"
+              href="https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/packages/webmcp-profiler"
               target="_blank"
               rel="noreferrer"
             >
-              src/profiler on GitHub
+              webmcp-profiler on GitHub
             </a>
             . One import, and your tools are measured too.
           </li>

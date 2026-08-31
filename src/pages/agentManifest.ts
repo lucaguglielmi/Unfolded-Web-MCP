@@ -197,7 +197,7 @@ export function buildAgentManifest(): Record<string, unknown> {
         "every tool here executes in single-digit milliseconds (p50 <= 5 ms) — perceived latency is host/model round-trip time, not page compute",
         "get_preview_image returns a deliberately compact 320px JPEG (~7 KB, ~1.7K tokens); it was a 480px PNG (~130 KB, ~32K tokens) before profiling flagged it",
       ],
-      source: "src/profiler/ in the repo — dependency-free, lifts into any WebMCP project; spec at docs/webmcp-profiler-spec.md",
+      source: "packages/webmcp-profiler in the repo (npm: webmcp-profiler) — dependency-free, drops into any WebMCP project; spec at docs/webmcp-profiler-spec.md",
     },
     layoutConstants: {
       pageMarginMm: PAGE_MARGIN_MM,

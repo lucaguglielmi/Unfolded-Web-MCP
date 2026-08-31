@@ -313,8 +313,12 @@ overlay are both views over this same document.
    a hidden agent tab. Note: ChatGPT's hidden and in-app browsers are
    separate browsing contexts, so BroadcastChannel may not bridge them —
    the WebSocket relay (§7) remains the answer there.
-4. Split out as the standalone `webmcp-profiler` package; this site
-   becomes its first consumer instead of its host.
+4. (structure shipped) `packages/webmcp-profiler` is a workspace package
+   — ESM + IIFE + type-declaration builds, `npm pack` verified, publish
+   workflow at `.github/workflows/publish-profiler.yml` (dispatch or a
+   `webmcp-profiler-v*` tag; needs the NPM_TOKEN repo secret until npm
+   trusted publishing is configured). The app consumes the package
+   source via the `@/profiler` alias, staying its first consumer.
 
 Shipped alongside step 2: the first finding acted on —
 `get_preview_image` went from a 480 px PNG (~130 KB ≈ 32 K tokens per

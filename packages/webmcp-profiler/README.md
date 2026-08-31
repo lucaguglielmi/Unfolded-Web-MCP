@@ -8,9 +8,8 @@ measures every tool call the page serves.
 Born inside [tryunfolded.com](https://tryunfolded.com), where it answered
 the question *"are the WebMCP tools slow?"* with data: tool execution was
 1–15 ms; the seconds people felt were model round trips and one 130 KB
-image payload. This directory has **no imports from the surrounding app**
-and lifts out unchanged as a standalone package. Full design rationale:
-[`docs/webmcp-profiler-spec.md`](../../docs/webmcp-profiler-spec.md).
+image payload. Full design rationale:
+[webmcp-profiler-spec.md](https://github.com/lucaguglielmi/Unfolded-Web-MCP/blob/main/docs/webmcp-profiler-spec.md).
 
 ## Why
 
@@ -50,18 +49,29 @@ flag sticks for that tab's origin.
 
 ## Integrating it in your own project
 
-Copy this directory (it depends on nothing) and call the gate first
-thing at boot, **before** your tool registration starts:
+```
+npm install webmcp-profiler
+```
+
+Call the gate first thing at boot, **before** your tool registration
+starts:
 
 ```ts
-import { maybeAttachProfiler } from "./profiler/attach"   // ?perf=1 gate
+import { maybeAttachProfiler } from "webmcp-profiler/attach"   // ?perf=1 gate
 maybeAttachProfiler()
+```
+
+No bundler? One classic script tag is the whole integration — it exposes
+`window.WebMCPProfiler` and runs the `?perf=` gate on load:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/webmcp-profiler@0.1/dist/webmcp-profiler.iife.js"></script>
 ```
 
 or attach unconditionally / with config:
 
 ```ts
-import { attachProfiler } from "./profiler"
+import { attachProfiler } from "webmcp-profiler"
 const profiler = attachProfiler({
   buffer: 500,      // spans kept in memory
   relay: true,      // mirror spans onto BroadcastChannel "webmcp-perf:<origin>"
@@ -143,10 +153,14 @@ business being that heavy — it ships as a 320 px JPEG (~7 KB) now.
 ## Files
 
 ```
-attach.ts       ?perf= boot gate — zero cost until asked for
-index.ts        attachProfiler() · console API · BroadcastChannel relay
-interceptor.ts  registry watching · in-place execute instrumentation
-collector.ts    span ring buffer · ledger · Long-Task attribution · report
-overlay.ts      shadow-DOM live panel (lazy-loaded on first use)
-profiler.test.ts
+src/attach.ts       ?perf= boot gate — zero cost until asked for
+src/index.ts        attachProfiler() · console API · BroadcastChannel relay
+src/interceptor.ts  registry watching · in-place execute instrumentation
+src/collector.ts    span ring buffer · ledger · Long-Task attribution · report
+src/overlay.ts      shadow-DOM live panel (lazy-loaded on first use)
+src/iife.ts         classic-script entry (auto-runs the gate)
+src/profiler.test.ts
 ```
+
+Home: [`packages/webmcp-profiler`](https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/packages/webmcp-profiler)
+in the Unfolded repo, which is also its first consumer. MIT.

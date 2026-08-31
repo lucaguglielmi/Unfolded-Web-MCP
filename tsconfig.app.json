@@ -7,6 +7,7 @@
     "types": ["vite/client"],
     "strict": true,
     "paths": {
+      "@/profiler/*": ["./packages/webmcp-profiler/src/*"],
       "@/*": ["./src/*"]
     },
     "allowArbitraryExtensions": true,
@@ -26,5 +27,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "packages/webmcp-profiler/src"]
 }
