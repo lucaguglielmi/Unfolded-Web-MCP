@@ -4,6 +4,7 @@ import { ChromeFlagNudge } from "@/components/ChromeFlagNudge"
 import { LogoMark } from "@/components/LogoMark"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { FeedbackToggle } from "@/components/FeedbackToggle"
+import { MobileMenu } from "@/components/MobileMenu"
 import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { PreviewCluster, type PreviewView } from "@/components/PreviewCluster"
 import { ShareDialog } from "@/components/ShareDialog"
@@ -67,17 +68,23 @@ export default function App() {
             </a>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <a
-              href="/why"
-              className="px-1.5 text-xs font-medium whitespace-nowrap text-[#0A5BFF] underline-offset-4 transition-colors hover:underline"
-            >
-              {/* phones get the short label — the pill needs the room */}
-              <span className="sm:hidden">Why</span>
-              <span className="hidden sm:inline">Why Unfolded</span>
-            </a>
+            {/* audio toggle lives in the header at every size */}
             <FeedbackToggle />
-            <ShareDialog />
-            <AgentBadge />
+            {/* sm+ shows everything side by side… */}
+            <div className="hidden items-center gap-1.5 sm:flex">
+              <a
+                href="/why"
+                className="px-1.5 text-xs font-medium whitespace-nowrap text-[#0A5BFF] underline-offset-4 transition-colors hover:underline"
+              >
+                Why Unfolded
+              </a>
+              <ShareDialog />
+              <AgentBadge />
+            </div>
+            {/* …phones gather it into one menu */}
+            <div className="sm:hidden">
+              <MobileMenu />
+            </div>
           </div>
         </header>
 
