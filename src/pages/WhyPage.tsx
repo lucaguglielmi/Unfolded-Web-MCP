@@ -37,7 +37,7 @@ const DIGEST: { title: string; body: string }[] = [
   },
   {
     title: "Why it exists",
-    body: "Potters draw templates on cereal boxes and get the math wrong in two classic ways — shrinkage scaled by 1+s instead of 1/(1−s), and walls measured on the outer surface instead of the slab's middle. Both ruin pieces only after the firing. Unfolded encodes the right math.",
+    body: "The paper step of slab building is still done by hand, on cereal-box cardboard — and it bites in predictable ways: shrinkage scaled by 1+s instead of 1/(1−s), walls measured on the outer surface instead of the slab's middle, capacity guessed, printing mis-tiled. Every error shows up only after the firing. Unfolded encodes the right math.",
   },
   {
     title: "The AI part",
@@ -79,7 +79,7 @@ function OneMinute() {
           ))}
         </dl>
         <p className="mt-10 text-sm text-stone-400">
-          That's the minute. The five-minute version above has the full story — or open the
+          That's the minute. Switch to the five-minute read for the full story — or open the
           studio and just try it.
         </p>
       </section>
@@ -219,12 +219,14 @@ function FiveMinutes() {
           </div>
         </div>
         <p className="mt-6 max-w-xl leading-relaxed text-stone-600">
-          Unfolded encodes both corrections and adds the math no one does by hand at all:
-          exact interior capacity (volume is linear in height, so <em>&ldquo;make it hold
-          350&nbsp;ml&rdquo;</em> has a closed-form answer) and true miter bevels for tapered
-          faceted forms. The audience is specific — hand-builders, ceramics teachers, studio
-          classes — and the output is physical: a PDF that prints at 100% scale, with a
-          calibration ruler to prove it, that gets cut out and laid on clay.
+          Unfolded encodes all of this — and more — under the hood: shrinkage scaled the
+          right way, walls developed on the slab's mid-surface, exact interior capacity
+          (volume is linear in height, so <em>&ldquo;make it hold 350&nbsp;ml&rdquo;</em> has
+          a closed-form answer), true miter bevels for tapered faceted forms, and page tiling
+          with registration ticks and a calibration bar on every sheet. You drag a slider;
+          the math stays right. The audience is specific — hand-builders, ceramics teachers,
+          studio classes — and the output is physical: a PDF that prints at 100% scale, with
+          a ruler on the page to prove it, that gets cut out and laid on clay.
         </p>
         <p className="mt-4 max-w-xl leading-relaxed text-stone-600">
           The agent is not a gimmick on top: sizing questions are exactly what potters ask in
@@ -286,11 +288,12 @@ function FiveMinutes() {
         <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-500">
           <Code>type</Code> also accepts triangle, square, pentagon, hexagon;{" "}
           <Code>paper=A4|A3|Letter</Code> and <Code>units=cm|in</Code> work too — the model
-          itself stays metric, units only set how measurements are shown and printed. After the
-          first edit the address bar live-tracks the design, the header's share button copies
-          it (with a QR), and an agent can continue from any pasted link. Links are
-          origin-independent — they survive domain changes — and the printed PDF carries a QR
-          of the same link: the paper remembers the model.
+          itself stays metric, units only change what you see and print. After the first edit
+          the address bar live-tracks the design, the header's share button copies it (with a
+          QR), and an agent can continue from any pasted link. Links survive domain changes,
+          and the printed PDF carries the same link as a QR inside the largest template
+          piece — so months later, the cut-out paper in your studio drawer still remembers
+          the exact model it was printed from.
         </p>
       </section>
 
@@ -311,9 +314,9 @@ function FiveMinutes() {
           ))}
         </ul>
         <p className="mt-6 max-w-xl text-sm leading-relaxed text-stone-500">
-          Two pottery-specific corrections are applied on top — clay shrinkage scaling{" "}
-          <Code>1/(1−s)</Code> and mid-surface development <Code>r − t/2</Code>. The geometry
-          is unit-tested to the tenth of a millimeter.
+          Two pottery-specific corrections ride on top — shrinkage scaling{" "}
+          <Code>1/(1−s)</Code> and mid-surface development <Code>r − t/2</Code> — and the
+          whole geometry is unit-tested to the tenth of a millimeter.
         </p>
       </section>
     </>

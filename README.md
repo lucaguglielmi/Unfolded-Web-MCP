@@ -30,12 +30,14 @@ math, and both ruin pieces only after the firing:
   a wrapped wall must be developed on the mid-surface (`r − t/2`); using the
   outer dimension makes the wall come out too long and the seam overlap.
 
-Unfolded encodes both corrections and adds the math no one does by hand at all:
-exact interior capacity (volume is linear in height, so *"make it hold 350 ml"*
-has a closed-form answer) and true miter bevels for tapered faceted forms. The
-audience is specific — hand-builders, ceramics teachers, studio classes — and
-the output is physical: a PDF that prints at 100% scale, with a calibration
-ruler to prove it, that gets cut out and laid on clay.
+Unfolded encodes all of this — and more — under the hood: shrinkage scaled the
+right way, walls developed on the slab mid-surface, exact interior capacity
+(volume is linear in height, so *"make it hold 350 ml"* has a closed-form
+answer), true miter bevels for tapered faceted forms, and page tiling with
+registration ticks and a calibration bar on every sheet. You drag a slider; the
+math stays right. The audience is specific — hand-builders, ceramics teachers,
+studio classes — and the output is physical: a PDF that prints at 100% scale,
+with a ruler on the page to prove it, that gets cut out and laid on clay.
 
 The agent is not a gimmick on top: sizing questions are exactly what potters
 ask in words (*"a mug that holds a full pour-over"*, *"my new clay shrinks

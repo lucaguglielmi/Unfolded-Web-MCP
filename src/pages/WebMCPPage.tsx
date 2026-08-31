@@ -146,7 +146,7 @@ function OneMinute() {
           ))}
         </dl>
         <p className="mt-10 text-sm text-stone-400">
-          That's the minute. The five-minute version above has connection steps for both
+          That's the minute. Switch to the five-minute read for connection steps in both
           browsers, every tool, and the fine print.
         </p>
       </section>
@@ -200,9 +200,9 @@ function FiveMinutes() {
             </ol>
             <p className="mt-3 text-xs leading-relaxed text-stone-400">
               Heads up: tapping a link in the chat opens ChatGPT's <em>ordinary</em> in-app
-              browser — a separate tab without WebMCP. That tab shows
-              &ldquo;Connected via ChatGPT&rdquo; when the agent gave you the link; the
-              agent keeps editing in its own internal browser.
+              browser — a separate tab without WebMCP. When the agent minted that link, the
+              tab says &ldquo;Connected via ChatGPT&rdquo;; the agent itself keeps editing
+              in its own internal browser.
             </p>
           </div>
           <div className="rounded-2xl border border-stone-200 p-6">
@@ -333,9 +333,10 @@ function FiveMinutes() {
           ))}
         </ul>
         <p className="mt-5 max-w-xl text-sm leading-relaxed text-stone-400">
-          Every change the agent makes is validated by the same rules as the sliders, every
-          response includes a share link that reopens the exact design, and templates are always
-          shrinkage-compensated for your clay. If the agent takes a wrong turn — undo is one tap.
+          Everything the agent does passes through the same validation as the sliders, every
+          response carries a share link that reopens the exact design, and templates are
+          always shrinkage-compensated for your clay. And if the agent takes a wrong turn,
+          undo is one tap — yours or its.
         </p>
       </section>
     </>
