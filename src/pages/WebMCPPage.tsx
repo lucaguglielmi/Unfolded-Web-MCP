@@ -70,17 +70,19 @@ function StatusPill() {
 function LiveSyncStatus() {
   const snapshot = useSyncExternalStore(
     (cb) => liveSync.subscribe(cb),
-    () => `${liveSync.status()}:${liveSync.peers()}`
+    () => `${liveSync.status()}:${liveSync.peers()}:${liveSync.everPeered()}`
   )
-  const [status, peers] = snapshot.split(":")
+  const [status, peers, everPeered] = snapshot.split(":")
   const text =
     status === "off"
       ? "This tab is not paired to a live session."
-      : status === "connecting"
-        ? "This tab is paired and reconnecting to its session…"
-        : Number(peers) > 1
-          ? `This tab is live in a session with ${peers} devices.`
-          : "This tab is paired to a live session — no other device is connected right now."
+      : everPeered !== "true"
+        ? "This tab minted a pairing code that hasn't been used yet — if nobody joins, it quietly forgets the session."
+        : status === "connecting"
+          ? "This tab is paired and reconnecting to its session…"
+          : Number(peers) > 1
+            ? `This tab is live in a session with ${peers} devices.`
+            : "This tab is paired to a live session — no other device is connected right now."
   return <p className="mt-5 text-sm text-stone-400">Right here, right now: {text}</p>
 }
 

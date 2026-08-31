@@ -17,12 +17,17 @@ import { liveSync } from "@/store/syncClient"
 export function SyncBadge() {
   const snapshot = useSyncExternalStore(
     (cb) => liveSync.subscribe(cb),
-    () => `${liveSync.status()}:${liveSync.peers()}`
+    () => `${liveSync.status()}:${liveSync.peers()}:${liveSync.everPeered()}`
   )
-  const [status, peersRaw] = snapshot.split(":")
+  const [status, peersRaw, everPeeredRaw] = snapshot.split(":")
   const peers = Number(peersRaw)
+  const everPeered = everPeeredRaw === "true"
 
-  if (status === "off") return null
+  // "paired" is a claim about another device — never shown unless one has
+  // actually been in the session. A freshly minted, never-claimed session
+  // (an agent calling start_pairing, an unused code) shows nothing here;
+  // it also forgets itself once the code's lifetime passes.
+  if (status === "off" || !everPeered) return null
 
   const live = status === "syncing" && peers > 1
   const label = status === "connecting" ? "syncing…" : live ? `${peers} devices` : "paired"

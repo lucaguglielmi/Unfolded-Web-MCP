@@ -380,6 +380,70 @@ describe("pairing operations", () => {
     expect(socket.closed).toBe(true)
   })
 
+  it("a minted-but-never-claimed session forgets itself after the code's lifetime", () => {
+    const records: Record<string, string> = {}
+    const fresh = createSyncClient({
+      store,
+      storage: fakeStorage(records),
+      createSocket: () => socket,
+      newSid: () => "solo-sid-1234567890ab",
+    })
+    fresh.pair() // e.g. an agent called start_pairing
+    socket.open()
+    socket.receive({ kind: "welcome", state: slice(store), version: 1, peers: 1 })
+    expect(fresh.isPaired()).toBe(true)
+    expect(fresh.everPeered()).toBe(false)
+    vi.advanceTimersByTime(6 * 60_000 + 1_000) // nobody ever entered the code
+    expect(fresh.isPaired()).toBe(false)
+    expect(fresh.status()).toBe("off")
+    expect(records[SESSION_STORAGE_KEY]).toBeUndefined()
+  })
+
+  it("a session that has seen a peer survives being alone indefinitely", () => {
+    const records: Record<string, string> = {
+      [SESSION_STORAGE_KEY]: JSON.stringify({ sid: "x".repeat(22) }),
+    }
+    const fresh = createSyncClient({
+      store,
+      storage: fakeStorage(records),
+      createSocket: () => socket,
+    })
+    fresh.start()
+    socket.open()
+    socket.receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+    expect(fresh.everPeered()).toBe(true)
+    expect(JSON.parse(records[SESSION_STORAGE_KEY]).everPeered).toBe(true)
+    socket.receive({ kind: "presence", peers: 1 }) // the other device left
+    vi.advanceTimersByTime(60 * 60_000)
+    expect(fresh.isPaired()).toBe(true)
+    expect(fresh.status()).toBe("syncing")
+    fresh.stop()
+  })
+
+  it("everPeered survives a reload once proven", () => {
+    const records: Record<string, string> = {
+      [SESSION_STORAGE_KEY]: JSON.stringify({ sid: "x".repeat(22), everPeered: true }),
+    }
+    const fresh = createSyncClient({ store, storage: fakeStorage(records), createSocket: () => socket })
+    fresh.start()
+    expect(fresh.everPeered()).toBe(true)
+    fresh.stop()
+  })
+
+  it("entering a code counts as proof of another device", async () => {
+    const records: Record<string, string> = {}
+    const fresh = createSyncClient({
+      store,
+      storage: fakeStorage(records),
+      createSocket: () => socket,
+      claimCode: async () => ({ ok: true, sid: "claimed-sid-1234567890" }),
+    })
+    await fresh.joinWithCode("K7F3QP")
+    expect(JSON.parse(records[SESSION_STORAGE_KEY]).everPeered).toBe(true)
+    expect(fresh.everPeered()).toBe(true)
+    fresh.stop()
+  })
+
   it("notifies subscribers on status and peer transitions", () => {
     const seen: string[] = []
     client.subscribe(() => seen.push(`${client.status()}:${client.peers()}`))

@@ -29,6 +29,14 @@ const SEND_DEBOUNCE_MS = 250
 /** reconnect backoff bounds — 1 s doubling to 30 s, jittered */
 const RECONNECT_MIN_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
+/**
+ * A session that has NEVER seen a second device forgets itself after this
+ * long connected alone — comfortably past a pairing code's 5-minute TTL.
+ * Minting a code creates the session eagerly (so the code outlives the
+ * minting tab), but an expired, never-claimed code must not leave the tab
+ * claiming "paired" forever.
+ */
+const SOLO_GRACE_MS = 6 * 60_000
 
 /** the synced design slice — exactly what persistence.ts persists */
 export interface DesignSlice {
@@ -99,6 +107,8 @@ export interface SyncClient {
   status(): SyncStatus
   /** peers currently in the session, as last reported by the server (self included) */
   peers(): number
+  /** another device has actually been in this session at some point */
+  everPeered(): boolean
   /** whether this tab holds a session (paired), connected or not */
   isPaired(): boolean
   /** ensure this tab has a session (minting one eagerly) and connect */
@@ -169,6 +179,9 @@ export function createSyncClient({
   let unsubscribe: (() => void) | undefined
   /** true between start() and stop() — a lost socket reconnects only while set */
   let wantConnected = false
+  /** another device has been in this session at some point (persisted) */
+  let everPeered = false
+  let soloTimer: ReturnType<typeof setTimeout> | undefined
   let reconnectDelay = RECONNECT_MIN_MS
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined
   let removeWakeListeners: (() => void) | undefined
@@ -185,6 +198,13 @@ export function createSyncClient({
     }
   }
   const setPeers = (next: number) => {
+    if (next > 1 && !everPeered) {
+      // the pairing is now proven real — remember it across visits
+      everPeered = true
+      clearTimeout(soloTimer)
+      const sid = storedSid()
+      if (sid) persistRecord(sid, true)
+    }
     if (peers !== next) {
       peers = next
       notify()
@@ -204,18 +224,21 @@ export function createSyncClient({
     }
   }
 
-  const storedSid = (): string | null => {
+  const storedRecord = (): { sid: string; everPeered: boolean } | null => {
     try {
       const raw = storage?.getItem(SESSION_STORAGE_KEY)
       if (!raw) return null
       const data: unknown = JSON.parse(raw)
       if (typeof data !== "object" || data === null) return null
-      const sid = (data as Record<string, unknown>).sid
-      return typeof sid === "string" && sid.length > 0 ? sid : null
+      const record = data as Record<string, unknown>
+      if (typeof record.sid !== "string" || record.sid.length === 0) return null
+      return { sid: record.sid, everPeered: record.everPeered === true }
     } catch {
       return null
     }
   }
+
+  const storedSid = (): string | null => storedRecord()?.sid ?? null
 
   /**
    * Adopt a server snapshot (welcome/resync): apply it, then move the diff
@@ -268,6 +291,14 @@ export function createSyncClient({
         setStatus("syncing")
         reconnectDelay = RECONNECT_MIN_MS // the link is healthy again
         if (typeof msg.peers === "number") setPeers(msg.peers)
+        if (!everPeered) {
+          // connected alone with no history of a peer: give any minted code
+          // its full lifetime, then quietly forget the session
+          clearTimeout(soloTimer)
+          soloTimer = setTimeout(() => {
+            if (!everPeered) unpair()
+          }, SOLO_GRACE_MS)
+        }
         adoptServerState(msg.state, typeof msg.version === "number" ? msg.version : 0)
         // edits made while the snapshot was in flight still go out
         flushLocalEdits()
@@ -389,7 +420,9 @@ export function createSyncClient({
   }
 
   const start = () => {
-    if (!storedSid() || wantConnected) return
+    const record = storedRecord()
+    if (!record || wantConnected) return
+    everPeered = record.everPeered
     wantConnected = true
     unsubscribe ??= store.subscribe(
       (st) => [st.form, st.clay, st.paperSize, st.unit] as const,
@@ -419,6 +452,7 @@ export function createSyncClient({
     wantConnected = false
     clearTimeout(sendTimer)
     clearTimeout(reconnectTimer)
+    clearTimeout(soloTimer)
     unsubscribe?.()
     unsubscribe = undefined
     removeWakeListeners?.()
@@ -438,16 +472,16 @@ export function createSyncClient({
     }
   }
 
-  const persistSid = (sid: string) => {
+  const persistRecord = (sid: string, peered: boolean) => {
     try {
-      storage?.setItem(SESSION_STORAGE_KEY, JSON.stringify({ sid }))
+      storage?.setItem(SESSION_STORAGE_KEY, JSON.stringify({ sid, everPeered: peered }))
     } catch {
       // storage blocked — pairing lasts for this visit only
     }
   }
 
   const pair = () => {
-    if (!storedSid()) persistSid(newSid()) // eager creation (spec §4.2)
+    if (!storedSid()) persistRecord(newSid(), false) // eager creation (spec §4.2)
     start()
   }
 
@@ -497,7 +531,8 @@ export function createSyncClient({
     const claimed = await claimCode(rawCode)
     if (!claimed.ok || !claimed.sid) return { ok: false, retryable: claimed.retryable === true }
     stop() // leaving any current session — the claimer follows the minted one
-    persistSid(claimed.sid)
+    // entering a code IS proof another device exists — this pairing is real
+    persistRecord(claimed.sid, true)
     start()
     return { ok: true }
   }
@@ -516,6 +551,7 @@ export function createSyncClient({
     stop,
     status: () => status,
     peers: () => peers,
+    everPeered: () => everPeered,
     isPaired: () => storedSid() !== null,
     pair,
     mintCode,
