@@ -6,10 +6,11 @@
 # version already exists on npm, so doc-only edits to package.json are
 # harmless no-ops.
 #
-# Needs the NPM_TOKEN repository secret (an npm granular access token with
-# read/write + bypass-2FA) until npm trusted publishing is configured for
-# the package — then the token can be deleted and NODE_AUTH_TOKEN removed;
-# the id-token permission below already covers OIDC provenance either way.
+# Auth is npm trusted publishing (OIDC): npmjs.com trusts this repo's
+# publish-profiler.yml workflow directly, so there is no token or secret
+# anywhere — the id-token permission below is what mints the OIDC proof
+# (and provenance). The npm upgrade step matters: trusted publishing
+# needs a newer npm CLI than Node's bundled one.
 name: Publish webmcp-profiler
 
 on:
@@ -31,6 +32,8 @@ jobs:
         with:
           node-version: 22
           registry-url: "https://registry.npmjs.org"
+      - name: Upgrade npm (trusted publishing needs a recent CLI)
+        run: npm install -g npm@latest
       - name: Skip if this version is already on npm
         id: guard
         run: |
@@ -50,5 +53,3 @@ jobs:
         run: npm run build --workspace webmcp-profiler
       - if: steps.guard.outputs.published == 'false'
         run: npm publish --workspace webmcp-profiler --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
