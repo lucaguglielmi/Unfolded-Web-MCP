@@ -494,3 +494,99 @@ decisions):
 None — all resolved. Decisions are recorded at the top of this document;
 implementation can start the moment the Sep 3 feature freeze lifts, in work-
 item order (§14).
+
+
+---
+
+# v3 plan — "Continue on another screen" (draft, awaiting go)
+
+Status: **proposal — not started.** Reframes pairing around the realization
+that codes are the fallback, not the flow, and solves the ChatGPT
+two-browser problem (the agent's WebMCP runs in a hidden internal browser;
+the tab the person actually looks at is a separate, dead snapshot).
+
+## 1. The reframe
+
+The surface stops being "Pair a device" (infrastructure language) and
+becomes **"Continue on another screen"** — device-aware: the phone offers
+*"Continue on desktop"*, the desktop *"Continue on your phone"*. The copy
+leads with the outcome (your design, live, over there) and makes explicit
+that the OTHER screen needs no WebMCP: sync is a plain WebSocket, so any
+browser can follow — WebMCP is only how agents edit, not how devices stay
+current.
+
+## 2. One-time join tokens — the mechanism under every new flow
+
+A **join token** is a claim ticket that can ride a URL: ≥96-bit URL-safe
+random (guessing is void, unlike spoken codes), minted by the tab's
+SessionDO into the same PairingDO registry as codes, TTL ~10 minutes,
+**single use, burned on claim**, and never the `sid`. A tab opening a link
+with `&join=<token>` silently claims it, joins the session (adopt-on-join
+unchanged, everPeered=true — a token, like a code, is proof), and strips
+the parameter from the address bar via replaceState.
+
+This is a measured amendment to the privacy rule, recorded as such: from
+"no URL is ever a live capability" to **"no URL ever carries a durable
+capability — at most a single-use, short-lived claim ticket, dead after
+its first open."** A leaked or transcript-logged link holds a burned
+token. The printed PDF QR stays parameter-only, unchanged.
+
+## 3. The three flows, ranked
+
+1. **Scan to continue (primary, human-to-human).** The Continue dialog
+   shows a QR that encodes the design's share link PLUS a fresh join
+   token. Scanning it = the other device opens live-following. No typing,
+   no code. The QR regenerates when its token expires.
+2. **Tap to continue (primary, ChatGPT — solves the hidden browser).**
+   When an agent is driving a tab (agentStatus native), that tab keeps its
+   session alive and every `shareUrl` in tool results carries a fresh join
+   token. The agent already hands links into the chat; the person taps
+   one, ChatGPT's visible in-app browser opens it, claims the token — and
+   the tab the person is looking at becomes a live follower of the hidden
+   browser the agent edits in. Edits flow BOTH ways: a slider drag in the
+   visible tab shows up in the agent's next read. Every fresh link the
+   agent hands over carries a fresh token, so it keeps working even if the
+   in-app browser wipes storage between opens.
+3. **Read a code (fallback).** The 6-character code stays for the spoken
+   path — telling an agent "join my desktop session, code …" — collapsed
+   behind "or use a code instead" in the dialog. join_session and
+   start_pairing keep their names and behavior.
+
+## 4. Mechanics
+
+- **Token minting**: `mint_token` message on the session socket (same shape
+  as `mint_code`); PairingDO stores codes and tokens in one table with a
+  type tag; `POST /api/pair/claim` accepts either (shape-discriminated),
+  same rate limits and uniform misses.
+- **Agent-tab auto-session**: when agentStatus flips to native, the tab
+  pairs itself lazily (first shareUrl build) and prefetches one token at a
+  time — shareUrl stays synchronous by attaching the prefetched token and
+  requesting the next. If no person ever taps a link, the existing
+  6-minute solo grace forgets the session; a claim makes it real
+  (everPeered).
+- **Claim on open**: applyShareLinkFromLocation detects `join`, claims it
+  after applying the design params, joins on success, strips the param
+  either way. Failure (burned/expired) degrades to today's behavior — the
+  design still opens from the parameters.
+- **Share vs Continue**: the Share dialog's QR/link stays inert
+  (sharing a design must never grant session access); only the Continue
+  dialog and agent shareUrls carry tokens.
+
+## 5. Testing
+
+Unit: token mint/claim/burn alongside codes; URL claim-and-strip; the
+prefetch pool. Pairing e2e additions: fake-agent context A generates a
+tokened shareUrl, context B opens it and follows live; opening the SAME
+link again in context C does not join (burned) but still shows the right
+design; the Continue dialog QR pairs a second context.
+
+## 6. Decision points (owner's call, recommendations attached)
+
+1. Do ALL agent shareUrls carry tokens once an agent is native, or only
+   after the agent/user asks to continue elsewhere? **Recommend: all** —
+   it is what makes the ChatGPT flow zero-effort, and burned tokens make
+   the transcript exposure a non-issue.
+2. Does the QR become the Continue dialog's primary surface with the code
+   collapsed? **Recommend: yes.**
+3. Token TTL: **recommend 10 minutes** (links sit in chat a little longer
+   than spoken codes).
