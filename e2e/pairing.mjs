@@ -247,7 +247,23 @@ try {
     })
   })
   await h.click("[data-connection-hub]")
-  await h.click('button:has-text("Copy ChatGPT prompt")')
+  // the Open-in-ChatGPT link injects the same prompt via chatgpt.com/?q=
+  await h.waitForFunction(
+    () =>
+      (document.querySelector("a[data-chatgpt-prompt]")?.getAttribute("href") ?? "").includes(
+        "chatgpt.com/?q="
+      ),
+    null,
+    { timeout: 15000 }
+  )
+  const chatHref = await h.getAttribute("a[data-chatgpt-prompt]", "href")
+  const injected = decodeURIComponent(chatHref.split("?q=")[1] ?? "")
+  check(
+    "hub: Open-in-ChatGPT link injects the prompt with a pairing code",
+    injected.includes("join_session") && /[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}/.test(injected),
+    injected.slice(0, 140)
+  )
+  await h.click('button:has-text("Copy prompt")')
   await h.waitForFunction(() => typeof window.__copiedPrompt === "string", null, { timeout: 15000 })
   const copiedPrompt = await h.evaluate(() => window.__copiedPrompt)
   check(

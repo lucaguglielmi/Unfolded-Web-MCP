@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from "react"
+import { useEffect, useState, useSyncExternalStore } from "react"
 import { ArrowUpRight, Check, Copy, MonitorSmartphone } from "lucide-react"
 import { isRealChrome } from "@/components/ChromeFlagNudge"
 import { PairDialog } from "@/components/PairDialog"
@@ -104,6 +104,11 @@ export function ConnectionHub() {
   const [open, setOpen] = useState(false)
   const [pairOpen, setPairOpen] = useState(false)
   const [promptState, setPromptState] = useState<"idle" | "minting" | "copied" | "error">("idle")
+  const [chatgptInvite, setChatgptInvite] = useState<{
+    code: string
+    expiresAt: number
+    prompt: string
+  } | null>(null)
   const agentStatus = useProjectStore((s) => s.agentStatus)
   const lastAgentCall = useProjectStore((s) => s.lastAgentCall)
   const webmcpHref = useDesignHref("/webmcp")
@@ -138,17 +143,62 @@ export function ConnectionHub() {
         ? "syncing…"
         : agent.label
 
+  // Pre-mint the pairing code while the panel is open so "Open in ChatGPT"
+  // can be a REAL link (chatgpt.com/?q= injects the prompt into a new chat,
+  // and on phones the universal link hands off into the ChatGPT app — which
+  // only works reliably from a genuine anchor tap, not a scripted open
+  // after an async mint). Codes are single-use and cheap, same as the
+  // Continue dialog's eager QR tokens; a panel outliving the 5-minute TTL
+  // re-mints just before expiry.
+  useEffect(() => {
+    if (!open || agentStatus !== "unavailable") return
+    let cancelled = false
+    let timer: number | undefined
+    const mint = async () => {
+      const minted = await liveSync.mintCode()
+      if (cancelled) return
+      if (!minted) {
+        setChatgptInvite(null)
+        return
+      }
+      const minutes = Math.max(1, Math.round((minted.expiresAt - Date.now()) / 60_000))
+      setChatgptInvite({ ...minted, prompt: agentPrompt(minted.code, minutes) })
+      timer = window.setTimeout(
+        () => void mint(),
+        Math.max(1_000, minted.expiresAt - Date.now() - 5_000)
+      )
+    }
+    void mint()
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+      setChatgptInvite(null)
+    }
+  }, [open, agentStatus])
+
+  const chatgptHref = chatgptInvite
+    ? `https://chatgpt.com/?q=${encodeURIComponent(chatgptInvite.prompt)}`
+    : null
+
   const copyAgentPrompt = async () => {
     if (promptState === "minting") return
-    setPromptState("minting")
-    const minted = await liveSync.mintCode()
-    if (!minted) {
-      setPromptState("error")
-      window.setTimeout(() => setPromptState("idle"), 2500)
-      return
+    // reuse the pre-minted code (so link and copy carry the SAME code)
+    // unless it's about to expire; mint fresh otherwise
+    let prompt =
+      chatgptInvite && chatgptInvite.expiresAt > Date.now() + 30_000
+        ? chatgptInvite.prompt
+        : null
+    if (!prompt) {
+      setPromptState("minting")
+      const minted = await liveSync.mintCode()
+      if (!minted) {
+        setPromptState("error")
+        window.setTimeout(() => setPromptState("idle"), 2500)
+        return
+      }
+      const minutes = Math.max(1, Math.round((minted.expiresAt - Date.now()) / 60_000))
+      prompt = agentPrompt(minted.code, minutes)
     }
-    const minutes = Math.max(1, Math.round((minted.expiresAt - Date.now()) / 60_000))
-    const prompt = agentPrompt(minted.code, minutes)
     try {
       await navigator.clipboard.writeText(prompt)
       feedback("success")
@@ -226,11 +276,27 @@ export function ConnectionHub() {
                   >
                     About WebMCP <ArrowUpRight className="size-3" />
                   </a>
+                  {agentStatus === "unavailable" &&
+                    (chatgptHref ? (
+                      <a
+                        href={chatgptHref}
+                        target="_blank"
+                        rel="noopener"
+                        data-chatgpt-prompt
+                        aria-label="Open ChatGPT with a prompt that visits this site and pairs with this session"
+                        className="text-foreground inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                        onClick={() => setOpen(false)}
+                      >
+                        Open in ChatGPT <ArrowUpRight className="size-3" />
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Preparing…</span>
+                    ))}
                   {agentStatus === "unavailable" && (
                     <button
                       type="button"
                       onClick={() => void copyAgentPrompt()}
-                      aria-label="Copy a ChatGPT prompt that opens this site and pairs with this session"
+                      aria-label="Copy a prompt that opens this site and pairs with this session"
                       className={cn(
                         "inline-flex items-center gap-1 text-xs font-medium hover:underline",
                         promptState === "copied"
@@ -242,7 +308,7 @@ export function ConnectionHub() {
                     >
                       {promptState === "copied" ? (
                         <>
-                          <Check className="size-3" /> Copied — paste in ChatGPT
+                          <Check className="size-3" /> Copied — paste to any agent
                         </>
                       ) : promptState === "error" ? (
                         <>Couldn't reach pairing — retry</>
@@ -250,7 +316,7 @@ export function ConnectionHub() {
                         <>Preparing…</>
                       ) : (
                         <>
-                          <Copy className="size-3" /> Copy ChatGPT prompt
+                          <Copy className="size-3" /> Copy prompt
                         </>
                       )}
                     </button>
