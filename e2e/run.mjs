@@ -151,7 +151,16 @@ try {
         }),
     }
   })
-  await page.waitForTimeout(4500) // slow heartbeat is 3s
+  // detection rides the slow 3s heartbeat and the 13 awaited registrations
+  // land one by one, so poll for completion instead of sampling a fixed
+  // instant (a fixed 4.5s wait caught slow CI runners mid-registration)
+  await page
+    .waitForFunction(
+      (count) => Object.keys(window.__mcpToolsReplaced).length === count,
+      EXPECTED_TOOLS.length,
+      { timeout: 15_000 }
+    )
+    .catch(() => {})
   const replaced = await page.evaluate(() => Object.keys(window.__mcpToolsReplaced).length)
   check(
     "replacing document.modelContext re-registers all tools on the new registry",
