@@ -95,8 +95,9 @@ function agentPrompt(code: string, minutes: number): string {
     `Open https://tryunfolded.com in your built-in browser — it's a parametric ` +
     `slab-pottery template designer that exposes WebMCP tools. Once it loads, call ` +
     `its join_session tool with code ${pretty} so you're editing the same live ` +
-    `design I have open here (the code works once and expires in ${minutes} ` +
-    `minutes). Then describe the current design and help me refine it.`
+    `design I have open here. Join right away: the code itself is single-use and ` +
+    `only valid for ${minutes} minutes, but once you've joined, our connection ` +
+    `stays live. Then describe the current design and help me refine it.`
   )
 }
 
