@@ -1,8 +1,9 @@
 import { useMemo, useState, useSyncExternalStore } from "react"
-import { ArrowRight, ArrowUpRight, Check, Shapes } from "lucide-react"
+import { ArrowUpRight, Check } from "lucide-react"
 import { isRealChrome } from "@/components/ChromeFlagNudge"
 import { ExplainerHeader } from "@/components/ExplainerHeader"
-import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
+import { useDesignHref } from "@/lib/useStudioHref"
+import { StudioCtaBar } from "@/components/StudioCtaBar"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
@@ -711,7 +712,6 @@ function ForAgents() {
 
 export function WebMCPPage() {
   const [depth, setDepth] = useState<ReadingDepth>("5min")
-  const studioHref = useStudioHref()
   const whyHref = useDesignHref("/why")
 
   return (
@@ -752,17 +752,7 @@ export function WebMCPPage() {
         </footer>
       </main>
 
-      {/* sticky studio CTA — always one tap from reading to making */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/85 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
-        <a
-          href={studioHref}
-          className="group mx-auto flex w-full max-w-3xl items-center justify-center gap-2.5 rounded-full bg-blue-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.015] hover:bg-blue-500 active:scale-[0.99]"
-        >
-          <Shapes className="size-5 transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-110" />
-          Open the 3D Studio
-          <ArrowRight className="size-5 transition-transform duration-300 group-hover:translate-x-1" />
-        </a>
-      </div>
+      <StudioCtaBar />
     </div>
   )
 }
