@@ -221,7 +221,7 @@ try {
   await latePage.waitForTimeout(4500) // slow-poll heartbeat is 3s
   const lateCount = await latePage.evaluate(() => Object.keys(window.__mcpToolsLate).length)
   const lateBadge = await latePage.evaluate(
-    () => !!document.querySelector('a[href^="/webmcp"] .animate-ping')
+    () => !!document.querySelector('[data-connection-hub] .animate-ping')
   )
   check(
     "tools register and the pill lights even when the API is injected late",
@@ -240,8 +240,8 @@ try {
   await plainPage.goto(BASE, { waitUntil: "networkidle" })
   await plainPage.waitForTimeout(1200)
   const plainPill = await plainPage.evaluate(() => ({
-    text: document.querySelector('a[href^="/webmcp"]')?.textContent?.trim(),
-    ping: !!document.querySelector('a[href^="/webmcp"] .animate-ping'),
+    text: document.querySelector('[data-connection-hub]')?.textContent?.trim(),
+    ping: !!document.querySelector('[data-connection-hub] .animate-ping'),
   }))
   check(
     "no API and no signal shows plain 'WebMCP' (grey, no pulse)",
@@ -297,8 +297,8 @@ try {
   await viaPage.goto(`${BASE}/?type=hexagon&height=120&via=chatgpt`, { waitUntil: "networkidle" })
   await viaPage.waitForTimeout(1200)
   const viaPill = await viaPage.evaluate(() => ({
-    text: document.querySelector('a[href^="/webmcp"]')?.textContent?.trim(),
-    ping: !!document.querySelector('a[href^="/webmcp"] .animate-ping'),
+    text: document.querySelector('[data-connection-hub]')?.textContent?.trim(),
+    ping: !!document.querySelector('[data-connection-hub] .animate-ping'),
   }))
   check(
     "an agent-minted link shows 'Connected via ChatGPT' (solid green, no pulse)",
@@ -363,9 +363,9 @@ try {
   const navCount = await navPage.evaluate(() => Object.keys(window.__mcpTools).length)
   check("tools also register via navigator.modelContext", navCount === EXPECTED_TOOLS.length)
   const badgeConnected = await navPage.evaluate(
-    () => !!document.querySelector('a[href^="/webmcp"] .animate-ping')
+    () => !!document.querySelector('[data-connection-hub] .animate-ping')
   )
-  check("the WebMCP pill pulses green when connected", badgeConnected)
+  check("the connection hub pulses green when connected", badgeConnected)
   await navPage.close()
 
   // ------------------------------------------------- webmcp profiler

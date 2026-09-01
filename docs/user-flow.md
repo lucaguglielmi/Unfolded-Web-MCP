@@ -23,7 +23,8 @@ user's side, one scenario at a time.
     bar.
   - **Pairing code** — 6 characters, read-aloud friendly (no I/L/O/0/1),
     single-use, expires in 5 minutes. Humans mint one from the **Continue
-    on another screen** dialog (the two-screens icon); agents mint one
+    on another screen** dialog (behind the header's connection button — the
+    two status dots); agents mint one
     with `start_pairing` or enter one with `join_session`.
 - **Who adopts whose design?** The device that *opens the link* or
   *enters the code* adopts the other side's design — as one undo step, so
@@ -127,7 +128,8 @@ ChatGPT agent (typically on your phone) without losing what's on screen.*
 
 A link can't get you *into* ChatGPT — but a spoken code can:
 
-1. In Chrome, open **Continue on another screen** (two-screens icon) →
+1. In Chrome, open **Continue on another screen** (inside the header's
+   connection button) →
    **or use a code** → **Create a code to read aloud**. You get a
    6-character code, tap-to-copy, valid for 5 minutes.
 2. In ChatGPT, tell the agent: *"Join my Unfolded session with code

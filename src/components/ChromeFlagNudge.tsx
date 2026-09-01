@@ -26,7 +26,7 @@ const FLAG_URL = "chrome://flags/#enable-webmcp-testing"
 /** wait out the fast registration window so we don't flash before a host appears */
 const SHOW_DELAY_MS = 3000
 
-function isRealChrome(): boolean {
+export function isRealChrome(): boolean {
   if (typeof navigator === "undefined") return false
   const uaData = (
     navigator as Navigator & {
@@ -96,7 +96,7 @@ export function ChromeFlagNudge() {
             This looks like Chrome — WebMCP is one experimental flag away. Copy the address
             below into a new tab, enable <span className="font-medium">WebMCP testing</span>,
             and relaunch Chrome. (Only agents need the flag — following a design live from
-            another screen works in any browser, via the two-screens icon.)
+            another screen works in any browser, via the connection button — the two dots in the header.)
           </p>
           <div className="bg-muted mt-2.5 flex items-center gap-1.5 rounded-md py-1 pr-1 pl-2.5">
             <code className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-[11px]">

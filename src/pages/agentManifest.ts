@@ -104,7 +104,7 @@ export function buildAgentManifest(): Record<string, unknown> {
     },
     liveSync: {
       summary:
-        "optional cross-device session: any paired tab's edits reach all peers in ~1s. Pairing is by 6-character code (join_session / start_pairing tools, or the Pair-a-device dialog). Rule: the device that ENTERS a code adopts the minting session's design (one undo step). After joining, no device is special.",
+        "optional cross-device session: any paired tab's edits reach all peers in ~1s. Pairing is by 6-character code (join_session / start_pairing tools, or the Continue dialog behind the header's connection button). Rule: the device that ENTERS a code adopts the minting session's design (one undo step). After joining, no device is special.",
       pairingCode: {
         alphabet: CODE_ALPHABET,
         length: CODE_LENGTH,

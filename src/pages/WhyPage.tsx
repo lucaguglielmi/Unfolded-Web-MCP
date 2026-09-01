@@ -264,7 +264,7 @@ function FiveMinutes() {
           ))}
         </dl>
         <p className="mt-6 max-w-xl text-sm leading-relaxed text-muted-foreground/80">
-          How to connect a browser, what the header pill means, and prompts to try live on the{" "}
+          How to connect a browser, what the header connection button means, and prompts to try live on the{" "}
           <a
             href={webmcpHref}
             className="font-medium text-foreground/75 underline decoration-muted-foreground/40 underline-offset-4 transition-colors hover:text-foreground"

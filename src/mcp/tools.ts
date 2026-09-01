@@ -341,7 +341,7 @@ export function buildTools(): ToolDescriptor[] {
           return textResult(
             stateText(
               `Pairing code: ${prettyCode(minted.code)} — valid 5 minutes, one use. ` +
-                "On the other device: the 'Pair a device' dialog (two-screens icon in the header) → enter this code. " +
+                "On the other device: the connection button (two dots in the header) → Continue on another screen → enter this code. " +
                 "That device will adopt this design; afterwards edits sync both ways."
             )
           )

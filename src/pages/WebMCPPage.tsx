@@ -113,7 +113,7 @@ const DIGEST: { title: string; body: string }[] = [
   },
   {
     title: "What lights up",
-    body: "The pill in the app header: pulsing green = agent connected to this tab; solid green = this design is open in your ChatGPT conversation's internal browser; grey = not connected yet.",
+    body: "The connection button in the app header — two dots: the agent dot (pulsing green = agent connected to this tab; solid green = opened from your ChatGPT conversation; grey = not connected) and the sync dot (green = other devices live in your session).",
   },
   {
     title: "What the agent can do",
@@ -121,7 +121,7 @@ const DIGEST: { title: string; body: string }[] = [
   },
   {
     title: "Across devices",
-    body: "Scan the Continue QR (two-screens icon), open the copyable link, or — in ChatGPT — just tap any link your agent hands you: that screen follows the design live, both ways, no WebMCP needed there. A spoken 6-character code remains the fallback.",
+    body: "Scan the Continue QR (inside the header's connection button), open the copyable link, or — in ChatGPT — just tap any link your agent hands you: that screen follows the design live, both ways, no WebMCP needed there. A spoken 6-character code remains the fallback.",
   },
   {
     title: "Try saying",
@@ -218,7 +218,7 @@ function FiveMinutes() {
                 </code>{" "}
                 (on Android too; if it's missing, try Chrome Canary).
               </li>
-              <li>2. Enable it and relaunch Chrome — the pill here turns green.</li>
+              <li>2. Enable it and relaunch Chrome — the connection button's agent dot turns green.</li>
               <li>
                 3. No agent attached? Drive the tools yourself from the DevTools console
                 (desktop, or via <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.8rem] text-foreground/80">chrome://inspect</code> for
@@ -232,9 +232,18 @@ function FiveMinutes() {
         </div>
       </section>
 
-      {/* the three pill states */}
+      {/* the connection button and its dots */}
       <section className="border-t border-border/60 py-14">
-        <SectionLabel>What the pill in the header means</SectionLabel>
+        <SectionLabel>The connection button in the header</SectionLabel>
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-foreground/75">
+          One button carries both connection stories as two dots: the{" "}
+          <span className="font-semibold text-foreground">first dot is your agent</span>{" "}
+          (WebMCP), the{" "}
+          <span className="font-semibold text-foreground">second is live sync</span> across
+          your devices. Tap it for a plain-language readout of both, the{" "}
+          <strong>Continue on another screen</strong> action, and the door to this page.
+          The agent dot's states:
+        </p>
         <ul className="mt-6 space-y-4">
           <li className="flex items-start gap-3">
             <span className="relative mt-1 flex size-2 shrink-0">
@@ -254,7 +263,7 @@ function FiveMinutes() {
               tab has no direct WebMCP, but the design arrived through a link the agent minted
               in your ChatGPT conversation. Those links carry a live invitation: tapping one
               makes this tab follow the agent's session both ways, so your edits here show up
-              in its next read — the presence badge beside the pill tells you it's live. If
+              in its next read — the button's second dot turns green when it's live. If
               this tab somehow isn't following, ask the agent for its latest link.
             </p>
           </li>
@@ -267,10 +276,18 @@ function FiveMinutes() {
             </p>
           </li>
         </ul>
+        <p className="mt-5 max-w-xl text-sm leading-relaxed text-foreground/75">
+          The sync dot beside it: <span className="font-semibold text-foreground">green</span>{" "}
+          when other devices are live in your session,{" "}
+          <span className="font-semibold text-foreground">amber</span> while a paired device
+          reconnects (offline edits are kept and sent), and{" "}
+          <span className="font-semibold text-foreground">grey</span> when nothing is paired —
+          or when a paired session is waiting for its other screen to come back.
+        </p>
         <p className="mt-5 text-sm text-muted-foreground/80">
-          The states are honest by design: a ChatGPT connection is only ever shown on the
+          Every state is honest by design: a ChatGPT connection is only ever shown on the
           explicit signal of an agent-minted link — never guessed from your browser's user
-          agent or from being inside an in-app browser.
+          agent — and pairing is never claimed for a session no second device actually joined.
         </p>
       </section>
 
@@ -279,8 +296,8 @@ function FiveMinutes() {
         <SectionLabel>Work across devices</SectionLabel>
         <p className="mt-5 max-w-xl leading-relaxed text-foreground/75">
           A design doesn't live in one chair — and the other chair needs no WebMCP, just a
-          browser. Open <strong>Continue on another screen</strong> (the two-screens icon in
-          the header) and scan its QR, or copy its link: the device that opens it follows
+          browser. Open <strong>Continue on another screen</strong> (inside the connection
+          button — the two dots in the header) and scan its QR, or copy its link: the device that opens it follows
           this design live, both ways, within about a second — whoever made the edit, you
           or an agent. In ChatGPT it's even simpler: <em>every link your agent hands you is
           a live one</em> — tap it, and the tab you're looking at stays current with the
@@ -478,7 +495,7 @@ function JsonBlock({ label, data }: { label?: string; data: unknown }) {
 const AGENT_CONNECTION: [string, string][] = [
   ["Registration", "document.modelContext.registerTool preferred; navigator/window fallbacks; provideContext({tools}) for hosts without registerTool. Registration is automatic — there is nothing for you to enable."],
   ["Late injection", "the app never stops watching for the API: 500 ms polling for 15 s, then a 3 s heartbeat (paused while the tab is hidden), plus focus/visibility re-checks. Executing any tool flips the app to connected."],
-  ["Knowing you're in", "the header pill pulses green once your tools registered in this tab; the live status also renders at the top of this page. If it's grey, your host hasn't exposed WebMCP here."],
+  ["Knowing you're in", "the header connection button's agent dot pulses green once your tools registered in this tab (its second dot is cross-device sync); the live status also renders at the top of this page. If it's grey, your host hasn't exposed WebMCP here."],
   ["Link semantics", "shareUrl in your tool results carries ?via=chatgpt AND a single-use ?join= token: the tab that opens it silently follows YOUR session (both ways) and strips the token. Hand the potter your latest shareUrl and their visible browser stays live with you. Links parse forgivingly: legacy vocabulary normalizes, unknown keys are ignored, out-of-range values clamp."],
   ["Units contract", "tool inputs and outputs are millimeters and milliliters, always. set_units only changes what the human sees (UI, warnings, printed PDF)."],
   ["Full-state returns", "every mutation returns the complete snapshot — form, clay, paperSize, units, capacityMl, annotated pieces, printedPages, warnings, shareUrl — so you never need a read-after-write."],

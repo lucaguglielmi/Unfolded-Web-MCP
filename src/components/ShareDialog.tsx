@@ -111,7 +111,7 @@ export function ShareDialog({
             This shares a <strong>copy</strong> of the design — safe to post anywhere; it
             never grants access to your live session. Want your other screen to follow
             this design live instead? Use <strong>Continue on another screen</strong> (the
-            two-screens icon).
+            connection button — the two dots in the header).
           </p>
           {/* break-all + min-w-0: a long unbroken URL must never widen the
               dialog (iOS Safari doesn't zero a nowrap flex item's min-width,

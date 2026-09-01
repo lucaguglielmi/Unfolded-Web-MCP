@@ -42,6 +42,13 @@ const mcpHostInit = () => {
   document.modelContext = { registerTool: (t) => (window.__mcpTools[t.name] = t) }
 }
 
+// The Continue dialog lives behind the header's connection hub (the
+// two-dot button) — open the hub panel, then its Continue action.
+const openContinue = async (page) => {
+  await page.click("[data-connection-hub]")
+  await page.click('button[aria-label="Continue on another screen"]')
+}
+
 const browser = await chromium.launch({ executablePath })
 try {
   const ctxA = await browser.newContext()
@@ -57,7 +64,7 @@ try {
   await b.waitForFunction(() => window.__mcpTools?.describe_project)
 
   // A mints a code in the Continue dialog (behind the code toggle)
-  await a.click('button[aria-label="Continue on another screen"]')
+  await openContinue(a)
   await a.click('button:text-is("or use a code")')
   await a.click("text=Create a code to read aloud")
   const codeText = await a.textContent("code.font-mono", { timeout: 15000 })
@@ -65,7 +72,7 @@ try {
   check("A mints a 6-glyph code in the dialog", /^[A-HJ-NP-Z2-9]{6}$/.test(code), codeText ?? "none")
 
   // B enters it and follows A's session
-  await b.click('button[aria-label="Continue on another screen"]')
+  await openContinue(b)
   await b.click('button:text-is("or use a code")')
   await b.fill('input[aria-label="Pairing code from your other device"]', code)
   await b.click('button:text-is("Join")')
@@ -78,8 +85,8 @@ try {
   )
   check("both dialogs report 2 devices", (await b.textContent("body"))?.includes("Synced live — 2 devices") ?? false)
   check(
-    "the header presence badge shows the live device count",
-    (await a.textContent('span[aria-label^="Live sync"]').catch(() => ""))?.includes("2 devices") ?? false
+    "the connection hub shows the live device count",
+    (await a.textContent("[data-connection-hub]").catch(() => ""))?.includes("2 devices") ?? false
   )
   await a.keyboard.press("Escape")
   await b.keyboard.press("Escape")
@@ -100,7 +107,7 @@ try {
   check("the code burned on use", again.status === 404)
 
   // unpair stops the flow
-  await b.click('button[aria-label="Continue on another screen"]')
+  await openContinue(b)
   await b.click("text=Unpair this device")
   await a.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 200 }))
   await a.waitForFunction(() => window.location.search.includes("height=200"), null, { timeout: 10000 })
@@ -121,7 +128,7 @@ try {
   })
   const toolCode = (mintResult.match(/[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}/) ?? [""])[0]
   check("start_pairing returns a spoken-friendly code", toolCode.length === 7, mintResult.slice(0, 120))
-  await a.click('button[aria-label="Continue on another screen"]')
+  await openContinue(a)
   await a.click('button:text-is("or use a code")')
   await a.fill('input[aria-label="Pairing code from your other device"]', toolCode)
   await a.click('button:text-is("Join")')
@@ -130,7 +137,7 @@ try {
   await a.keyboard.press("Escape")
 
   // flow A: A mints in the dialog, B's agent joins with join_session
-  await a.click('button[aria-label="Continue on another screen"]')
+  await openContinue(a)
   await a.click('button:text-is("or use a code")')
   await a.click("text=Create a code to read aloud")
   const codeText2 = await a.textContent("code.font-mono", { timeout: 15000 })
@@ -177,7 +184,7 @@ try {
   const ctxD = await browser.newContext()
   const d = await ctxD.newPage()
   await a.keyboard.press("Escape")
-  await a.click('button[aria-label="Continue on another screen"]')
+  await openContinue(a)
   await a.waitForFunction(
     () => (document.querySelector("[data-continue-url]")?.getAttribute("data-continue-url") ?? "").includes("join="),
     null,

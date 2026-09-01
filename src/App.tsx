@@ -1,15 +1,13 @@
 import { lazy, Suspense, useState, type UIEvent } from "react"
-import { AgentBadge } from "@/components/AgentBadge"
 import { ChromeFlagNudge } from "@/components/ChromeFlagNudge"
+import { ConnectionHub } from "@/components/ConnectionHub"
 import { LogoMark } from "@/components/LogoMark"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
 import { FeedbackToggle } from "@/components/FeedbackToggle"
 import { MobileMenu } from "@/components/MobileMenu"
-import { PairDialog } from "@/components/PairDialog"
 import { ParamsPanel } from "@/components/panels/ParamsPanel"
 import { PreviewCluster, type PreviewView } from "@/components/PreviewCluster"
 import { ShareDialog } from "@/components/ShareDialog"
-import { SyncBadge } from "@/components/SyncBadge"
 import { ThemeToggle } from "@/components/ThemeToggle"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -78,8 +76,6 @@ export default function App() {
             {/* theme + audio toggles live in the header at every size */}
             <ThemeToggle />
             <FeedbackToggle />
-            {/* live-sync presence: invisible until paired, shown at every size */}
-            <SyncBadge />
             {/* sm+ shows everything side by side… */}
             <div className="hidden items-center gap-1.5 sm:flex">
               <a
@@ -88,11 +84,12 @@ export default function App() {
               >
                 Why Unfolded
               </a>
-              <PairDialog />
               <ShareDialog />
-              <AgentBadge />
             </div>
-            {/* …phones gather it into one menu */}
+            {/* one connection control at every size: agent + sync as two
+                dots (phones show the dots only; the panel explains both) */}
+            <ConnectionHub />
+            {/* …phones gather the rest into one menu */}
             <div className="sm:hidden">
               <MobileMenu />
             </div>

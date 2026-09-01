@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { HelpCircle, Menu, MonitorSmartphone, Share2, Sparkles, X } from "lucide-react"
-import { AgentBadge } from "@/components/AgentBadge"
 import { PairDialog } from "@/components/PairDialog"
 import { ShareDialog } from "@/components/ShareDialog"
 import { Button } from "@/components/ui/button"
@@ -8,7 +7,7 @@ import { useDesignHref } from "@/lib/useStudioHref"
 
 /**
  * Phone header menu: one button gathering what the narrow header can't fit
- * side by side — the WebMCP status pill, the Why Unfolded link, and Share
+ * side by side — the About WebMCP link, the Why Unfolded link, and Share
  * this design. (The audio toggle stays directly in the header.)
  */
 export function MobileMenu() {
@@ -45,11 +44,8 @@ export function MobileMenu() {
             onClick={() => setOpen(false)}
           />
           <div className="bg-background absolute top-full right-0 z-50 mt-2 w-64 rounded-xl border p-2 shadow-lg">
-            {/* the WebMCP pill is a link to /webmcp — tapping it navigates */}
-            <div className="px-1.5 py-2" onClick={() => setOpen(false)}>
-              <AgentBadge />
-            </div>
-            {/* same destination as the pill above, spelled out as a row */}
+            {/* connection status lives in the header's two-dot button now;
+                this row is the door to the page that explains it all */}
             <a href={webmcpHref} className={rowClass} onClick={() => setOpen(false)}>
               <Sparkles className="text-muted-foreground size-4" />
               About WebMCP
