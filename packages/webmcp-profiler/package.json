@@ -19,6 +19,7 @@
     "performance",
     "profiler",
     "agents",
+    "observability",
     "instrumentation"
   ],
   "sideEffects": false,
