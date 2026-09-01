@@ -9,10 +9,14 @@ agent-facing: boot, rendering, interaction, PDF export, and memory.
 Two instruments, both in this repo:
 
 - **[webmcp-profiler](../packages/webmcp-profiler)** — the performance
-  analyser we built for WebMCP tool surfaces (published on npm), plus its
-  agentless bench `npm run perf`: real Chromium drives every tool through
-  `document.modelContext` exactly as a host would and reports percentiles
-  and payload sizes.
+  analyser born *inside this project*: when agent interactions felt slow
+  and the tool harness was the suspect, we built the profiler to find out,
+  and it proved the harness innocent (0.2 ms floor) while catching the
+  real cost, a 130 KB image payload. It is now published as
+  [`webmcp-profiler` on npm](https://www.npmjs.com/package/webmcp-profiler)
+  for any WebMCP site to use. Its agentless bench is `npm run perf`:
+  real Chromium drives every tool through `document.modelContext` exactly
+  as a host would and reports percentiles and payload sizes.
 - **Playwright + CDP** against the production bundle (`vite preview`),
   run twice: desktop viewport at native speed, and a 390 px viewport at
   **4× CPU throttling** to stand in for a mid-range phone. Paint metrics

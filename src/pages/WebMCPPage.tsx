@@ -395,8 +395,19 @@ function FiveMinutes() {
             downloads the full report.
           </li>
           <li>
-            <span className="font-semibold text-foreground">Built to travel:</span> the
-            profiler is a dependency-free module any WebMCP site can lift —{" "}
+            <span className="font-semibold text-foreground">Built to travel:</span> born
+            here when agent replies felt slow and the tool harness was the suspect (it
+            was innocent — the model loop wasn't), the profiler is now a dependency-free
+            package any WebMCP site can use:{" "}
+            <a
+              className="font-medium text-foreground underline decoration-border underline-offset-4 transition-colors hover:decoration-foreground"
+              href="https://www.npmjs.com/package/webmcp-profiler"
+              target="_blank"
+              rel="noreferrer"
+            >
+              webmcp-profiler on npm
+            </a>{" "}
+            ·{" "}
             <a
               className="font-medium text-foreground/80 underline decoration-muted-foreground/40 underline-offset-4 transition-colors hover:text-foreground"
               href="https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/packages/webmcp-profiler"
