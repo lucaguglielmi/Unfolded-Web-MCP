@@ -18,6 +18,8 @@ This specification replaces that ambiguous contract with an explicit create_live
 
 Permanent design links remain necessary for bookmarks, printed QR codes, durable sharing, and independent copies. They must remain token-free.
 
+Default ChatGPT rule: whenever ChatGPT creates, edits, previews, or opens a design and then gives the user a link, that newly created chat link must be a fresh live handoff link. A permanent design link may be sent only when the user explicitly asks for a durable, bookmarkable, printable, archival, or independent-copy link. If the request is ambiguous, ChatGPT must choose live handoff so the user can continue in the browser.
+
 ## 2. Incident being addressed
 
 Observed sequence:
@@ -97,6 +99,36 @@ Example:
 
 Unfolded cannot technically prevent a model or host from inventing or substituting another URL in chat. It can, however, provide one unambiguous tool that is the only supported way to create a live continuation link.
 
+### 6.1 Mandatory ChatGPT link-selection policy
+
+ChatGPT must choose the link from the user's intended next action, using the following rules:
+
+| User intent or wording | Required link |
+| --- | --- |
+| Creates or changes a design and expects a result link | Fresh liveHandoffUrl |
+| "Send me the link", "show me", "open it", "let me continue", or equivalent after design work | Fresh liveHandoffUrl |
+| Wants to continue in a normal browser or on another screen | Fresh liveHandoffUrl |
+| Wants ChatGPT to observe subsequent browser edits | Fresh liveHandoffUrl |
+| Requests another link after an earlier invitation was used or may have expired | Newly minted liveHandoffUrl |
+| Explicitly asks for a bookmark, permanent link, archive, printed QR, or independent copy | designUrl |
+| Explicitly wants to share a non-collaborative copy with another person | designUrl |
+| Intent is unclear | Fresh liveHandoffUrl |
+
+Mandatory behaviour:
+
+- Live continuation is the default for every newly created link in a design conversation.
+- ChatGPT must call create_live_handoff after the final design mutation, immediately before composing its response.
+- ChatGPT must return liveHandoffUrl exactly as supplied by the tool.
+- ChatGPT must not obtain the response link from window.location.href, tab.url(), the address bar, browser history, or by reconstructing query parameters.
+- ChatGPT must not reuse a previous liveHandoffUrl because tokens are single-use and time-limited.
+- ChatGPT must not send designUrl merely because it is easier to verify or because live token creation failed.
+- If create_live_handoff fails, ChatGPT must send no replacement URL. It should retry once, then offer start_pairing and a six-character code.
+- ChatGPT may return designUrl only when the user's wording clearly selects one of the permanent-link purposes in the table.
+
+The same rules apply whether the design was created entirely by WebMCP, changed through the visible UI, opened from a preset, or loaded from an existing design URL.
+
+### 6.2 Enforceable product contract
+
 The enforceable contract is:
 
 - Every successful create_live_handoff call returns a tokenised liveHandoffUrl.
@@ -129,11 +161,14 @@ Input schema:
 Description:
 
     Create a fresh, single-use link that lets the potter continue this exact design
-    in the same live session on another screen. Call this immediately before giving
-    the potter an Unfolded link after creating or editing a design. Return
-    liveHandoffUrl verbatim. Never replace it with the current page URL, browser
-    address-bar URL, or a reconstructed URL. The invitation expires after ten
-    minutes and works once.
+    in the same live session on another screen. This is the DEFAULT link tool after
+    ChatGPT creates, edits, previews, or opens a design. Call it immediately before
+    returning any Unfolded link for requests such as "send me the link", "show me",
+    "open it", or "continue in the browser". Return liveHandoffUrl verbatim. Never
+    replace it with the current page URL, browser address-bar URL, a previously
+    returned link, or a reconstructed URL. Skip this tool only when the user
+    explicitly requests a permanent, bookmarkable, printable, archival, or
+    independent-copy link. The invitation expires after ten minutes and works once.
 
 Successful result:
 
@@ -143,7 +178,7 @@ Successful result:
       "expiresAt": 1788273000000,
       "expiresInSeconds": 600,
       "singleUse": true,
-      "instruction": "Return liveHandoffUrl verbatim. Do not use the browser address-bar URL."
+      "instruction": "Return liveHandoffUrl verbatim as the default link after creating or editing. Do not use the browser address-bar URL. Use designUrl only for an explicitly requested permanent or independent copy."
     }
 
 The result may continue to be encoded as JSON text while the local WebMCP compatibility layer supports only text and image content. If structured result content becomes supported by the adopted WebMCP draft, this object should also be exposed structurally.
@@ -178,9 +213,13 @@ These results must not mint, prefetch, take, or consume a join token.
 
 Every mutation tool description should include the shared instruction:
 
-    To give the potter a link that continues this live session, call
-    create_live_handoff after the final edit and return its liveHandoffUrl
-    unchanged. The browser address-bar URL is only an independent design copy.
+    After creating, editing, previewing, or opening a design, any link ChatGPT
+    gives the potter MUST come from create_live_handoff. Call it after the final
+    edit and return liveHandoffUrl unchanged. Generic requests such as "send me
+    the link", "show me", and "open it" mean live handoff. Use designUrl only
+    when the potter explicitly asks for a permanent, bookmarkable, printable,
+    archival, or independent copy. Never use the browser address-bar URL as a
+    substitute for a live handoff.
 
 describe_project remains genuinely read-only after token creation is removed from describeState.
 
@@ -369,6 +408,10 @@ The work is complete when all of the following are true:
 - Expired or burned handoff links degrade safely to an independent snapshot.
 - Printed QR codes remain permanent and token-free.
 - Product copy no longer claims that every arbitrary link is live.
+- Tool descriptions state that every newly created conversational result link defaults to liveHandoffUrl.
+- Generic requests such as "send me the link", "show me", and "open it" result in a newly minted liveHandoffUrl.
+- designUrl is returned only for an explicit permanent, bookmarkable, printable, archival, or independent-copy request.
+- A failed live handoff never causes ChatGPT to substitute designUrl or the address-bar URL.
 - The stale live-sync documentation is reconciled.
 - Unit, contract, and full-stack pairing tests pass.
 
@@ -376,6 +419,8 @@ The work is complete when all of the following are true:
 
 Keep both link types.
 
-For conversational creation, ChatGPT should normally finish with create_live_handoff so the user can open the result and continue editing live. For archiving, printing, bookmarking, or sharing an independent copy, the permanent designUrl is correct.
+For conversational creation, ChatGPT must finish with create_live_handoff whenever it gives the user a newly created result link. This includes generic requests to send, show, open, or continue with the design. The default is always a fresh paired link so the user can edit in the browser and ChatGPT can observe those edits.
 
-The distinction must be expressed through separate names and separate actions, not inferred from query parameters by the agent.
+For archiving, printing, bookmarking, or sharing an explicitly independent non-collaborative copy, the permanent designUrl is correct. ChatGPT must choose it only when the user clearly asks for one of those purposes. Ambiguity resolves to live handoff.
+
+The distinction must be expressed through separate names, separate actions, tool descriptions, and the explicit selection table in this specification—not inferred from query parameters by the agent.
