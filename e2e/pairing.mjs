@@ -195,6 +195,12 @@ try {
   const d = await ctxD.newPage()
   await a.keyboard.press("Escape")
   await openContinue(a)
+  // A is already paired, so the dialog shows the honest success panel
+  // instead of a spent invitation — inviting a third screen is an
+  // explicit click now
+  const anotherScreen = a.locator('button:text-is("Invite another screen")')
+  await anotherScreen.waitFor({ state: "visible", timeout: 5000 }).catch(() => {})
+  if (await anotherScreen.isVisible()) await anotherScreen.click()
   await a.waitForFunction(
     () => (document.querySelector("[data-continue-url]")?.getAttribute("data-continue-url") ?? "").includes("join="),
     null,
