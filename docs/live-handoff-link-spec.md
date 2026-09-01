@@ -290,33 +290,160 @@ Existing behaviour remains:
 
 The user-facing UI should report whether live pairing succeeded rather than implying that via=chatgpt alone means live synchronisation.
 
-## 10. Copy changes
+## 10. Documentation rewrite plan
 
-Replace claims such as:
+The implementation is not complete until every public explanation uses the new two-link model. Documentation should prove the engineering depth quickly, not repeat the same architecture in several places.
 
-    Every link your agent hands you is a live invitation.
+### 10.1 Documentation hierarchy
 
-With:
+Give each surface one job:
 
-    When you ask your agent to continue on another screen, it creates a
-    one-use live invitation. Open that link within ten minutes to keep both
-    screens in sync.
+| Surface | Purpose |
+| --- | --- |
+| README.md | Fast judge-facing overview, evidence, demo prompts, and verification commands |
+| /webmcp | Live user and evaluator guide: connection state, tool list, and prompts |
+| /why | Short product story: the pottery problem, why an agent helps, and physical output |
+| docs/live-handoff-link-spec.md | Normative link-selection and handoff contract |
+| docs/live-sync-spec.md | Live-sync protocol, security, recovery, and backend design |
+| docs/user-flow.md | Detailed end-to-end human and agent journeys |
+| Source comments and tests | Implementation truth; do not reproduce them paragraph-for-paragraph in prose |
 
-Agent-connected UI should distinguish:
+Link down to detail instead of duplicating it. When two documents make the same technical claim, one must be named as the source of truth and the other must summarise and link.
 
-- Connected to an agent in this tab.
-- Paired live with another device.
-- Opened from a ChatGPT-created design link but not paired.
+### 10.2 README rewrite
 
-Documentation must consistently state:
+Target: no more than about 1,200 words excluding commands and the tool table.
 
-- Permanent design links are token-free.
-- Live handoff links are temporary capabilities.
-- Printed QR codes always use permanent design links.
-- A live handoff token is stripped after opening.
-- create_live_handoff is the required final step before an agent sends a continuation link.
+Recommended order:
 
-Remove or rewrite stale statements in docs/live-sync-spec.md claiming that all agent share URLs are inert or that no URL can ever be a live capability.
+1. One-sentence product pitch, live link, guide link, repository status badges.
+2. One screenshot.
+3. Why it matters: the manual pottery-template problem in no more than two short paragraphs.
+4. Judge in 60 seconds: three prompts and the visible result of each.
+5. Under the hood: six or seven evidence-led bullets.
+6. Compact WebMCP tool table, including create_live_handoff.
+7. Local verification commands.
+8. Links to deeper architecture, sync, profiler, and geometry documents.
+9. License.
+
+The under-the-hood bullets should showcase work that materially affects correctness:
+
+- Current-draft WebMCP registration with lifecycle recovery and legacy-host adapters.
+- Zod-validated tool contracts, cancellation handling, truthful annotations, and graceful errors.
+- Closed-form capacity solving and pottery-specific geometry corrections.
+- True-scale tiled PDF export with overlap, registration marks, and calibration ruler.
+- Bidirectional Durable Object sessions, single-use links/codes, reconnect, and offline convergence.
+- Explicit designUrl versus liveHandoffUrl semantics.
+- The built-in WebMCP profiler and the payload reduction it produced.
+- Unit, browser, Worker, and pairing regression coverage.
+
+Use concrete evidence and links to code or tests. Avoid adjectives such as robust, powerful, seamless, innovative, comprehensive, and cutting-edge unless followed by a measurable fact.
+
+Do not narrate every implementation decision in the README. Move protocol detail, compatibility history, security reasoning, and edge-case behaviour to the technical documents.
+
+Avoid hardcoded test counts because they become stale. Use commands and suite names, or generate the count automatically in CI if an exact figure is important.
+
+### 10.3 README statements that must change
+
+| Current or likely wording | Problem | Required replacement |
+| --- | --- | --- |
+| "Thirteen tools" | Becomes incorrect after create_live_handoff | Use the tested current count or avoid spelling out the count |
+| "Every state snapshot carries shareUrl" | shareUrl is removed and state reads become pure | State returns designUrl; live links come only from create_live_handoff |
+| "Every link the agent hands you is live" | Overbroad and not enforceable for arbitrary links | Newly created conversational result links default to liveHandoffUrl; permanent links require explicit intent |
+| "Connected via ChatGPT" means paired | via=chatgpt proves provenance, not successful live sync | Label it "Opened from ChatGPT"; show pairing only from confirmed live-sync state |
+| "Human and agent share one live session" for direct WebMCP | Confuses same-tab state with cross-device pairing | Say they edit the same in-tab store; live session means confirmed cross-device sync |
+| "No URL ever carries a live capability" | False for temporary handoff URLs | No URL carries a session ID or durable access; live handoff URLs carry a ten-minute single-use token |
+| "Design parameters are the only thing that leaves the device" | Omits coarse presence and session protocol metadata | The synced payload is the design slice plus minimal session/version/presence metadata |
+| "set_capacity iterates until it matches" | Incorrect; it uses a closed-form solution | set_capacity solves height directly and clamps only at build limits |
+| "share link" without a qualifier | Ambiguous | Say design permalink or live handoff link every time |
+| Exact unit-test count | Drifts whenever tests change | Name the suites, or automate the count |
+
+### 10.4 Judge in 60 seconds
+
+The README demo should show the entire human-agent loop, not just individual tools:
+
+1. Ask ChatGPT to create or resize a vessel.
+2. Ask it to show the preview or explain the printable pieces.
+3. ChatGPT calls create_live_handoff and returns the exact liveHandoffUrl.
+4. Open the link in the normal browser and change a dimension.
+5. Ask ChatGPT what changed; describe_project reads the browser edit through live sync.
+6. Export the true-scale PDF.
+
+Keep this to six short numbered lines. Link to /webmcp for more prompts.
+
+The proof points immediately following the demo should be factual:
+
+- Same validated store actions power UI and agent edits.
+- A single-use token moves the work from ChatGPT's agent tab to a normal browser.
+- Edits flow in both directions and recover after disconnects.
+- Geometry, shrinkage, page tiling, and capacity are deterministic rather than model-generated.
+- Real-browser and Worker tests cover the handoff and sync path.
+
+### 10.5 /webmcp page
+
+This is the detailed evaluator guide and may be longer than the README, but it must remain scannable.
+
+Update it to:
+
+- Add create_live_handoff to the generated tool list and prompt examples.
+- Explain the default ChatGPT link-selection rule in one short callout.
+- Show design permalink versus live handoff link in a two-row table.
+- Distinguish agent connection, ChatGPT provenance, and confirmed device pairing.
+- Show the six-character code only as the fallback or reverse-direction flow.
+- State the ten-minute link TTL and five-minute code TTL once.
+- Link to the live-handoff and live-sync specs instead of reproducing protocol details.
+- Remove any old shareUrl terminology.
+
+### 10.6 /why page
+
+Keep /why focused on the product story:
+
+- Manual cardboard templates and the cost of sizing mistakes.
+- Human judgement plus deterministic geometry.
+- One example that starts in conversation, continues in the browser, and ends as a physical template.
+- A short note that permanent QR links reopen independent copies months later.
+
+Do not put tool schemas, registration compatibility, Durable Object internals, or token-selection rules here. Link to /webmcp and the repository.
+
+### 10.7 Technical documentation cleanup
+
+Update docs/live-sync-spec.md so it no longer mixes v2 code-only pairing decisions with the implemented v3 URL-token flow.
+
+Required corrections:
+
+- Change the title and status to the implemented version.
+- Remove statements that agent URLs are always inert.
+- Replace "no URL is ever a live capability" with the temporary-versus-durable distinction.
+- Describe ten-minute single-use URL tokens and five-minute codes separately.
+- State that join is stripped from the address bar after it is read.
+- Name create_live_handoff as the agent's outbound handoff path.
+- Keep design permalink and printed QR behaviour explicitly token-free.
+- Preserve the security reasoning, but remove superseded alternatives and historical debate from the main path. Move history to a short decisions appendix if still useful.
+
+Review docs/user-flow.md, README.md, /webmcp, /why, PairDialog copy, tool descriptions, and comments for these obsolete terms:
+
+- shareUrl
+- every link
+- no URL
+- Connected via ChatGPT
+- thirteen tools
+- agent-minted link
+
+Each occurrence must either be migrated to the new terminology or retained only in clearly labelled historical context.
+
+### 10.8 Documentation quality gate
+
+Add a small CI or unit-test guard that checks:
+
+- README tool names match TOOL_SUMMARIES.
+- create_live_handoff appears in README and /webmcp.
+- Removed agent-facing shareUrl terminology does not return.
+- The phrases "every link the agent hands you is live" and "no URL is ever a live capability" do not appear in current documentation.
+- designUrl and liveHandoffUrl are both defined.
+- README stays below the agreed word budget.
+- All relative documentation links resolve.
+
+Documentation should be updated in the same implementation commit as the tool contract, or in an immediately following commit before deployment. Do not ship code and knowingly contradictory public copy.
 
 ## 11. Testing requirements
 
