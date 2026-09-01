@@ -39,7 +39,7 @@ const AGENT: Record<
     ping: false,
   },
   unavailable: {
-    title: "No agent here",
+    title: "Build with your agent",
     label: "WebMCP",
     dot: "bg-stone-300 dark:bg-slate-600",
     ping: false,
@@ -56,7 +56,7 @@ function agentDescription(agentStatus: AgentStatus): string {
   }
   // action-first, jargon-free: the buttons below do the work (Chrome's
   // experimental-flag hint lives in the dedicated nudge banner instead)
-  return "Continue this design from your agent: tap Open in ChatGPT below, or copy the prompt into any assistant — it joins this exact design, live."
+  return "Tap Open in ChatGPT below — or copy the prompt for any assistant — and it joins this exact design, live."
 }
 
 type SyncState = "none" | "alone" | "reconnecting" | "live"
@@ -276,9 +276,11 @@ export function ConnectionHub() {
                   How does it work <ArrowUpRight className="size-3" />
                 </a>
                 {agentStatus === "unavailable" && (
-                  <div className="mt-2.5 flex gap-2">
+                  // compact sizing: the pair must fit the panel's width on
+                  // phones without the row overflowing
+                  <div className="mt-2.5 flex gap-1.5">
                     {chatgptHref ? (
-                      <Button asChild variant="secondary" size="sm" className="flex-1">
+                      <Button asChild variant="secondary" size="sm" className="min-w-0 flex-1 px-2 text-xs">
                         <a
                           href={chatgptHref}
                           target="_blank"
@@ -287,12 +289,12 @@ export function ConnectionHub() {
                           aria-label="Open ChatGPT with a prompt that visits this site and pairs with this session"
                           onClick={() => setOpen(false)}
                         >
-                          <ArrowUpRight className="size-4" />
+                          <ArrowUpRight className="size-3.5" />
                           Open in ChatGPT
                         </a>
                       </Button>
                     ) : (
-                      <Button variant="secondary" size="sm" className="flex-1" disabled>
+                      <Button variant="secondary" size="sm" className="min-w-0 flex-1 px-2 text-xs" disabled>
                         Preparing…
                       </Button>
                     )}
@@ -300,7 +302,7 @@ export function ConnectionHub() {
                       variant="secondary"
                       size="sm"
                       className={cn(
-                        "flex-1",
+                        "min-w-0 flex-1 px-2 text-xs",
                         promptState === "copied" && "text-emerald-600",
                         promptState === "error" && "text-red-600"
                       )}
@@ -309,7 +311,7 @@ export function ConnectionHub() {
                     >
                       {promptState === "copied" ? (
                         <>
-                          <Check className="size-4" /> Copied
+                          <Check className="size-3.5" /> Copied
                         </>
                       ) : promptState === "error" ? (
                         <>Retry</>
@@ -317,7 +319,7 @@ export function ConnectionHub() {
                         <>Preparing…</>
                       ) : (
                         <>
-                          <Copy className="size-4" /> Copy prompt
+                          <Copy className="size-3.5" /> Copy prompt
                         </>
                       )}
                     </Button>
