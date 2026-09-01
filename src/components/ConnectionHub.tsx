@@ -1,6 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react"
 import { ArrowUpRight, Check, Copy, MonitorSmartphone } from "lucide-react"
-import { isRealChrome } from "@/components/ChromeFlagNudge"
 import { PairDialog } from "@/components/PairDialog"
 import { Button } from "@/components/ui/button"
 import { feedback } from "@/lib/feedback"
@@ -14,7 +13,8 @@ import { useProjectStore, type AgentStatus } from "@/store/useProjectStore"
  * status dots on a single button, with a panel that explains both states in
  * plain language for wherever this tab actually is — ChatGPT's in-app
  * browser, a native WebMCP host, or a plain browser — and offers the two
- * actions that matter: Continue on another screen, and About WebMCP.
+ * actions that matter: Continue on another screen, the agent-prompt
+ * buttons, and a How-does-it-work link to /webmcp.
  *
  * Honesty rules inherited unchanged from the pill and badge it replaces:
  * the agent dot never guesses from the user agent (green only on a real
@@ -54,9 +54,9 @@ function agentDescription(agentStatus: AgentStatus): string {
   if (agentStatus === "chatgpt") {
     return "This design arrived through a link your agent minted. Agent links are live invitations: tapping the latest one makes this tab follow the agent's session both ways — your edits here reach it on its next read."
   }
-  return isRealChrome()
-    ? "This looks like Chrome — WebMCP is one experimental flag away (chrome://flags/#enable-webmcp-testing). Or ask ChatGPT to open tryunfolded.com in its built-in browser."
-    : "No WebMCP host in this tab. Ask ChatGPT to open tryunfolded.com in its built-in browser — the page connects the moment a host appears."
+  // action-first, jargon-free: the buttons below do the work (Chrome's
+  // experimental-flag hint lives in the dedicated nudge banner instead)
+  return "Continue this design from your agent: tap Open in ChatGPT below, or copy the prompt into any assistant — it joins this exact design, live."
 }
 
 type SyncState = "none" | "alone" | "reconnecting" | "live"
@@ -273,7 +273,7 @@ export function ConnectionHub() {
                   className="text-foreground mt-1.5 inline-flex items-center gap-1 text-xs font-medium hover:underline"
                   onClick={() => setOpen(false)}
                 >
-                  About WebMCP <ArrowUpRight className="size-3" />
+                  How does it work <ArrowUpRight className="size-3" />
                 </a>
                 {agentStatus === "unavailable" && (
                   <div className="mt-2.5 flex gap-2">
