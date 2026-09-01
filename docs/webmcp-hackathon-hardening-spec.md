@@ -290,6 +290,13 @@ glanceable, tappable place on every screen size.
   current browser situation (ChatGPT in-app, native WebMCP, plain browser),
   offers **Continue on another screen** (the pairing dialog) and the
   **About WebMCP** link, and surfaces the last agent call when present.
+  (Amendment, implemented: the link now reads "How does it work", and the
+  no-agent state adds two buttons in the Continue action's style — **Open
+  in ChatGPT**, a `chatgpt.com/?q=` link that injects a ready-made prompt
+  carrying a fresh single-use pairing code so the agent both opens the site
+  and joins the session, and **Copy prompt** with the same text for any
+  other assistant. The Chrome flag hint lives solely in the dedicated
+  nudge banner.)
 - The honesty rules are inherited unchanged: agent state never inferred from
   user agent; pairing never claimed for a session no second device joined.
 - Tests and docs that anchored on the old pill/badge selectors update in the

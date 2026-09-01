@@ -196,8 +196,13 @@ function FiveMinutes() {
             <h3 className="font-semibold tracking-tight">ChatGPT's in-app browser</h3>
             <p className="mt-1 text-sm text-muted-foreground/80">WebMCP works out of the box.</p>
             <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-foreground/75">
-              <li>1. In the ChatGPT app, open this site in the built-in browser.</li>
-              <li>2. Watch the WebMCP pill in the header turn green.</li>
+              <li>
+                1. Easiest: tap the connection button in the header → <strong>Open in
+                ChatGPT</strong>. The chat opens with the ask pre-written — this site plus a
+                pairing code that links the agent to your tab. (Or open the site manually in
+                the ChatGPT app's built-in browser.)
+              </li>
+              <li>2. Watch the connection button's agent dot turn green.</li>
               <li>3. Ask for the pot you want — the design changes as you chat.</li>
             </ol>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground/80">

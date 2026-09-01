@@ -45,8 +45,8 @@ user's side, one scenario at a time.
 | ChatGPT → its in-app browser | tap the agent's latest link (`?join=`) | visible tab adopts the agent's design |
 | ChatGPT → Chrome (WebMCP flag) | open the agent's latest link | Chrome tab adopts the agent's design |
 | ChatGPT → Safari | open the agent's latest link | Safari adopts the agent's design |
-| Chrome → ChatGPT | mint a code in Chrome, tell the agent to join | agent's tab adopts Chrome's design |
-| Safari → ChatGPT | mint a code in Safari, tell the agent to join | agent's tab adopts Safari's design |
+| Chrome → ChatGPT | tap **Open in ChatGPT** (prompt + code injected), or mint a code and tell the agent to join | agent's tab adopts Chrome's design |
+| Safari → ChatGPT | tap **Open in ChatGPT**, or mint a code and tell the agent to join | agent's tab adopts Safari's design |
 | Mobile → desktop (no agent) | copy the invite link, or read the code aloud | desktop adopts the phone's design |
 
 Every bridge is needed exactly **once**. After it, the session is live in
@@ -126,17 +126,22 @@ viewing, editing, exporting the PDF — it is a full citizen.
 *You started at the desk, in Chrome, and want to hand the design to a
 ChatGPT agent (typically on your phone) without losing what's on screen.*
 
-A link can't get you *into* ChatGPT — but a spoken code can:
+The fastest bridge is one tap; the spoken code remains for everything
+else:
 
-1. In Chrome, open **Continue on another screen** (inside the header's
-   connection button) →
-   **or use a code** → **Create a code to read aloud**. You get a
-   6-character code, tap-to-copy, valid for 5 minutes.
-2. In ChatGPT, tell the agent: *"Join my Unfolded session with code
-   K7F3QP."* The agent calls `join_session` with the code.
-3. The agent's hidden tab **adopts your Chrome design** (the claimer
-   adopts — your work is what survives) and the two are live. Ask for
-   changes in the chat and watch them land in Chrome.
+1. In Chrome, tap the header's connection button → **Open in ChatGPT**.
+   A new ChatGPT chat opens (the app itself, on phones) with a
+   ready-made prompt already injected: it tells the agent to open
+   tryunfolded.com in its built-in browser and join your session with a
+   fresh single-use code (valid 5 minutes). Just send it. The **Copy
+   prompt** button beside it is the same text for pasting into any
+   other assistant.
+2. Or by voice: **Continue on another screen** → **or use a code** →
+   **Create a code to read aloud**, then tell the agent: *"Join my
+   Unfolded session with code K7F3QP."* The agent calls `join_session`.
+3. Either way, the agent's hidden tab **adopts your Chrome design** (the
+   claimer adopts — your work is what survives) and the two are live.
+   Ask for changes in the chat and watch them land in Chrome.
 4. Want to *watch* on the phone as well? That's scenario 1 from here:
    tap the agent's next link and the visible in-app browser joins the
    same session as a third device.
@@ -149,7 +154,9 @@ side whose design you want to keep.
 ## 5 · From Safari to ChatGPT
 
 *Same bridge as Chrome — the starting browser is irrelevant, because the
-Continue dialog is plain WebSockets, no WebMCP involved.*
+Continue dialog is plain WebSockets, no WebMCP involved. **Open in
+ChatGPT** works here too (it's an ordinary link); the steps below walk
+the spoken-code path.*
 
 1. In Safari, open **Continue on another screen** → **or use a code** →
    create the code.

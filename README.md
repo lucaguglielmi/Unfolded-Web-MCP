@@ -153,6 +153,14 @@ A ChatGPT connection is shown **only** on that explicit link signal — never in
 from the user agent, referrer, screen size, or being inside an in-app browser. Direct
 registration (or any actual tool call) always upgrades the state to active.
 
+**Launch in ChatGPT, one tap.** When no agent is connected, the panel offers two
+actions that both carry a ready-made instruction plus a fresh single-use pairing code
+(5-minute TTL): **Open in ChatGPT** injects it straight into a new chat via
+`chatgpt.com/?q=` (on phones the link hands off into the ChatGPT app), and **Copy
+prompt** puts the same text on the clipboard for any other assistant. Sending it makes
+the agent open the site, call `join_session` with the code, and become a live peer of
+the device that minted it — one tap from "no agent" to a paired conversation.
+
 Detection is built for real agent hosts: it watches for the API forever (fast polling
 at first, then a slow heartbeat, plus focus/visibility re-checks) because hosts like
 ChatGPT inject `modelContext` only when the person engages the agent. Registration
