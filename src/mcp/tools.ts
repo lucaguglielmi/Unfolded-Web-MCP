@@ -50,6 +50,14 @@ function stateText(prefix?: string): string {
   return (prefix ? `${prefix}\n` : "") + JSON.stringify(state, null, 2)
 }
 
+
+/** z.toJSONSchema emits a "$schema" identifier the host never needs —
+    dropping it saves content-free chars from every conversation's context */
+function toInputSchema(schema: z.ZodType): Record<string, unknown> {
+  const { $schema: _dropped, ...json } = z.toJSONSchema(schema) as Record<string, unknown>
+  return json
+}
+
 function run(tool: string, fn: () => ToolResult): Promise<ToolResult> {
   useProjectStore.getState().recordAgentCall(tool)
   try {
@@ -71,7 +79,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "describe_project",
       description:
-        "Get the current pottery design: form type and dimensions (fired sizes, in mm), clay settings (shrinkage, wall thickness), the flat template pieces the design unrolls into (wet-clay sizes, already scaled up for shrinkage), capacityMl (approximate fired interior volume), and shareUrl — a deep link that reopens exactly this design. shareUrl is tagged as coming from your session: when the potter opens it in another tab, the app there shows 'Connected via ChatGPT' so they know this design lives with you. Call this first to see what the potter is working on.",
+        "Get the current pottery design: form type and dimensions (fired mm), clay settings, the flat template pieces it unrolls into (wet-clay sizes, shrinkage already applied), capacityMl, and shareUrl — a link that reopens exactly this design, tagged as coming from your session and carrying a live invitation (the tab that opens it follows this session). Call this first to see what the potter is working on.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true, title: "Describe current design" },
       execute: () => run("describe_project", () => textResult(stateText())),
@@ -79,8 +87,8 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "open_model",
       description:
-        "Open a pottery design from an Unfolded share link. Pass the full URL (any domain — the deployment host may change) or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Recognized parameters: type (cylinder, tapered, triangle, square, pentagon, hexagon, heptagon, octagon), height / bottom / top (fired mm; a 'top' value marks the form as tapered — works for faceted shapes too, e.g. 'type=hexagon&top=120'), name, shrinkage (percent), wall (mm), paper (A4, A3, or Letter). Parameters missing from the link keep their current values; out-of-range values are clamped. The same link opens the design directly in a browser, and every state snapshot includes shareUrl — give that to the potter to save or share the current design. Returns the full new state, ready for further update_form / set_clay edits.",
-      inputSchema: z.toJSONSchema(
+        "Open a pottery design from an Unfolded share link — the full URL or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Parameters: type (cylinder, tapered, triangle, square, pentagon, hexagon, heptagon, octagon), height/bottom/top (fired mm; a 'top' value implies tapered), name, shrinkage (percent), wall (mm), paper (A4/A3/Letter). Missing parameters keep current values; out-of-range values clamp. Returns the full new state, ready for further edits.",
+      inputSchema: toInputSchema(
         z.object({
           url: z.string().min(1).describe("Share link URL, or just its query string"),
         })
@@ -105,8 +113,8 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "update_form",
       description:
-        "Update the pottery form. Any subset of: type ('round' = circular wall, 'faceted' = prism with flat sides), tapered (boolean — its own axis, so ANY shape can taper: true makes the top differ from the bottom, a cone frustum for round or a pyramid frustum for faceted, and topDiameterMm applies; false keeps the wall straight with top mirroring bottom), facets (side count for faceted forms: 3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon, 8 = octagon), name, heightMm, topDiameterMm, bottomDiameterMm (for faceted forms widths are across corners). Legacy type values 'cylinder' and 'tapered' are still accepted. Dimensions are FIRED sizes in millimeters — shrinkage compensation is applied automatically to the templates. The 3D preview and the flat templates the potter sees update immediately. Returns the full new state, including capacityMl (approximate fired interior volume). For a target volume like 'a 350 ml mug', prefer set_capacity — it solves the height exactly in one call.",
-      inputSchema: z.toJSONSchema(updateFormInputSchema),
+        "Update any subset of the pottery form's fields — each property documents itself in the input schema (type round/faceted, the independent tapered flag, facets, name, and the mm dimensions). Legacy type values 'cylinder' and 'tapered' are still accepted. Dimensions are FIRED millimeters; shrinkage compensation is applied to the templates automatically, and the potter's 3D preview updates immediately. Returns the full new state including capacityMl. For a target volume like 'a 350 ml mug', prefer set_capacity — it solves the height exactly in one call.",
+      inputSchema: toInputSchema(updateFormInputSchema),
       annotations: { title: "Update form dimensions", idempotentHint: true },
       execute: (input) =>
         run("update_form", () => {
@@ -119,7 +127,7 @@ export function buildTools(): ToolDescriptor[] {
       name: "set_clay",
       description:
         "Update clay settings: shrinkagePct (total wet-to-fired shrinkage, e.g. 12 for a typical stoneware), wallThicknessMm (slab thickness). These change how the flat templates are computed (shrinkage scales them up; wall thickness shifts the developed mid-surface). Returns the full new state.",
-      inputSchema: z.toJSONSchema(setClayInputSchema),
+      inputSchema: toInputSchema(setClayInputSchema),
       annotations: { title: "Set clay properties", idempotentHint: true },
       execute: (input) =>
         run("set_clay", () => {
@@ -130,8 +138,8 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "set_units",
       description:
-        "Set the potter's preferred measurement units: 'cm' (default) or 'in'. This is a display preference — it changes every human-facing measurement (sliders, 3D callouts, template annotations, warnings, the capacity readout, and the printed PDF, including its scale-check bar: 3 cm vs 1 in). Tool inputs and outputs stay in millimeters regardless. The choice is remembered in the potter's browser and rides on share links (?units=in). Returns the full new state.",
-      inputSchema: z.toJSONSchema(
+        "Set the potter's preferred display units: 'cm' (default) or 'in'. Display-only — it changes every human-facing measurement (UI, warnings, and the printed PDF with its scale-check bar); tool inputs and outputs stay in millimeters regardless. Remembered in the browser and on share links. Returns the full new state.",
+      inputSchema: toInputSchema(
         z.object({
           units: z.enum(["cm", "in"]).describe("Preferred display units: 'cm' or 'in'"),
         })
@@ -147,8 +155,8 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "set_capacity",
       description:
-        "Set the vessel's interior capacity directly, in milliliters. Interior volume is linear in height, so this solves for the exact height that yields the target while keeping the shape, diameters, taper, and clay unchanged. If the needed height falls outside the buildable 20-600 mm range it is clamped and the response reports the actually achievable capacity — widen or narrow the form with update_form and call again to get closer. Returns the full new state.",
-      inputSchema: z.toJSONSchema(
+        "Set the vessel's interior capacity in milliliters. Volume is linear in height, so this solves the exact height for the target — never iterate with update_form. If the height clamps at the buildable 20-600 mm range the response reports the achievable capacity; adjust the diameters and call again. Returns the full new state.",
+      inputSchema: toInputSchema(
         z.object({
           capacityMl: z
             .number()
@@ -195,7 +203,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "get_preview_image",
       description:
-        "See what the potter sees: a compact JPEG snapshot (320 px) of the live 3D preview — the hollow clay render with its dimension callouts, deliberately small so it costs little context. Use it to visually confirm a change or to describe the current form. If the canvas can't be captured in this environment, a text description of the design is returned instead. Read-only.",
+        "See what the potter sees: a compact JPEG snapshot of the live 3D preview, deliberately small so it costs little context. Use it to visually confirm a change. If the canvas can't be captured here, a text description is returned instead. Read-only.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { readOnlyHint: true, title: "See the 3D preview" },
       execute: () =>
@@ -223,8 +231,8 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "export_templates",
       description:
-        "Export the printable template as a multi-page PDF and download it in the potter's browser. Pages tile the true-scale template with 10 mm glue overlaps; page 1 has assembly instructions, an assembly map, and a calibration ruler. Optionally set paperSize ('A4', 'A3', or 'Letter') first. Returns the page count.",
-      inputSchema: z.toJSONSchema(
+        "Export the printable template as a multi-page PDF and download it in the potter's browser — remind them to print at 100% scale and check the calibration ruler on page 1. Pages tile the true-scale template with 10 mm glue overlaps. Optionally set paperSize ('A4', 'A3', or 'Letter') first. Returns the page count.",
+      inputSchema: toInputSchema(
         z.object({
           paperSize: z.enum(["A4", "A3", "Letter"]).optional().describe("Paper size for the printout"),
         })
@@ -252,7 +260,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "apply_preset",
       description: `Start from a known-good preset design. Available presets: ${Object.keys(PRESETS).join(", ")}. Overwrites the current form and clay settings (undo_last_change reverts it). Returns the full new state.`,
-      inputSchema: z.toJSONSchema(
+      inputSchema: toInputSchema(
         z.object({
           preset: z.enum(Object.keys(PRESETS) as [string, ...string[]]).describe("Preset id"),
         })
@@ -270,13 +278,13 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "join_session",
       description:
-        "Pair this tab into a live cross-device session. The potter reads you a 6-character code shown on their OTHER device (its 'Pair a device' dialog), e.g. 'K7F-3QP'; pass it here and this tab joins that session, adopting its current design (one undo step brings the previous design back). From then on every edit — yours or the potter's, on either device — syncs live to all paired devices within about a second. Codes expire after 5 minutes and work exactly once; on failure, ask the potter to mint a fresh one. Returns the full state after joining.",
-      inputSchema: z.toJSONSchema(
+        "Pair this tab into a live cross-device session using the 6-character code from the potter's OTHER device, e.g. 'K7F-3QP'. This tab adopts that session's design (one undo step brings the previous one back); afterwards every edit on any device syncs live within about a second. Codes expire in 5 minutes and work once — on failure ask for a fresh one. Returns the full state after joining.",
+      inputSchema: toInputSchema(
         z.object({
           code: z
             .string()
             .min(1)
-            .describe("The 6-character pairing code from the potter's other device, e.g. 'K7F-3QP' (case and dashes don't matter)"),
+            .describe("6-character code from the potter's other device, e.g. 'K7F-3QP' (case/dashes ignored)"),
         })
       ),
       annotations: { title: "Join live session" },
@@ -323,7 +331,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "start_pairing",
       description:
-        "Mint a 6-character pairing code for THIS tab's live session (creating the session if none exists yet) and give it to the potter. On their other device they open the 'Pair a device' dialog and enter the code; that device then FOLLOWS this design — so use this when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop'. The code is valid for 5 minutes and works exactly once; both devices stay live peers afterwards. Tell the potter the code exactly as returned.",
+        "Mint a 6-character pairing code for THIS tab's live session and tell it to the potter. Entered on their other device (connection button → Continue on another screen), that device then FOLLOWS this design — use this when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop'. Valid 5 minutes, one use; both devices stay live peers afterwards. Returns the full state.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       annotations: { title: "Start device pairing" },
       execute: async () => {

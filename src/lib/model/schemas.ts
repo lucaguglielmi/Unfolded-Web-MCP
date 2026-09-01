@@ -9,7 +9,7 @@ import { z } from "zod"
 export const formTypeSchema = z
   .enum(["round", "faceted"])
   .describe(
-    "Base geometry of the wall. 'round' is a circular wall (a cylinder, or a cone frustum when tapered); 'faceted' is a prism with `facets` flat sides (a pyramid frustum when tapered). Taper is a separate flag — any shape can be straight or tapered."
+    "Wall geometry: 'round' = circular (cylinder; cone frustum when tapered), 'faceted' = prism with `facets` flat sides (pyramid frustum when tapered). Taper is a separate flag — any shape can be straight or tapered."
   )
 
 export const formParamsSchema = z.object({
@@ -17,7 +17,7 @@ export const formParamsSchema = z.object({
   tapered: z
     .boolean()
     .describe(
-      "When true, the top and bottom sizes differ (cone frustum for round, pyramid frustum for faceted) and topDiameterMm applies. When false the wall is straight and the top mirrors bottomDiameterMm."
+      "True: top and bottom sizes differ and topDiameterMm applies. False: straight wall, top mirrors bottomDiameterMm."
     ),
   name: z.string().min(1).max(60).describe("Display name of the piece, e.g. 'Classic mug'"),
   heightMm: z.number().min(20).max(600).describe("Fired height of the wall in millimeters"),
@@ -26,7 +26,7 @@ export const formParamsSchema = z.object({
     .min(20)
     .max(500)
     .describe(
-      "Fired outer size at the rim in millimeters (used when tapered is true; straight forms mirror bottomDiameterMm). For 'faceted' forms this is measured across corners."
+      "Fired outer size at the rim in millimeters (applies when tapered). For 'faceted' forms, measured across corners."
     ),
   bottomDiameterMm: z
     .number()

@@ -520,6 +520,15 @@ drop in correct tool selection in the standard prompt suite.
 > `set_capacity` instead of guess-looping `update_form`. Prerequisite: build
 > the small prompt suite first; until it exists the 25% figure is advisory —
 > trim obvious repetition, keep every behavioral-contract sentence.
+>
+> **Done (2026-09-01), in that order**: `src/mcp/promptSuite.test.ts` — 13
+> prompts mapped to expected tools with required routing phrases, plus a
+> 9,800-char metadata budget — landed first; the trim then cut 11,360 →
+> 9,128 chars (−19.6%, ~560 tokens per conversation), mostly by removing
+> description text that duplicated the input schemas and zod's `$schema`
+> boilerplate. The suite caught and reverted two over-trims during the
+> work. The last ~5% to 25% would cut protected contract sentences —
+> stopped deliberately. Full numbers: docs/performance-report.md.
 
 ### 9.2 Review the 3D bundle
 
