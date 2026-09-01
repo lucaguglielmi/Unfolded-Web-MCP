@@ -1,5 +1,9 @@
 # Refactoring Spec — Code Quality Pass
 
+> Status: working notes from the 2026-08-30 review. Several items have since
+> landed through other work (see git history, which is authoritative); the
+> ground rules below still describe the frozen public contracts correctly.
+
 Goal: a codebase that reads as deliberately engineered end to end — clear module
 boundaries, no duplicated contracts, no test-only seams leaking into production
 code, and measured performance choices. This document turns the findings of the

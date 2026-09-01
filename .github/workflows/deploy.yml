@@ -22,6 +22,15 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: End-to-end (WebMCP tools, share links, export)
         run: npm run e2e
+      - name: Worker smoke (Durable Objects, pairing protocol) — hard gate
+        run: npm run e2e:worker
+      # Non-blocking until it earns a green streak (hardening spec 6.3):
+      # the pairing suite drives two real browsers against wrangler dev and
+      # is the flakiest path — a red here is loud but must never block an
+      # emergency deploy near the deadline.
+      - name: Cross-device pairing e2e (non-blocking)
+        run: npm run e2e:pairing
+        continue-on-error: true
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
         with:

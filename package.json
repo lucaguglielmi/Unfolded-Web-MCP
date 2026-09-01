@@ -1,8 +1,14 @@
 {
   "name": "unfolded",
+  "description": "WebMCP-native parametric designer for slab-built pottery — design in 3D, print true-scale templates, build in clay. Live at https://tryunfolded.com",
+  "license": "MIT",
+  "repository": "github:lucaguglielmi/Unfolded-Web-MCP",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "workspaces": [
     "packages/*"
   ],

@@ -2,6 +2,16 @@
 
 **Slab pottery templates — design in 3D, print flat, build in clay.**
 
+**Live: [tryunfolded.com](https://tryunfolded.com)** · guide at
+[/webmcp](https://tryunfolded.com/webmcp) · story at
+[/why](https://tryunfolded.com/why)
+
+[![Deploy](https://github.com/lucaguglielmi/Unfolded-Web-MCP/actions/workflows/deploy.yml/badge.svg)](https://github.com/lucaguglielmi/Unfolded-Web-MCP/actions/workflows/deploy.yml)
+[![npm: webmcp-profiler](https://img.shields.io/npm/v/webmcp-profiler?label=webmcp-profiler)](https://www.npmjs.com/package/webmcp-profiler)
+[![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+
+![Unfolded — parametric form, live 3D preview, and flat templates side by side](./docs/assets/screenshot.png)
+
 Unfolded lets potters design slab-built forms (mugs, tumblers, vases) as parametric 3D
 objects and turns them into true-scale printable templates to cut, tape, and lay on a
 clay slab. Every dimension is shrinkage-compensated for your clay body and developed
@@ -61,7 +71,9 @@ committed e2e suite):
 - **A solver, not just setters** — `set_capacity` computes the exact height for
   a target volume in one call instead of letting the agent iterate.
 - **The agent sees what the potter sees** — `get_preview_image` returns the
-  live WebGL canvas as image content.
+  live WebGL canvas as image content, deliberately compact (~7 KB JPEG ≈
+  1.7 K tokens per look; it was a 130 KB PNG until the built-in profiler
+  flagged it as the costliest payload in the agent loop).
 - **Never-give-up registration** — hosts inject `modelContext` at wildly
   different times (ChatGPT only when the person engages the agent), so the app
   watches forever: fast polling, then a heartbeat (paused in hidden tabs), plus
@@ -80,14 +92,42 @@ committed e2e suite):
   last-write-wins. No URL ever carries a durable capability — invitations
   burn on first use.
 
-## Run it
+## Judge in 60 seconds
+
+The live app is **<https://tryunfolded.com>** — no account, no setup; open it
+in ChatGPT's built-in browser and the agent has all 13 tools immediately.
+To verify the repo from a clean checkout:
 
 ```bash
-npm install
-npm run dev      # local dev server
-npm test         # unrolling-math unit tests
-npm run build    # type-check + production build
+npm ci
+npx playwright install chromium   # for the e2e suites
+npm run lint
+npm test          # 190 unit tests: geometry, schemas, sync client, profiler
+npm run build
+npm run e2e       # real Chromium against the production bundle + a simulated WebMCP host
 ```
+
+Two deeper suites exercise the live-session backend; each starts its own
+local Cloudflare Worker (`wrangler dev --local`, bundled as a dev
+dependency — nothing to install or configure):
+
+```bash
+npm run e2e:worker    # Durable Object protocol smoke: hello/patch/resync, join tokens
+npm run e2e:pairing   # two real browsers pairing, converging, and surviving offline
+```
+
+Three prompts to try against the live site in ChatGPT, and what should happen:
+
+1. *"What am I designing right now?"* — one `describe_project` call; the agent
+   answers with the current shape, sizes, capacity in ml, and a share link.
+2. *"Make it hold about 350 ml and show me how it looks."* — `set_capacity`
+   solves the height in closed form (no guess loop), then `get_preview_image`
+   returns the same 3D view the potter sees.
+3. *"Export the PDF for A4."* — `export_templates` downloads a multi-page,
+   100%-scale template with a calibration ruler; the agent reports the page count.
+
+For development: `npm run dev` starts the local server; `npm run perf`
+benchmarks every tool's execution time and payload size.
 
 Open the app in a WebMCP-capable browser:
 
@@ -106,7 +146,7 @@ sync — and tells the truth about both. The agent states:
 | State | Dot | Meaning |
 |---|---|---|
 | **WebMCP active** | pulsing green | The API is available in *this* tab (`document`/`navigator`/`window.modelContext`) and tool registration succeeded — human and agent share one live session. |
-| **Connected via ChatGPT** | solid green | This tab has no direct WebMCP, but the design arrived through an agent-minted link (`?via=chatgpt` on tool-issued `shareUrl`s) — the explicit signal that it's open in the conversation's internal browser. Edits here aren't shared until synced back (`open_model`). |
+| **Connected via ChatGPT** | solid green | This tab has no direct WebMCP, but the design arrived through an agent-minted link (`?via=chatgpt` on tool-issued `shareUrl`s) — the explicit signal that it's open in the conversation's internal browser. Agent links also carry a single-use join token, so tapping the latest one makes this tab a live follower of the agent's session. |
 | **WebMCP** | grey | Neither could be confirmed — the button just names the capability; tapping it explains how to connect. |
 
 A ChatGPT connection is shown **only** on that explicit link signal — never inferred
@@ -141,7 +181,7 @@ fallback for browsers that expose the API there — see
 | `set_capacity` | Solve the height for a target interior volume ("make it 350 ml") |
 | `set_units` | Switch display units between cm and inches — UI, warnings, and the printed PDF |
 | `get_template_summary` | Template layout, per-piece dimensions, exact PDF page count |
-| `get_preview_image` | PNG snapshot of the live 3D preview — the agent sees what the potter sees |
+| `get_preview_image` | Compact JPEG snapshot of the live 3D preview (~7 KB, deliberately cheap to read) — the agent sees what the potter sees |
 | `export_templates` | Generate and download the multi-page PDF (A4 / A3 / Letter) |
 | `apply_preset` | Start from a preset (classic mug, tumbler, bud vase, hex planter) |
 | `join_session` | Pair this tab into a live cross-device session using the 6-character code from the potter's other device |
@@ -219,6 +259,19 @@ miter bevel recomputed for the lean of the faces.
 Two pottery-specific corrections are applied — clay shrinkage scaling (`1/(1−s)`) and
 mid-surface development (`r − t/2`). See
 [`src/lib/geometry/unroll.ts`](./src/lib/geometry/unroll.ts).
+
+## Built-in performance profiler
+
+The repo also ships [`webmcp-profiler`](./packages/webmcp-profiler) — a
+zero-dependency analyser for WebMCP tool surfaces, published to
+[npm](https://www.npmjs.com/package/webmcp-profiler) with provenance and
+usable by any WebMCP site. Open the live app with `?perf=overlay` and every
+tool call is measured: wall time, main-thread blocking, payload bytes and
+estimated tokens, and the host+model "think time" between calls. It answered
+this repo's own question — the tools run in single-digit milliseconds; the
+seconds an agent conversation takes live in the model loop — and its first
+finding (an oversized preview payload) is already fixed above. Design
+rationale: [`docs/webmcp-profiler-spec.md`](./docs/webmcp-profiler-spec.md).
 
 ## Deploy
 
