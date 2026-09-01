@@ -52,7 +52,7 @@ const CASES = [
   { name: "set_clay", input: (i) => ({ shrinkagePct: 8 + (i % 10) }) },
   { name: "set_capacity", input: (i) => ({ capacityMl: 300 + (i % 20) * 10 }) },
   { name: "set_units", input: (i) => ({ units: i % 2 ? "in" : "cm" }) },
-  { name: "apply_preset", input: (i) => ({ preset: i % 2 ? "classic-mug" : "cereal-bowl" }) },
+  { name: "apply_preset", input: (i) => ({ preset: i % 2 ? "classic-mug" : "hex-planter" }) },
   { name: "undo_last_change", input: () => ({}) },
   { name: "open_model", input: (i) => ({ url: `http://localhost:4199/?type=round&height=${100 + (i % 30)}` }) },
   { name: "get_preview_image", input: () => ({}), n: 15 },

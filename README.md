@@ -12,8 +12,8 @@ The whole app is **WebMCP-native**: it registers its editing tools on
 edit the same design you see on screen — *"make it a 350 ml tumbler and use my
 stoneware at 12% shrinkage"* — while the 3D preview and templates update live.
 
-Built for the [WebMCP Challenge](https://webmcp.devpost.com). See [PLAN.md](./PLAN.md)
-for the full project plan.
+Built for the [WebMCP Challenge](https://webmcp.devpost.com). The specs and design
+documents live in [docs/](./docs).
 
 ## Why this exists
 
@@ -100,13 +100,14 @@ Open the app in a WebMCP-capable browser:
 
 ## Agent connection states
 
-The header pill tells the truth about how (and whether) an agent is connected:
+The header's connection button carries two status dots — agent (WebMCP) and live
+sync — and tells the truth about both. The agent states:
 
 | State | Dot | Meaning |
 |---|---|---|
 | **WebMCP active** | pulsing green | The API is available in *this* tab (`document`/`navigator`/`window.modelContext`) and tool registration succeeded — human and agent share one live session. |
 | **Connected via ChatGPT** | solid green | This tab has no direct WebMCP, but the design arrived through an agent-minted link (`?via=chatgpt` on tool-issued `shareUrl`s) — the explicit signal that it's open in the conversation's internal browser. Edits here aren't shared until synced back (`open_model`). |
-| **WebMCP** | grey | Neither could be confirmed — the pill just names the capability; the tooltip explains how to connect. |
+| **WebMCP** | grey | Neither could be confirmed — the button just names the capability; tapping it explains how to connect. |
 
 A ChatGPT connection is shown **only** on that explicit link signal — never inferred
 from the user agent, referrer, screen size, or being inside an in-app browser. Direct
@@ -163,7 +164,7 @@ Things to try in a WebMCP-capable browser:
 ## Sync live between devices
 
 A design doesn't live in one chair — and the other chair needs no WebMCP,
-just a browser. **Continue on another screen** (the two-screens icon) shows
+just a browser. **Continue on another screen** (inside the header's connection button) shows
 a QR and a copyable link carrying a **single-use join token**: the device
 that opens it follows this design live, both ways, within about a second —
 whoever made the edit. In ChatGPT it's automatic: **every link the agent

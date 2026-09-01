@@ -1,8 +1,18 @@
 # Unfolded — WebMCP and Hackathon Hardening Specification
 
-Status: **proposed — no implementation has started**  
+Status: **proposed, amended after review — early items landing**  
 Baseline: `main` at `bdf87d0` (`docs: remove stale project plan`)  
 Submission deadline: **2026-09-03 22:00 CEST**  
+
+> **Amendments (2026-09-01 review).** Verified against the code: 6.4's
+> `cereal-bowl` bug, 7.1's dead PLAN.md link, and 8.1's `Math.random`
+> code path are all real (fixed where five-minute-sized). Corrections
+> recorded inline below: 4.3 dual-publishes titles, 4.5's premise is
+> narrowed to what is actually missing, 5.1/5.2 credit the recovery
+> work already shipped, 6.3/12 resolve their contradiction on the
+> pairing gate, 9.1 gains a measurable prerequisite, and 8.4 notes the
+> committed `.env` holds only a public value. New: §5.3, the combined
+> connection button (WebMCP + pairing status in one control).
 
 ## 1. Purpose
 
@@ -144,8 +154,12 @@ unsupported hints were discarded.
 
 Required change:
 
-- Move each human-readable `title` to the top level of its tool descriptor.
-- Send only current WebMCP annotation fields to `registerTool`.
+- Move each human-readable `title` to the top level of its tool descriptor,
+  and ALSO keep `annotations.title` — MCP-style hosts read the nested form,
+  current WebMCP hosts the top-level one; dual-publishing costs bytes, not
+  correctness, and matches §3's compatibility rule.
+- Send only current WebMCP annotation fields to `registerTool` (plus the
+  nested title above).
 - Keep unsupported internal concepts such as idempotence or destructiveness in
   application-owned metadata only if the UI or tests actually use them.
 - Mark only non-mutating tools read-only:
@@ -182,8 +196,12 @@ Acceptance criteria:
 
 ### 4.5 Improve validation errors without changing schemas
 
-Current issue: malformed values can produce only `Invalid input`, which gives an
-agent insufficient information to correct its next call.
+Current issue (narrowed on review): the main Zod path already formats
+per-field issue paths and messages and appends the unchanged state —
+`Invalid input:\n<path>: <message>… Current state unchanged: …`. What is
+actually missing: accepted ranges/enums are not always spelled out, and a
+few non-Zod paths (e.g. pairing-code shape checks) answer tersely. Audit
+and enrich; do not rebuild.
 
 Required change:
 
@@ -209,6 +227,14 @@ Acceptance criteria:
 Observed issue: the review browser could not create a WebGL context. The
 `get_preview_image` tool honestly returned a text fallback, but the human-facing
 3D area did not provide an equally clear recovery state.
+
+> Amendment: much of this shipped at `f5f06d5`/`9cd5b62` — the boundary now
+> distinguishes true no-WebGL (honest message, no useless retry) from
+> transient GPU reclaim (auto-retry on visibility, capped, plus a
+> "Wake the preview" button), and a silent context loss remounts the canvas
+> on return to the tab. Remaining from this item: the 2D silhouette /
+> template thumbnail in the fallback, and routing both failure paths through
+> one shared component (5.2).
 
 Required change:
 
@@ -236,8 +262,32 @@ Acceptance criteria:
   loss exceptions without unmounting the rest of the app.
 - Route it to the same fallback component as 5.1 so there is one truthful error
   experience.
+
+### 5.3 One connection button: WebMCP + pairing status together
+
+Owner-authorized UI change (explicitly amends §2's "no shell redesign" for
+this one control). The separate WebMCP pill, sync badge, and pair-dialog
+trigger merge into a single header **connection button** carrying two status
+dots — agent (WebMCP) and live sync — so both connection stories live in one
+glanceable, tappable place on every screen size.
+
+- The button shows two dots at all times: agent (pulsing green = tools
+  registered here; solid green = arrived via an agent link; grey = no host)
+  and sync (green = live peers; amber = reconnecting; grey = paired alone or
+  not paired). Its label states the most informative current fact.
+- Tapping opens a panel that explains BOTH states in plain language for the
+  current browser situation (ChatGPT in-app, native WebMCP, plain browser),
+  offers **Continue on another screen** (the pairing dialog) and the
+  **About WebMCP** link, and surfaces the last agent call when present.
+- The honesty rules are inherited unchanged: agent state never inferred from
+  user agent; pairing never claimed for a session no second device joined.
+- Tests and docs that anchored on the old pill/badge selectors update in the
+  same commit.
 - Replace the deprecated Three.js clock API in a later compatibility commit;
   do not combine that dependency-facing change with the fallback.
+  (Amendment: verify first — no `THREE.Clock` usage exists in the viewport
+  code; frame deltas come from react-three-fiber's `useFrame`. This may be a
+  phantom item.)
 
 ---
 
@@ -280,17 +330,23 @@ Acceptance criteria:
 Current issue: `deploy.yml` runs `npm run e2e`, but the distinctive Worker and
 cross-device paths are separate commands and are not deployment gates.
 
-Required change:
+Required change (amended to resolve the contradiction with §12):
 
-- Add `npm run e2e:worker` to deployment CI.
-- Add `npm run e2e:pairing` when its local Worker prerequisites are ready.
+- Add `npm run e2e:worker` to deployment CI as a **hard gate**.
+- Add `npm run e2e:pairing` to CI **non-blocking first** (visible red that
+  does not stop deploys); promote it to a hard gate only after a streak of
+  green runs proves determinism. Rationale: the pairing suite needs a local
+  `wrangler dev` with Durable Objects and is the flakiest suite in the repo —
+  a hard gate that turns flaky the day before the deadline would block
+  emergency deploys, the worst failure mode near submission.
 - Keep failure logs and Playwright artifacts available from the workflow.
-- If pairing proves flaky, fix determinism; do not silently remove the gate.
+- If pairing proves flaky, fix determinism; do not silently remove the check.
 
 Acceptance criteria:
 
 - A broken Worker join-token path blocks deployment.
-- A broken two-client state propagation path blocks deployment.
+- A broken two-client state propagation path is loudly visible in CI, and
+  blocks deployment once the pairing gate is promoted.
 - The normal deployment remains within a reasonable hackathon feedback cycle.
 
 ### 6.4 Close current test-quality gaps
@@ -433,6 +489,10 @@ Acceptance criteria:
 
 ### 8.4 Environment-file hygiene
 
+(Amendment: verified — the committed `.env` contains only the public
+`VITE_SITE_URL` with a comment saying exactly that. Correct hygiene, zero
+urgency; nothing secret is exposed today.)
+
 - Add `.env*` to `.gitignore` with an explicit exception for `.env.example`.
 - Move the public `VITE_SITE_URL` example to `.env.example` and document that
   Vite-prefixed variables are client-visible.
@@ -454,6 +514,12 @@ The reviewed 13-tool surface exposed roughly 14,000 characters of metadata.
 
 Target: reduce estimated discovery tokens by **25% or more** with no measurable
 drop in correct tool selection in the standard prompt suite.
+
+> Amendment: no standard prompt suite exists yet, which makes the criterion
+> unfalsifiable and invites trimming the exact prose that makes agents call
+> `set_capacity` instead of guess-looping `update_form`. Prerequisite: build
+> the small prompt suite first; until it exists the 25% figure is advisory —
+> trim obvious repetition, keep every behavioral-contract sentence.
 
 ### 9.2 Review the 3D bundle
 
@@ -525,7 +591,8 @@ P0 is complete when all of the following are true:
 - all 13 existing tools retain their public names and behavior;
 - validation errors are actionable and rejected mutations are atomic;
 - no-WebGL browsers show a useful fallback instead of a blank preview;
-- standard, Worker, and pairing suites pass in the deployment workflow;
+- the standard and Worker suites pass as deployment gates; the pairing suite
+  runs in CI (non-blocking until promoted per amended 6.3);
 - the README contains no broken plan link and provides reproducible judge steps;
 - consecutive live mutations work in ChatGPT without stale state;
 - a real print calibration check has passed;
