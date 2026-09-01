@@ -56,7 +56,8 @@ export function TemplatePanel() {
         <ExportPdfDialog trigger={<Button size="sm">Export PDF</Button>} />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto p-4">
+      {/* dot-grid: the technical graph-paper ground the templates sit on */}
+      <div className="dot-grid min-h-0 flex-1 overflow-auto p-4">
         <svg
           className="mx-auto h-auto w-full max-w-2xl"
           viewBox={`${-PAD} ${-PAD} ${layout.widthMm + 2 * PAD} ${layout.heightMm + 2 * PAD}`}

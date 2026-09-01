@@ -112,11 +112,13 @@ export default function App() {
             onClose={() => setPreviewExpanded(false)}
           />
 
-          {/* Settings: the main page on mobile, fixed sidebar on desktop */}
+          {/* Settings: the main page on mobile, fixed sidebar on desktop.
+              Dark mode: a deep blue a step lighter than the wash's top color,
+              so the column reads as its own surface against the gradient. */}
           <div
             onScroll={handleSettingsScroll}
             // no border-r: the viewport's rounded stage separates the panels
-            className="order-2 min-h-0 w-full flex-1 overflow-y-auto p-4 sm:p-5 lg:order-1 lg:w-72 lg:flex-none xl:w-80"
+            className="order-2 min-h-0 w-full flex-1 overflow-y-auto p-4 sm:p-5 lg:order-1 lg:w-72 lg:flex-none xl:w-80 dark:bg-[#0e1830]"
           >
             <ParamsPanel />
           </div>

@@ -152,6 +152,20 @@
    opens back up — un-fold-ed. The bottom slab folds up first, the dark
    slab closes over it; reopening reverses the order. */
 
+/* Technical dot grid: equidistant faint dots, the graph-paper ground the
+   flat templates sit on. background-attachment: local makes the dots
+   scroll WITH the drawing inside its overflow container, so the template
+   moves over fixed paper rather than paper sliding under it. */
+.dot-grid {
+  --dot-grid-color: rgba(120, 113, 108, 0.22);
+  background-image: radial-gradient(var(--dot-grid-color) 1px, transparent 1px);
+  background-size: 18px 18px;
+  background-attachment: local;
+}
+.dark .dot-grid {
+  --dot-grid-color: rgba(148, 163, 184, 0.16);
+}
+
 .logo-slab {
   transform-box: fill-box;
 }
