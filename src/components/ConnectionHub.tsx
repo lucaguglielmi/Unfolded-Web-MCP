@@ -1,8 +1,9 @@
 import { useState, useSyncExternalStore } from "react"
-import { ArrowUpRight, MonitorSmartphone } from "lucide-react"
+import { ArrowUpRight, Check, Copy, MonitorSmartphone } from "lucide-react"
 import { isRealChrome } from "@/components/ChromeFlagNudge"
 import { PairDialog } from "@/components/PairDialog"
 import { Button } from "@/components/ui/button"
+import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 import { useDesignHref } from "@/lib/useStudioHref"
 import { liveSync } from "@/store/syncClient"
@@ -86,9 +87,23 @@ const SYNC: Record<SyncState, { title: string; dot: string; description: string 
   },
 }
 
+/** the paste-into-ChatGPT prompt: what the site is, and the single-use
+    pairing code that makes the agent's tab join THIS session */
+function agentPrompt(code: string, minutes: number): string {
+  const pretty = `${code.slice(0, 3)}-${code.slice(3)}`
+  return (
+    `Open https://tryunfolded.com in your built-in browser — it's a parametric ` +
+    `slab-pottery template designer that exposes WebMCP tools. Once it loads, call ` +
+    `its join_session tool with code ${pretty} so you're editing the same live ` +
+    `design I have open here (the code works once and expires in ${minutes} ` +
+    `minutes). Then describe the current design and help me refine it.`
+  )
+}
+
 export function ConnectionHub() {
   const [open, setOpen] = useState(false)
   const [pairOpen, setPairOpen] = useState(false)
+  const [promptState, setPromptState] = useState<"idle" | "minting" | "copied" | "error">("idle")
   const agentStatus = useProjectStore((s) => s.agentStatus)
   const lastAgentCall = useProjectStore((s) => s.lastAgentCall)
   const webmcpHref = useDesignHref("/webmcp")
@@ -122,6 +137,28 @@ export function ConnectionHub() {
       : syncState === "reconnecting"
         ? "syncing…"
         : agent.label
+
+  const copyAgentPrompt = async () => {
+    if (promptState === "minting") return
+    setPromptState("minting")
+    const minted = await liveSync.mintCode()
+    if (!minted) {
+      setPromptState("error")
+      window.setTimeout(() => setPromptState("idle"), 2500)
+      return
+    }
+    const minutes = Math.max(1, Math.round((minted.expiresAt - Date.now()) / 60_000))
+    const prompt = agentPrompt(minted.code, minutes)
+    try {
+      await navigator.clipboard.writeText(prompt)
+      feedback("success")
+      setPromptState("copied")
+      window.setTimeout(() => setPromptState("idle"), 2000)
+    } catch {
+      window.prompt("Copy this prompt into ChatGPT:", prompt)
+      setPromptState("idle")
+    }
+  }
 
   const syncDescription =
     syncState === "live"
@@ -181,13 +218,44 @@ export function ConnectionHub() {
                     last agent call: <code className="text-foreground/80">{lastAgentCall.tool}</code>
                   </p>
                 )}
-                <a
-                  href={webmcpHref}
-                  className="text-foreground mt-1.5 inline-flex items-center gap-1 text-xs font-medium hover:underline"
-                  onClick={() => setOpen(false)}
-                >
-                  About WebMCP <ArrowUpRight className="size-3" />
-                </a>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <a
+                    href={webmcpHref}
+                    className="text-foreground inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                    onClick={() => setOpen(false)}
+                  >
+                    About WebMCP <ArrowUpRight className="size-3" />
+                  </a>
+                  {agentStatus === "unavailable" && (
+                    <button
+                      type="button"
+                      onClick={() => void copyAgentPrompt()}
+                      aria-label="Copy a ChatGPT prompt that opens this site and pairs with this session"
+                      className={cn(
+                        "inline-flex items-center gap-1 text-xs font-medium hover:underline",
+                        promptState === "copied"
+                          ? "text-emerald-600"
+                          : promptState === "error"
+                            ? "text-red-600"
+                            : "text-foreground"
+                      )}
+                    >
+                      {promptState === "copied" ? (
+                        <>
+                          <Check className="size-3" /> Copied — paste in ChatGPT
+                        </>
+                      ) : promptState === "error" ? (
+                        <>Couldn't reach pairing — retry</>
+                      ) : promptState === "minting" ? (
+                        <>Preparing…</>
+                      ) : (
+                        <>
+                          <Copy className="size-3" /> Copy ChatGPT prompt
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
