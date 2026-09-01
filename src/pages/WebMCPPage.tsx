@@ -1,5 +1,5 @@
 import { useMemo, useState, useSyncExternalStore } from "react"
-import { ArrowUpRight, Check } from "lucide-react"
+import { ArrowRight, ArrowUpRight, Check, Shapes } from "lucide-react"
 import { ExplainerHeader } from "@/components/ExplainerHeader"
 import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
@@ -707,7 +707,8 @@ export function WebMCPPage() {
     <div className="webmcp-page app-fade-in min-h-dvh bg-background text-foreground antialiased dark:bg-gradient-to-b dark:from-[#0a1122] dark:via-[#060a14] dark:to-[#04060c]">
       <ExplainerHeader current="webmcp" />
 
-      <main className="mx-auto max-w-3xl px-6 pb-24">
+      {/* pb clears the fixed studio CTA bar */}
+      <main className="mx-auto max-w-3xl px-6 pb-44">
         {/* reading-depth toolbar */}
         <ReadingDepthToolbar depth={depth} onChange={setDepth} />
 
@@ -736,15 +737,21 @@ export function WebMCPPage() {
             >
               GitHub <ArrowUpRight className="size-3.5" />
             </a>
-            <a
-              href={studioHref}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/85"
-            >
-              Open the studio
-            </a>
           </div>
         </footer>
       </main>
+
+      {/* sticky studio CTA — always one tap from reading to making */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/85 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
+        <a
+          href={studioHref}
+          className="group mx-auto flex w-full max-w-3xl items-center justify-center gap-2.5 rounded-full bg-blue-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.015] hover:bg-blue-500 active:scale-[0.99]"
+        >
+          <Shapes className="size-5 transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-110" />
+          Open the 3D Studio
+          <ArrowRight className="size-5 transition-transform duration-300 group-hover:translate-x-1" />
+        </a>
+      </div>
     </div>
   )
 }
