@@ -63,7 +63,20 @@ const serverReady = async () => {
 
 const mcpHostInit = () => {
   window.__mcpTools = {}
-  document.modelContext = { registerTool: (t) => (window.__mcpTools[t.name] = t) }
+  // standards-realistic fake (spec 6.1): registration is ASYNC — each tool
+  // resolves on a later tick — and the registration signal removes the tool
+  // again on abort, like a current-draft host
+  document.modelContext = {
+    registerTool: (t, opts) =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          if (opts?.signal?.aborted) return resolve()
+          window.__mcpTools[t.name] = t
+          opts?.signal?.addEventListener("abort", () => delete window.__mcpTools[t.name])
+          resolve()
+        }, 2)
+      }),
+  }
 }
 
 const callTool = (page, name, input = {}) =>
@@ -112,6 +125,41 @@ try {
     )
   )
   check("every tool has a real description and an object inputSchema", schemasOk)
+
+  // 4.3: titles at the top level, only current annotation fields
+  const descriptorsOk = await page.evaluate(() =>
+    Object.values(window.__mcpTools).every(
+      (t) =>
+        typeof t.title === "string" &&
+        t.title.length > 0 &&
+        Object.keys(t.annotations ?? {}).every((k) => ["title", "readOnlyHint", "untrustedContentHint"].includes(k))
+    )
+  )
+  check("titles are top-level and annotations carry only current fields", descriptorsOk)
+
+  // 4.1: the host replacing its registry causes one clean re-registration
+  await page.evaluate(() => {
+    window.__mcpToolsReplaced = {}
+    document.modelContext = {
+      registerTool: (t, opts) =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            if (opts?.signal?.aborted) return resolve()
+            window.__mcpToolsReplaced[t.name] = t
+            resolve()
+          }, 2)
+        }),
+    }
+  })
+  await page.waitForTimeout(4500) // slow heartbeat is 3s
+  const replaced = await page.evaluate(() => Object.keys(window.__mcpToolsReplaced).length)
+  check(
+    "replacing document.modelContext re-registers all tools on the new registry",
+    replaced === EXPECTED_TOOLS.length,
+    `re-registered: ${replaced}`
+  )
+  // hand the rest of the suite the live registry
+  await page.evaluate(() => (window.__mcpTools = window.__mcpToolsReplaced))
 
   const desc = stateFrom(await callTool(page, "describe_project"))
   check(
@@ -216,7 +264,17 @@ try {
   await latePage.waitForTimeout(2000) // well past initial registration attempts
   await latePage.evaluate(() => {
     window.__mcpToolsLate = {}
-    document.modelContext = { registerTool: (t) => (window.__mcpToolsLate[t.name] = t) }
+    document.modelContext = {
+      registerTool: (t, opts) =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            if (opts?.signal?.aborted) return resolve()
+            window.__mcpToolsLate[t.name] = t
+            opts?.signal?.addEventListener("abort", () => delete window.__mcpToolsLate[t.name])
+            resolve()
+          }, 2)
+        }),
+    }
   })
   await latePage.waitForTimeout(4500) // slow-poll heartbeat is 3s
   const lateCount = await latePage.evaluate(() => Object.keys(window.__mcpToolsLate).length)

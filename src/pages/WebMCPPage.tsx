@@ -504,8 +504,8 @@ function JsonBlock({ label, data }: { label?: string; data: unknown }) {
 }
 
 const AGENT_CONNECTION: [string, string][] = [
-  ["Registration", "document.modelContext.registerTool preferred; navigator/window fallbacks; provideContext({tools}) for hosts without registerTool. Registration is automatic — there is nothing for you to enable."],
-  ["Late injection", "the app never stops watching for the API: 500 ms polling for 15 s, then a 3 s heartbeat (paused while the tab is hidden), plus focus/visibility re-checks. Executing any tool flips the app to connected."],
+  ["Registration", "current WebMCP draft: document.modelContext.registerTool, awaited, all-or-nothing under one AbortController — the connection reads active only after the last of the 13 tools resolves, and a replaced registry re-registers cleanly. Legacy hosts (navigator/window locations, provideContext, void returns) work via a compatibility layer. Registration is automatic — nothing for you to enable."],
+  ["Late injection", "the app never stops watching: 500 ms polling for 15 s, then a 3 s heartbeat (paused while the tab is hidden), plus focus/visibility re-checks. Your execute() calls receive an options bag whose signal cancels cleanly — a cancelled mutation commits nothing. Executing any tool flips the app to connected."],
   ["Knowing you're in", "the header connection button's agent dot pulses green once your tools registered in this tab (its second dot is cross-device sync); the live status also renders at the top of this page. If it's grey, your host hasn't exposed WebMCP here."],
   ["Link semantics", "shareUrl in your tool results carries ?via=chatgpt AND a single-use ?join= token: the tab that opens it silently follows YOUR session (both ways) and strips the token. Hand the potter your latest shareUrl and their visible browser stays live with you. Links parse forgivingly: legacy vocabulary normalizes, unknown keys are ignored, out-of-range values clamp."],
   ["Units contract", "tool inputs and outputs are millimeters and milliliters, always. set_units only changes what the human sees (UI, warnings, printed PDF)."],

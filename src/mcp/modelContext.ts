@@ -1,9 +1,19 @@
 /**
- * Minimal typings for the WebMCP browser API. ChatGPT's in-app browser
- * exposes it as document.modelContext; the webmachinelearning/webmcp
- * proposal (Chrome behind chrome://flags/#enable-webmcp-testing) has also
- * hung it off navigator.modelContext — we accept either, preferring
- * document.
+ * Typings for the WebMCP browser API, modeled on the current draft
+ * (https://webmachinelearning.github.io/webmcp/ — Draft Community Group
+ * Report): `document.modelContext` is the standards path,
+ * `registerTool(tool, { signal })` returns a promise and takes an abort
+ * signal, and tool `execute` receives an options bag carrying the host's
+ * cancellation signal. Kept as a minimal local declaration (rather than a
+ * published types package) so it models exactly the surface this app
+ * uses, no more.
+ *
+ * LEGACY COMPATIBILITY — not part of the current standard: some earlier
+ * hosts exposed the registry on `navigator.modelContext` or
+ * `window.modelContext`, offered a single `provideContext({tools})`
+ * instead of `registerTool`, or returned an `unregister()` handle. Those
+ * shapes are accepted by the detection below purely so older hosts keep
+ * working; nothing in the app depends on them.
  */
 
 export interface TextContent {
@@ -25,31 +35,39 @@ export interface ToolResult {
   isError?: boolean
 }
 
+/** options the host passes into a tool execution (current draft) */
+export interface ToolExecuteOptions {
+  /** aborted when the host cancels the call — stop work, commit nothing after */
+  signal?: AbortSignal
+}
+
 export interface ToolDescriptor {
   name: string
+  /** human-readable title — top-level per the current draft */
+  title?: string
   description: string
   inputSchema: Record<string, unknown>
   annotations?: {
+    /** duplicated here for MCP-style hosts that read the nested form */
     title?: string
     /** tool reads state only, never mutates */
     readOnlyHint?: boolean
-    /** tool may overwrite state the user cares about */
-    destructiveHint?: boolean
-    /** calling twice with the same input equals calling once */
-    idempotentHint?: boolean
-    /** tool reaches outside the page (network, external services) */
-    openWorldHint?: boolean
+    /** result may contain third-party/untrusted content */
+    untrustedContentHint?: boolean
   }
-  execute: (input: unknown) => Promise<ToolResult>
+  execute: (input: unknown, options?: ToolExecuteOptions) => Promise<ToolResult>
 }
 
-/** registerTool may return a handle with unregister() (per the proposal) */
-export interface ToolRegistration {
-  unregister?: () => void
+/** options for registerTool (current draft): abort unregisters the tool */
+export interface RegisterToolOptions {
+  signal?: AbortSignal
 }
 
 export interface ModelContext {
-  registerTool?: (tool: ToolDescriptor) => ToolRegistration | unknown
+  /** current draft: async; await it. (Legacy hosts may return undefined —
+      awaiting that is harmless, which is what keeps them working.) */
+  registerTool?: (tool: ToolDescriptor, options?: RegisterToolOptions) => void | Promise<unknown>
+  /** LEGACY: single-call registration for hosts without registerTool */
   provideContext?: (context: { tools: ToolDescriptor[] }) => void
 }
 
@@ -72,6 +90,7 @@ export interface ModelContextInfo {
 }
 
 export function getModelContextInfo(): ModelContextInfo | undefined {
+  // standards path first; navigator/window are legacy host compatibility
   if (typeof document !== "undefined" && document.modelContext) {
     return { ctx: document.modelContext, location: "document.modelContext" }
   }

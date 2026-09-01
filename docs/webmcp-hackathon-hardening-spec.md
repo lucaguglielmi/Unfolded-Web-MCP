@@ -87,6 +87,17 @@ therefore not to redesign Unfolded. The goal is to:
 
 ## 4. P0 — current WebMCP contract alignment
 
+> **Status (2026-09-01): 4.1–4.5 implemented**, with 6.1's
+> standards-realistic fakes landed in the same pass. Registration is
+> awaited/all-or-nothing/cancellable (`src/mcp/register.ts` +
+> `useWebMCP.ts`, unit-tested against delayed/rejecting/aborting fakes);
+> types model the current draft with the legacy surface quarantined
+> (`modelContext.ts`); titles are top-level and dual-published, non-current
+> hints dropped; every execute takes the host's cancellation signal, which
+> reaches the pairing claim fetch; validation errors carry per-field
+> issues, received values, and the unchanged state. New e2e checks cover
+> descriptor conformity and host registry replacement.
+
 ### 4.1 Await registration and own its lifecycle
 
 Current issue: `src/mcp/useWebMCP.ts` loops over `registerTool(tool)` without

@@ -39,7 +39,17 @@ for (let i = 0; i < 120; i++) {
 // drive edits without reaching into React internals
 const mcpHostInit = () => {
   window.__mcpTools = {}
-  document.modelContext = { registerTool: (t) => (window.__mcpTools[t.name] = t) }
+  // async fake host, mirroring e2e/run.mjs (spec 6.1)
+  document.modelContext = {
+    registerTool: (t, opts) =>
+      new Promise((resolve) => {
+        setTimeout(() => {
+          if (opts?.signal?.aborted) return resolve()
+          window.__mcpTools[t.name] = t
+          resolve()
+        }, 2)
+      }),
+  }
 }
 
 // The Continue dialog lives behind the header's connection hub (the

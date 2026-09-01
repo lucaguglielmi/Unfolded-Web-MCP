@@ -61,9 +61,9 @@ The short list of what makes this more than tools bolted onto a page
 committed e2e suite):
 
 - **Thirteen tools with real contracts** — zod-validated inputs exported as JSON
-  Schema, honest annotations (`readOnlyHint` / `idempotentHint` /
-  `destructiveHint`), and graceful `isError` results that include the unchanged
-  state.
+  Schema, current-draft descriptors (top-level titles, `readOnlyHint` where
+  truthful, host cancellation signals honored), and graceful `isError` results
+  that include the unchanged state.
 - **Every mutation returns the full new state**, so the agent never needs a
   follow-up read — and every state snapshot carries `shareUrl`, which doubles
   as the *return channel*: a page can't push text into a chat, but the agent
@@ -155,9 +155,13 @@ registration (or any actual tool call) always upgrades the state to active.
 
 Detection is built for real agent hosts: it watches for the API forever (fast polling
 at first, then a slow heartbeat, plus focus/visibility re-checks) because hosts like
-ChatGPT inject `modelContext` only when the person engages the agent; it accepts the
-API on `document`, `navigator`, or `window`, falls back to `provideContext` for hosts
-without `registerTool`, and flips to active the moment any tool executes. For manual
+ChatGPT inject `modelContext` only when the person engages the agent. Registration
+follows the current WebMCP draft — `document.modelContext.registerTool` awaited,
+all-or-nothing under one AbortController, active only after the last tool resolves,
+and re-registered cleanly if the host replaces the registry. Legacy hosts keep
+working through a clearly-separated compatibility layer (`navigator`/`window`
+locations, `provideContext`, void returns); any actual tool call flips the state
+to active. For manual
 testing without an agent, registered tools are exposed on the console as
 `__unfoldedTools` (e.g. `__unfoldedTools.set_capacity.execute({capacityMl: 350})`).
 
@@ -166,8 +170,8 @@ explains all of this to visitors, with live connection status for their own brow
 
 ## WebMCP tools
 
-Registered via `document.modelContext.registerTool` (with a `navigator.modelContext`
-fallback for browsers that expose the API there — see
+Registered on `document.modelContext` per the current WebMCP draft (legacy
+`navigator`/`window` locations accepted for compatibility — see
 [`src/mcp/tools.ts`](./src/mcp/tools.ts)):
 
 <!-- keep in sync with TOOL_SUMMARIES in src/mcp/tools.ts (the single source

@@ -7,7 +7,7 @@ import { liveSync } from "@/store/syncClient"
 import { useProjectStore } from "@/store/useProjectStore"
 import { describeState, describeTemplates } from "./describe"
 import type { SetClayInput, UpdateFormInput } from "@/lib/model/schemas"
-import { textResult, type ToolDescriptor, type ToolResult } from "./modelContext"
+import { textResult, type ToolDescriptor, type ToolExecuteOptions, type ToolResult } from "./modelContext"
 
 /**
  * The WebMCP tool surface. Design rules:
@@ -58,15 +58,38 @@ function toInputSchema(schema: z.ZodType): Record<string, unknown> {
   return json
 }
 
-function run(tool: string, fn: () => ToolResult): Promise<ToolResult> {
+/** the one consistent shape for a host-cancelled call (spec 4.4) */
+function cancelledResult(): ToolResult {
+  return textResult("Cancelled by the host before completing — no changes were made.", true)
+}
+
+/** agent-readable zod issues: path, message (zod v4 messages carry the
+    bounds/options), and the received value when the issue exposes it */
+function formatIssues(error: z.ZodError): string {
+  return error.issues
+    .map((issue) => {
+      const received =
+        "input" in issue && issue.input !== undefined
+          ? ` (received ${JSON.stringify(issue.input)})`
+          : ""
+      return `${issue.path.join(".") || "(root)"}: ${issue.message}${received}`
+    })
+    .join("\n")
+}
+
+function run(
+  tool: string,
+  options: ToolExecuteOptions | undefined,
+  fn: () => ToolResult
+): Promise<ToolResult> {
+  if (options?.signal?.aborted) return Promise.resolve(cancelledResult())
   useProjectStore.getState().recordAgentCall(tool)
   try {
     return Promise.resolve(fn())
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const issues = error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`)
       return Promise.resolve(
-        textResult(`Invalid input:\n${issues.join("\n")}\n\nCurrent state unchanged:\n${stateText()}`, true)
+        textResult(`Invalid input:\n${formatIssues(error)}\n\nCurrent state unchanged:\n${stateText()}`, true)
       )
     }
     const message = error instanceof Error ? error.message : String(error)
@@ -81,8 +104,9 @@ export function buildTools(): ToolDescriptor[] {
       description:
         "Get the current pottery design: form type and dimensions (fired mm), clay settings, the flat template pieces it unrolls into (wet-clay sizes, shrinkage already applied), capacityMl, and shareUrl — a link that reopens exactly this design, tagged as coming from your session and carrying a live invitation (the tab that opens it follows this session). Call this first to see what the potter is working on.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
-      annotations: { readOnlyHint: true, title: "Describe current design" },
-      execute: () => run("describe_project", () => textResult(stateText())),
+      title: "Describe current design",
+      annotations: { title: "Describe current design", readOnlyHint: true },
+      execute: (_input, options) => run("describe_project", options, () => textResult(stateText())),
     },
     {
       name: "open_model",
@@ -93,9 +117,10 @@ export function buildTools(): ToolDescriptor[] {
           url: z.string().min(1).describe("Share link URL, or just its query string"),
         })
       ),
-      annotations: { title: "Open model from link", idempotentHint: true },
-      execute: (input) =>
-        run("open_model", () => {
+      title: "Open model from link",
+      annotations: { title: "Open model from link" },
+      execute: (input, options) =>
+        run("open_model", options, () => {
           const { url } = z.object({ url: z.string().min(1) }).parse(input ?? {})
           const patches = parseShareParams(url)
           if (!patches.form && !patches.clay && !patches.paperSize) {
@@ -115,9 +140,10 @@ export function buildTools(): ToolDescriptor[] {
       description:
         "Update any subset of the pottery form's fields — each property documents itself in the input schema (type round/faceted, the independent tapered flag, facets, name, and the mm dimensions). Legacy type values 'cylinder' and 'tapered' are still accepted. Dimensions are FIRED millimeters; shrinkage compensation is applied to the templates automatically, and the potter's 3D preview updates immediately. Returns the full new state including capacityMl. For a target volume like 'a 350 ml mug', prefer set_capacity — it solves the height exactly in one call.",
       inputSchema: toInputSchema(updateFormInputSchema),
-      annotations: { title: "Update form dimensions", idempotentHint: true },
-      execute: (input) =>
-        run("update_form", () => {
+      title: "Update form dimensions",
+      annotations: { title: "Update form dimensions" },
+      execute: (input, options) =>
+        run("update_form", options, () => {
           // the store action validates with the same zod schema
           useProjectStore.getState().updateForm((input ?? {}) as UpdateFormInput)
           return textResult(stateText("Form updated."))
@@ -128,9 +154,10 @@ export function buildTools(): ToolDescriptor[] {
       description:
         "Update clay settings: shrinkagePct (total wet-to-fired shrinkage, e.g. 12 for a typical stoneware), wallThicknessMm (slab thickness). These change how the flat templates are computed (shrinkage scales them up; wall thickness shifts the developed mid-surface). Returns the full new state.",
       inputSchema: toInputSchema(setClayInputSchema),
-      annotations: { title: "Set clay properties", idempotentHint: true },
-      execute: (input) =>
-        run("set_clay", () => {
+      title: "Set clay properties",
+      annotations: { title: "Set clay properties" },
+      execute: (input, options) =>
+        run("set_clay", options, () => {
           useProjectStore.getState().setClay((input ?? {}) as SetClayInput)
           return textResult(stateText("Clay settings updated."))
         }),
@@ -144,9 +171,10 @@ export function buildTools(): ToolDescriptor[] {
           units: z.enum(["cm", "in"]).describe("Preferred display units: 'cm' or 'in'"),
         })
       ),
-      annotations: { title: "Set measurement units", idempotentHint: true },
-      execute: (input) =>
-        run("set_units", () => {
+      title: "Set measurement units",
+      annotations: { title: "Set measurement units" },
+      execute: (input, options) =>
+        run("set_units", options, () => {
           const { units } = z.object({ units: z.enum(["cm", "in"]) }).parse(input ?? {})
           useProjectStore.getState().setUnit(units)
           return textResult(stateText(`Measurement units set to ${units === "in" ? "inches" : "centimeters"}.`))
@@ -165,9 +193,10 @@ export function buildTools(): ToolDescriptor[] {
             .describe("Target fired interior capacity in milliliters, e.g. 350 for a mug"),
         })
       ),
-      annotations: { title: "Set capacity", idempotentHint: true },
-      execute: (input) =>
-        run("set_capacity", () => {
+      title: "Set capacity",
+      annotations: { title: "Set capacity" },
+      execute: (input, options) =>
+        run("set_capacity", options, () => {
           const { capacityMl: target } = z
             .object({ capacityMl: z.number().min(1).max(200000) })
             .parse(input ?? {})
@@ -196,18 +225,20 @@ export function buildTools(): ToolDescriptor[] {
       description:
         "Get the printable template details: each flat piece with wet-clay dimensions and assembly notes, the overall layout size, glue overlap, and exactly how many pages the PDF will have at the current paper size (A4, A3, or Letter). Read-only.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
-      annotations: { readOnlyHint: true, title: "Template summary" },
-      execute: () =>
-        run("get_template_summary", () => textResult(JSON.stringify(describeTemplates(), null, 2))),
+      title: "Template summary",
+      annotations: { title: "Template summary", readOnlyHint: true },
+      execute: (_input, options) =>
+        run("get_template_summary", options, () => textResult(JSON.stringify(describeTemplates(), null, 2))),
     },
     {
       name: "get_preview_image",
       description:
         "See what the potter sees: a compact JPEG snapshot of the live 3D preview, deliberately small so it costs little context. Use it to visually confirm a change. If the canvas can't be captured here, a text description is returned instead. Read-only.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
-      annotations: { readOnlyHint: true, title: "See the 3D preview" },
-      execute: () =>
-        run("get_preview_image", () => {
+      title: "See the 3D preview",
+      annotations: { title: "See the 3D preview", readOnlyHint: true },
+      execute: (_input, options) =>
+        run("get_preview_image", options, () => {
           const state = describeState()
           const summary =
             `3D preview of "${state.form.name}": ${state.form.tapered ? "tapered " : ""}${state.form.type}` +
@@ -237,14 +268,18 @@ export function buildTools(): ToolDescriptor[] {
           paperSize: z.enum(["A4", "A3", "Letter"]).optional().describe("Paper size for the printout"),
         })
       ),
+      title: "Export printable PDF",
       annotations: { title: "Export printable PDF" },
-      execute: async (input) => {
+      execute: async (input, options) => {
+        if (options?.signal?.aborted) return cancelledResult()
         useProjectStore.getState().recordAgentCall("export_templates")
         try {
           const { paperSize } = z
             .object({ paperSize: z.enum(["A4", "A3", "Letter"]).optional() })
             .parse(input ?? {})
           if (paperSize) useProjectStore.getState().setPaperSize(paperSize)
+          // last safe point: past here the PDF generates and downloads
+          if (options?.signal?.aborted) return cancelledResult()
           const result = await useProjectStore.getState().exportPdf()
           return textResult(
             `PDF downloaded in the potter's browser: ${result.pages} pages on ${result.paper} ` +
@@ -265,9 +300,10 @@ export function buildTools(): ToolDescriptor[] {
           preset: z.enum(Object.keys(PRESETS) as [string, ...string[]]).describe("Preset id"),
         })
       ),
-      annotations: { title: "Apply a preset", destructiveHint: true },
-      execute: (input) =>
-        run("apply_preset", () => {
+      title: "Apply a preset",
+      annotations: { title: "Apply a preset" },
+      execute: (input, options) =>
+        run("apply_preset", options, () => {
           const { preset } = z
             .object({ preset: z.enum(Object.keys(PRESETS) as [string, ...string[]]) })
             .parse(input ?? {})
@@ -287,8 +323,10 @@ export function buildTools(): ToolDescriptor[] {
             .describe("6-character code from the potter's other device, e.g. 'K7F-3QP' (case/dashes ignored)"),
         })
       ),
+      title: "Join live session",
       annotations: { title: "Join live session" },
-      execute: async (input) => {
+      execute: async (input, options) => {
+        if (options?.signal?.aborted) return cancelledResult()
         useProjectStore.getState().recordAgentCall("join_session")
         try {
           const { code: raw } = z.object({ code: z.string().min(1) }).parse(input ?? {})
@@ -301,7 +339,9 @@ export function buildTools(): ToolDescriptor[] {
               true
             )
           }
-          const joined = await liveSync.joinWithCode(code)
+          // the signal reaches the claim fetch; a cancel aborts the network
+          // call and joinWithCode commits nothing afterwards
+          const joined = await liveSync.joinWithCode(code, options?.signal)
           if (!joined.ok) {
             return textResult(
               joined.retryable
@@ -333,11 +373,16 @@ export function buildTools(): ToolDescriptor[] {
       description:
         "Mint a 6-character pairing code for THIS tab's live session and tell it to the potter. Entered on their other device (connection button → Continue on another screen), that device then FOLLOWS this design — use this when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop'. Valid 5 minutes, one use; both devices stay live peers afterwards. Returns the full state.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      title: "Start device pairing",
       annotations: { title: "Start device pairing" },
-      execute: async () => {
+      execute: async (_input, options) => {
+        if (options?.signal?.aborted) return cancelledResult()
         useProjectStore.getState().recordAgentCall("start_pairing")
         try {
           const minted = await liveSync.mintCode()
+          // a cancel that lands mid-mint: the unused code simply expires
+          // and the never-peered session forgets itself (solo grace)
+          if (options?.signal?.aborted) return cancelledResult()
           if (!minted) {
             return textResult(
               "Couldn't reach the pairing service — it may not be available in this environment. " +
@@ -364,9 +409,10 @@ export function buildTools(): ToolDescriptor[] {
       description:
         "Undo the most recent change to the design (form, clay, or paper size) — whether it was made by you or by the potter in the UI. Rapid consecutive changes (like a slider drag, or opening a link) count as one step; up to 50 steps are kept. Returns the full state after undoing.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
+      title: "Undo last change",
       annotations: { title: "Undo last change" },
-      execute: () =>
-        run("undo_last_change", () => {
+      execute: (_input, options) =>
+        run("undo_last_change", options, () => {
           if (!useProjectStore.getState().undo()) {
             return textResult(`Nothing to undo.\n\nCurrent state:\n${stateText()}`, true)
           }

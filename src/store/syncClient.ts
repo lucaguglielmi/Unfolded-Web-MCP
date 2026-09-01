@@ -94,7 +94,7 @@ export interface SyncClientDeps {
   createSocket?: (sid: string) => SocketLike
   randomId?: () => string
   /** resolve a pairing code to a session id — default: POST /api/pair/claim */
-  claimCode?: (code: string) => Promise<ClaimResponse>
+  claimCode?: (code: string, signal?: AbortSignal) => Promise<ClaimResponse>
   /** mint a fresh session id — default: 128 crypto-random bits, url-safe */
   newSid?: () => string
 }
@@ -118,7 +118,7 @@ export interface SyncClient {
   /** mint a single-use URL join token (codes' URL-borne sibling, longer TTL) */
   mintToken(): Promise<{ token: string; expiresAt: number } | null>
   /** claim a code from another device; on success this tab follows that session */
-  joinWithCode(rawCode: string): Promise<{ ok: true } | { ok: false; retryable: boolean }>
+  joinWithCode(rawCode: string, signal?: AbortSignal): Promise<{ ok: true } | { ok: false; retryable: boolean }>
   /** leave the session and forget it on this device */
   unpair(): void
   /** notify on status/peers transitions — for useSyncExternalStore */
@@ -144,11 +144,12 @@ function defaultNewSid(): string {
   return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "")
 }
 
-async function defaultClaimCode(code: string): Promise<ClaimResponse> {
+async function defaultClaimCode(code: string, signal?: AbortSignal): Promise<ClaimResponse> {
   try {
     const response = await fetch("/api/pair/claim", {
       method: "POST",
       body: JSON.stringify({ code }),
+      signal,
     })
     const body: unknown = await response.json().catch(() => null)
     const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {}
@@ -555,10 +556,15 @@ export function createSyncClient({
   }
 
   const joinWithCode = async (
-    rawCode: string
+    rawCode: string,
+    signal?: AbortSignal
   ): Promise<{ ok: true } | { ok: false; retryable: boolean }> => {
-    const claimed = await claimCode(rawCode)
+    const claimed = await claimCode(rawCode, signal)
     if (!claimed.ok || !claimed.sid) return { ok: false, retryable: claimed.retryable === true }
+    // a host cancellation that lands after the claim resolved must not
+    // mutate session state — the single-use code is spent, but this tab
+    // stays exactly as it was (spec 4.4)
+    if (signal?.aborted) return { ok: false, retryable: false }
     stop() // leaving any current session — the claimer follows the minted one
     // entering a code IS proof another device exists — this pairing is real
     persistRecord(claimed.sid, true)

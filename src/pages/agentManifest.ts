@@ -33,7 +33,7 @@ import { CODE_ALPHABET, CODE_LENGTH, CODE_TTL_MS, TOKEN_TTL_MS } from "../../wor
 export function buildAgentManifest(): Record<string, unknown> {
   const tools = buildTools().map((tool) => ({
     name: tool.name,
-    title: (tool.annotations as { title?: string } | undefined)?.title,
+    title: tool.title ?? (tool.annotations as { title?: string } | undefined)?.title,
     annotations: tool.annotations ?? {},
     description: tool.description,
     inputSchema: tool.inputSchema,
