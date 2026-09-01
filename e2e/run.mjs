@@ -414,6 +414,22 @@ try {
     () => document.body.innerText.includes("chrome://flags/#enable-webmcp-testing")
   )
   check("Chrome with a WebMCP host never sees the nudge", !nudgeWithHost)
+  // same tab, /webmcp: the Chrome card detects the enabled flag (API present
+  // + registration succeeded) and shows the good-news pill
+  await quietPage.goto(`${BASE}/webmcp`, { waitUntil: "networkidle" })
+  await quietPage
+    .waitForFunction(
+      () => document.body.innerText.includes("your WebMCP flag is enabled"),
+      null,
+      { timeout: 10000 }
+    )
+    .catch(() => {})
+  check(
+    "/webmcp shows the flag-enabled good-news pill in Chrome with a host",
+    await quietPage.evaluate(() =>
+      document.body.innerText.includes("your WebMCP flag is enabled in this Chrome session")
+    )
+  )
   await quietPage.close()
   await chromeCtx.close()
 

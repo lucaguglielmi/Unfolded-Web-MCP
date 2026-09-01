@@ -1,5 +1,6 @@
 import { useMemo, useState, useSyncExternalStore } from "react"
 import { ArrowRight, ArrowUpRight, Check, Shapes } from "lucide-react"
+import { isRealChrome } from "@/components/ChromeFlagNudge"
 import { ExplainerHeader } from "@/components/ExplainerHeader"
 import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
@@ -159,6 +160,10 @@ function OneMinute() {
 /* ------------------------------------------------------------ 5 minutes */
 
 function FiveMinutes() {
+  // flag detection = API presence: enabling chrome://flags/#enable-webmcp-testing
+  // is exactly what makes registration succeed in a Chrome tab, so a "native"
+  // agent state in real Chrome means the flag is already on
+  const flagIsOn = useProjectStore((s) => s.agentStatus) === "native" && isRealChrome()
   return (
     <>
       {/* hero */}
@@ -215,6 +220,12 @@ function FiveMinutes() {
           <div className="rounded-2xl border border-border p-6">
             <h3 className="font-semibold tracking-tight">Google Chrome (desktop &amp; Android)</h3>
             <p className="mt-1 text-sm text-muted-foreground/80">Behind an experimental flag.</p>
+            {flagIsOn && (
+              <p className="rise-in mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-600/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <Check className="size-3.5 shrink-0" />
+                Good news — your WebMCP flag is enabled in this Chrome session.
+              </p>
+            )}
             <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-foreground/75">
               <li>
                 1. Open{" "}
