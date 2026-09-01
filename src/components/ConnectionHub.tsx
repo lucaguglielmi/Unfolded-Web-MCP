@@ -268,60 +268,61 @@ export function ConnectionHub() {
                     last agent call: <code className="text-foreground/80">{lastAgentCall.tool}</code>
                   </p>
                 )}
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
-                  <a
-                    href={webmcpHref}
-                    className="text-foreground inline-flex items-center gap-1 text-xs font-medium hover:underline"
-                    onClick={() => setOpen(false)}
-                  >
-                    About WebMCP <ArrowUpRight className="size-3" />
-                  </a>
-                  {agentStatus === "unavailable" &&
-                    (chatgptHref ? (
-                      <a
-                        href={chatgptHref}
-                        target="_blank"
-                        rel="noopener"
-                        data-chatgpt-prompt
-                        aria-label="Open ChatGPT with a prompt that visits this site and pairs with this session"
-                        className="text-foreground inline-flex items-center gap-1 text-xs font-medium hover:underline"
-                        onClick={() => setOpen(false)}
-                      >
-                        Open in ChatGPT <ArrowUpRight className="size-3" />
-                      </a>
+                <a
+                  href={webmcpHref}
+                  className="text-foreground mt-1.5 inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                  onClick={() => setOpen(false)}
+                >
+                  About WebMCP <ArrowUpRight className="size-3" />
+                </a>
+                {agentStatus === "unavailable" && (
+                  <div className="mt-2.5 flex gap-2">
+                    {chatgptHref ? (
+                      <Button asChild variant="secondary" size="sm" className="flex-1">
+                        <a
+                          href={chatgptHref}
+                          target="_blank"
+                          rel="noopener"
+                          data-chatgpt-prompt
+                          aria-label="Open ChatGPT with a prompt that visits this site and pairs with this session"
+                          onClick={() => setOpen(false)}
+                        >
+                          <ArrowUpRight className="size-4" />
+                          Open in ChatGPT
+                        </a>
+                      </Button>
                     ) : (
-                      <span className="text-muted-foreground text-xs">Preparing…</span>
-                    ))}
-                  {agentStatus === "unavailable" && (
-                    <button
-                      type="button"
+                      <Button variant="secondary" size="sm" className="flex-1" disabled>
+                        Preparing…
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className={cn(
+                        "flex-1",
+                        promptState === "copied" && "text-emerald-600",
+                        promptState === "error" && "text-red-600"
+                      )}
                       onClick={() => void copyAgentPrompt()}
                       aria-label="Copy a prompt that opens this site and pairs with this session"
-                      className={cn(
-                        "inline-flex items-center gap-1 text-xs font-medium hover:underline",
-                        promptState === "copied"
-                          ? "text-emerald-600"
-                          : promptState === "error"
-                            ? "text-red-600"
-                            : "text-foreground"
-                      )}
                     >
                       {promptState === "copied" ? (
                         <>
-                          <Check className="size-3" /> Copied — paste to any agent
+                          <Check className="size-4" /> Copied
                         </>
                       ) : promptState === "error" ? (
-                        <>Couldn't reach pairing — retry</>
+                        <>Retry</>
                       ) : promptState === "minting" ? (
                         <>Preparing…</>
                       ) : (
                         <>
-                          <Copy className="size-3" /> Copy prompt
+                          <Copy className="size-4" /> Copy prompt
                         </>
                       )}
-                    </button>
-                  )}
-                </div>
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 
