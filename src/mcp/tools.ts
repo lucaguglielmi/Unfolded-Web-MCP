@@ -102,7 +102,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "describe_project",
       description:
-        "Get the current pottery design: form type and dimensions (fired mm), clay settings, the flat template pieces it unrolls into (wet-clay sizes, shrinkage already applied), capacityMl, and shareUrl — a link that reopens exactly this design, tagged as coming from your session and carrying a live invitation (the tab that opens it follows this session). Call this first to see what the potter is working on.",
+        "Get the current pottery design: form type and dimensions (fired mm), clay settings, the flat template pieces it unrolls into (wet-clay sizes, shrinkage already applied), capacityMl, and shareUrl — a link that reopens exactly this design, tagged as coming from your session and carrying a live invitation (the tab that opens it follows this session). Call this first to see what the potter is working on. This page is live-synced: it changes on its own when the potter edits on another screen or a device joins or leaves, so if your browser refuses a tool call because the page changed since you last looked, just look again and retry — nothing went wrong.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Describe current design",
       annotations: { title: "Describe current design", readOnlyHint: true },
