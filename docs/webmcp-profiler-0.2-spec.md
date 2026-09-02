@@ -16,6 +16,14 @@ Companion: [`webmcp-profiler-spec.md`](./webmcp-profiler-spec.md) is the long-ra
 > `e2e/perf.mjs` and the publish workflow). The traceability table in
 > §14 is unchanged: these sections add requirements, they do not close
 > review findings.
+>
+> **Amendments (2026-09-02, reusability review).** §18 adds the
+> reusability work: the package describes itself from one typed source
+> (§18.1), ships the one fake host every harness uses (§18.2), reports
+> its own state (§18.4), answers agents through a tool (§18.5), and
+> teaches contributors its rules (§18.10). §14.1 traces each
+> reusability finding to its section. §2.1, §10.1, §11, and §13 are
+> amended in place.
 
 ## 1. Purpose
 
@@ -90,18 +98,22 @@ that keeps it true:
    can swap the alias for the npm package with a one-line change.
 5. **The agent manifest is part of the API.** `src/pages/agentManifest.ts`
    tells agents the console methods, span fields, ledger fields, and
-   activation flags. Any section that adds or renames one (§4.2, §5,
-   §7.3, §7.4, §7.5, §7.7) updates the manifest in the same PR, and a
-   test (§11.11) checks the manifest's span field list against a real
-   recorded span.
+   activation flags. Until §18.1 lands, any section that adds or
+   renames one (§4.2, §5, §7.3, §7.4, §7.5, §7.7) updates the manifest
+   in the same PR, and a test (§11.11) checks the manifest's span field
+   list against a real recorded span. Once §18.1 lands, the app embeds
+   `describe()` from the package and the hand-written block is deleted:
+   the manifest can no longer drift because it is no longer written.
 6. **The app-side inventory** that every profiler PR must review:
    `src/main.tsx` (boot gate), `src/pages/agentManifest.ts` (manifest,
    `PERF_STORAGE_KEY`, `REPORT_FORMAT`), `src/pages/WebMCPPage.tsx`
    (console API mentions, npm links), `e2e/run.mjs` (profiler check),
-   `e2e/perf.mjs` (the agentless bench and its `--perf` overhead run,
-   §16.7), `README.md` (profiler section, subject to the docs guard's
-   word ceiling), `docs/performance-report.md` (numbers and claims),
-   `.github/workflows/publish-profiler.yml`, and the long-range
+   `e2e/perf.mjs` and `e2e/perf.cases.json` (the agentless bench, its
+   `--perf` overhead run, and its case file once §18.7 lands),
+   `README.md` (profiler section, subject to the docs guard's word
+   ceiling), `docs/performance-report.md` (numbers and claims),
+   `.github/workflows/publish-profiler.yml`, the root `AGENTS.md` and
+   `.github/pull_request_template.md` (§18.10), and the long-range
    `docs/webmcp-profiler-spec.md`.
 7. **Path to its own repository** (not part of 0.2, but 0.2 must not
    make it harder): when the package leaves, the app switches
@@ -591,9 +603,14 @@ contains it as text and no `img` element.
    Node ≥ 20 to build".
 3. Quickstart, three ways: the gate import, the script tag (bare CDN URL
    now works, §3.3), explicit `attachProfiler(config)`.
-4. Console API table (`__webmcpPerf`, or your `globalName`).
+4. Console API table (`__webmcpPerf`, or your `globalName`) — a
+   generated block (§18.1), never hand-edited.
 5. Configuration: `ProfilerConfig` and `GateConfig`, every key, every
-   default.
+   default — generated from the same source.
+5a. See it work in two minutes: the example page and the fake host
+    (§18.2, §18.3), before any agent host exists.
+5b. Let your agent read it: `profilerTool` (§18.5) and the `summary`
+    view.
 6. What a span records (the §7 fields, UTF-8 bytes, token heuristic and
    how to replace it).
 7. The ledger and the one-line split.
@@ -678,6 +695,36 @@ environment with hand-stubbed globals. Additions:
     `dist/` when one is present.
 20. `passthrough.test.ts` (§15.7): `registerTool`'s `exposedTo` option
     and the descriptor's `inputSchema` reach the host untouched.
+21. `docs-source.test.ts` (§18.1): `SPAN_FIELDS`, `LEDGER_FIELDS`,
+    `METHOD_DOCS`, and `CONFIG_DOCS` cover every key of their types
+    (a compile-time check, plus a runtime walk of a recorded span and a
+    live `Profiler`); `describe()` is JSON-serializable and stable
+    across two calls; the generated README blocks and `llms.txt` match
+    the generator's output byte for byte.
+22. `testing.test.ts` (§18.2): the fake host honours `signal` abort,
+    returns a promise from `registerTool`, answers `getTools()`, fires
+    `toolchange`, installs on each location, and uninstalls cleanly.
+    The package's own interceptor tests use it instead of the inline
+    stub, and the stub is deleted.
+23. `status.test.ts` (§18.4): every phase is reachable and each carries
+    the documented hints; the overlay shows the status line while
+    there are no spans.
+24. `tool.test.ts` (§18.5): the tool registers through a fake host,
+    is not wrapped, is flagged `internal` in the ledger, and each view
+    returns the documented shape under the documented size ceiling.
+25. `summary.test.ts` (§18.6): the sentence and the per-tool lines for
+    an empty, a one-tool, and a many-tool session; `report({ spans })`
+    variants.
+26. `schema.test.ts` (§18.8): `report()` validates against
+    `schema/report.v2.json` (validator as a devDependency only);
+    `compare()` on two hand-built reports yields the documented diff and
+    threshold verdicts.
+27. `bench.test.ts` (§18.7): input generation from a schema corpus
+    (numbers, enums, strings, optionals, nested objects, arrays) is
+    deterministic under a seed and respects `readOnlyHint` and the
+    allow-list; the harness is exercised end to end by `e2e/perf.mjs`.
+28. `help.test.ts` (§18.9): `help()` lists every `Profiler` method with
+    its `METHOD_DOCS` line and nothing else.
 
 `e2e/run.mjs`'s profiler check additionally asserts `schemaBytes > 0`
 for every registered tool and `report.session.id` is 8 hex chars. It
@@ -729,7 +776,23 @@ carrying its own app-side changes:
    (§16.7) and its two columns go into `docs/performance-report.md`;
    the publish workflow gains the size step (§16.5) and pinned actions
    (§15.7).
-6. Docs (§10, §17) including the root README's profiler section, then
+6. Reusability (§18) in two halves. First the source of truth, the
+   fake host, `status()`, `help()`, `summary()` and the compact report
+   (§18.1, §18.2, §18.4, §18.6, §18.9). App side: `agentManifest.ts`
+   embeds `describe()` and deletes its hand-written block; `e2e/run.mjs`
+   injects the package's fake-host init script instead of
+   `mcpHostInit`. Second the agent tool, the schema and `compare()`,
+   the bench, the example, and the tarball reference (§18.3, §18.5,
+   §18.7, §18.8). App side: `get_perf_report` registered as the 15th
+   tool with its `TOOL_SUMMARIES` row, README tool-table row, prompt
+   suite case, and e2e assertion; `e2e/perf.mjs` becomes a case file
+   plus one call into the bench; `docs/performance-report.md` re-run
+   from the bench's JSON output.
+7. Contributor surfaces (§18.10): root `AGENTS.md` with a one-line
+   `CLAUDE.md` pointing at it, the PR template, the package
+   `CONTRIBUTING.md`. Docs only; may land at any point, earliest is
+   best.
+8. Docs (§10, §17) including the root README's profiler section, then
    the version bump to 0.2.0 in `package.json`, which is what triggers
    the publish workflow.
 
@@ -766,6 +829,24 @@ tarball (import, `/attach`, script tag) and produce a report with
 | 20 | No DOM-side tests (gate, overlay, report shape, Long Tasks) | §11 |
 | 21 | Vite 8 warning; `src-<hash>` chunk name; no CHANGELOG; no `engines` | §12, §3.4, §3.3 |
 | 22 | `table()` prints unrounded floats | §4.4 |
+
+### 14.1 Reusability review → section
+
+| # | Finding | Closed by |
+| --- | --- | --- |
+| R1 | Nothing can be seen working without an agent host; three private fake hosts | §18.2 |
+| R2 | No example page | §18.3 |
+| R3 | Silence when nothing happens | §18.4 |
+| R4 | The bench is hardcoded to Unfolded's tools | §18.7 |
+| R5 | No published report schema, no diff helper | §18.8 |
+| R6 | Console methods not discoverable in place | §18.9 |
+| R7 | A WebMCP agent has no way to read the report; the manifest promises one | §18.5 |
+| R8 | A full report costs ~40K tokens to read | §18.6 |
+| R9 | The package's own description is hand-written in the app's manifest | §18.1 |
+| R10 | No agent-readable reference in the tarball | §18.1 (`llms.txt`) |
+| R11 | No root guidance file for coding agents | §18.10 |
+| R12 | No pull-request checklist for the co-evolution rule | §18.10 |
+| R13 | No contributor guide naming the fast loop and the full gate | §18.10 |
 
 Requirements beyond the review: the co-evolution contract (§2.1) and
 its two app-side tests (§11.10, §11.11), which exist so that no row above
@@ -1045,3 +1126,358 @@ development with zero application code. It is small and it is the
 optional peer dependency to a browser package, so it lands in 0.3 with
 its own tests, not in this release. The 0.2 README mentions it as
 planned so nobody builds a competing one in the meantime.
+
+## 18. Reusability
+
+### 18.0 The root cause, and the shape of the fix
+
+Every reusability finding traces to one fact: the package was lifted out
+of an application, and it kept the application's assumptions about who
+reads it. Its surfaces are a README for humans and a console for humans
+with DevTools. There is no surface for a program (no schema, no fake
+host, no harness a stranger can point at their site), and no surface for
+an agent (no tool, no compact view, no machine-readable description).
+The description that does exist lives in the wrong place: Unfolded's
+agent manifest carries the best account of the profiler's API, typed by
+hand, and three separate fake hosts live in three private files.
+
+So the fix is not a list of conveniences. It is three structural
+decisions, and every subsection below is one of them applied:
+
+1. **The package describes itself, once, in a typed source.** Field
+   descriptions, method docs, and config docs are data with types that
+   make an undocumented key a compile error. Everything human-, agent-,
+   or program-facing (`help()`, `describe()`, the README's API blocks,
+   `llms.txt`, Unfolded's manifest, the tool's own description) is a
+   projection of that source. Drift becomes impossible rather than
+   guarded against.
+2. **Agentless by design.** One fake host, exported, modeled on the
+   draft, used by the package's tests, the example, the bench, and
+   Unfolded's e2e and perf suites. Anyone can produce a span in two
+   minutes with no origin trial and no ChatGPT.
+3. **The repo teaches its own rules.** The co-evolution contract exists
+   in a spec; it must also exist where humans and coding agents look
+   before they act: a root guidance file, a pull-request checklist, a
+   contributor guide.
+
+### 18.1 One typed source of truth
+
+New module `src/core/docs.ts`:
+
+```ts
+/** one line per Span field — adding a field without a line is a type error */
+export const SPAN_FIELDS: Record<keyof Span, string> = { … }
+export const LEDGER_FIELDS: Record<keyof Ledger | `totals.${keyof Ledger["totals"]}`, string> = { … }
+export const METHOD_DOCS: Record<keyof Profiler, string> = { … }
+export const CONFIG_DOCS: Record<keyof ProfilerConfig | keyof GateConfig, { doc: string; default: string }> = { … }
+export const REPORT_VIEWS: Record<ReportView, string> = { … }
+
+export interface ProfilerManifest {
+  package: { name: "webmcp-profiler"; version: string; format: typeof REPORT_FORMAT }
+  activation: { param: string; storageKey: string; modes: Record<PerfMode | "0", string>; cost: string }
+  console: { global: string | false; methods: Record<keyof Profiler, string> }
+  span: Record<keyof Span, string>
+  ledger: Record<string, string>
+  config: Record<string, { doc: string; default: string }>
+  tool: { name: string; views: Record<ReportView, string> } | null
+  relay: { channel: string | false; scope: string }
+  privacy: string[]
+}
+
+export function describe(config?: ProfilerConfig & GateConfig): ProfilerManifest
+```
+
+`describe()` is pure: it reads the tables and the resolved config and
+returns a JSON-serializable object. `Profiler.describe()` calls it with
+the live config and the registered tool name (§18.5). The version is
+injected at build time by Vite `define` from `package.json`.
+
+Projections, all generated from this module and nothing else:
+
+- `help()` (§18.9) prints `METHOD_DOCS`.
+- The README's "Console API", "Configuration", and "What a span records"
+  sections are fenced by `<!-- gen:api -->` … `<!-- /gen:api -->`
+  markers and written by `scripts/gen-docs.mjs`, run by `npm run
+  docs` and checked by §11.21. A hand edit inside the markers fails the
+  test with a diff.
+- `llms.txt` in the tarball: the manifest rendered as compact text
+  (one heading per key, one line per entry) plus the two-line install
+  and the tool snippet. Listed in `files`. This is the agent-readable
+  reference; agents that read `node_modules` get the contract without
+  parsing prose.
+- Unfolded's `agentManifest.ts` replaces its `profiler` block with
+  `profiler: describe()`. The block's Unfolded-specific sentences
+  (`knownFindings`, the `open_model` hint) move to a sibling
+  `profilerNotes` key that stays hand-written and is allowed to be.
+- The tool's `description` and `inputSchema` descriptions (§18.5) are
+  assembled from `REPORT_VIEWS`.
+
+Acceptance is §11.21. The compile-time part is the point: the moment
+§7.3 adds `estInputTokens` to `Span`, `SPAN_FIELDS` fails to type-check
+until it has a line, and that line then appears in every projection.
+
+### 18.2 The fake host: `webmcp-profiler/testing`
+
+One implementation of a WebMCP host, modeled on the current draft and
+on the legacy shapes the interceptor accepts, exported for everyone
+who needs spans without an agent:
+
+```ts
+export interface FakeHostOptions {
+  /** where to install; default "document" (the draft) */
+  location?: "document" | "navigator" | "window"
+  /** the legacy provideContext-only shape instead of registerTool */
+  legacy?: boolean
+  /** resolve registrations on a later tick, as real hosts do; default true */
+  async?: boolean
+  /** install onto the global immediately; default true */
+  install?: boolean
+}
+
+export interface FakeHost {
+  registry: ModelContextLike             // what the page sees
+  tools: ReadonlyMap<string, ToolLike>   // currently registered
+  registrations: RegistrationRecord[]    // every registerTool/provideContext call, with its options
+  /** call a tool the way a host does: options bag with a signal, awaited */
+  call(name: string, input?: unknown, options?: { signal?: AbortSignal }): Promise<unknown>
+  /** abort a registration's signal, i.e. unregister, as the draft does */
+  unregister(name: string): void
+  uninstall(): void
+}
+
+export function createFakeHost(options?: FakeHostOptions): FakeHost
+
+/** the same host as a self-contained script string for Playwright's addInitScript */
+export const FAKE_HOST_INIT_SCRIPT: string
+```
+
+Behaviour: `registerTool` returns a promise, records `exposedTo` and
+`signal`, unregisters on abort, replaces on duplicate name; `getTools()`
+returns `RegisteredTool`-shaped records for the same origin;
+`addEventListener("toolchange")` works and fires on every change;
+`legacy: true` exposes only `provideContext`. Errors thrown by a tool
+propagate from `call()` exactly as from `execute()`.
+
+Consumers, in order of the drift they remove: the package's own
+interceptor tests (the inline `fakeHost()` stub is deleted), the example
+page (§18.3), the bench (§18.7, through `FAKE_HOST_INIT_SCRIPT`),
+Unfolded's `e2e/run.mjs` (its `mcpHostInit` is deleted) and
+`e2e/perf.mjs` (its inline `document.modelContext` stub is deleted).
+Three hand-rolled hosts become one tested one, and a change in the
+draft's host behaviour is made in one file.
+
+The subpath is in `exports` with `types`, tree-shakeable, and never
+imported by `index` or `attach`, so it costs a consumer's bundle nothing
+unless used. It is browser code with no test-runner dependency, so it
+works in vitest, Playwright, and a plain page alike.
+
+### 18.3 The example page
+
+`packages/webmcp-profiler/examples/vanilla/index.html`: one file, no
+build. It loads the IIFE from `../../dist/`, installs the fake host from
+`webmcp-profiler/testing`, registers two tools (a fast text tool and a
+slow one returning a base64 image), fires ten calls with random pauses,
+and opens the overlay. The page states what the reader should see and
+what each number means, in the page itself. `npm run example` serves it
+with `vite preview` from the package directory. The README's quickstart
+links to it as "see it work in two minutes", and the release checklist
+opens it by hand.
+
+### 18.4 `status()`: the profiler says what it is doing
+
+```ts
+export type ProfilerPhase =
+  | "inactive"          // SSR no-op or never attached
+  | "no-host"           // attached; no modelContext found yet
+  | "host-found"        // registry patched; no tools registered yet
+  | "tools-registered"  // tools wrapped; no call yet
+  | "measuring"         // at least one span
+  | "detached"
+
+export interface ProfilerStatus {
+  phase: ProfilerPhase
+  /** one sentence a person can act on */
+  message: string
+  hostLocation: string | null
+  hostFoundAt: number | null
+  toolCount: number
+  callCount: number
+  lastCallAt: number | null
+  /** concrete next steps for the current phase, in order */
+  hints: string[]
+}
+
+status(): ProfilerStatus
+```
+
+The hints are the troubleshooting section of the README (§19) turned
+into data, selected by phase: `no-host` names the three locations
+swept and says which agent hosts inject late; `host-found` says
+registration has not happened and how to check the site's own
+registration path; `tools-registered` says to drive a tool and offers
+the `__webmcpPerf.instrument()` retrofit and the fake host;
+`measuring` is the ledger line. The overlay shows `message` in place of
+"waiting for tool calls…" and refreshes it on phase change. The
+`announce` line (§5) prints `message` after its own sentence. `help()`
+prints the phase first.
+
+### 18.5 `profilerTool`: agents read the report through a tool
+
+The gap: a WebMCP host agent has no console. The fix belongs in the
+package, because every site that adopts the profiler has the same gap.
+
+```ts
+import { profilerTool } from "webmcp-profiler/tool"
+
+document.modelContext.registerTool(
+  profilerTool(profiler, { name: "get_perf_report" })   // name is the default
+)
+```
+
+The descriptor: `name` (default `get_perf_report`), `title`
+("Performance report for this site's tools"), a `description` assembled
+from `REPORT_VIEWS` that tells the agent what each view costs to read,
+`annotations: { readOnlyHint: true }`, and
+
+```ts
+inputSchema: {
+  type: "object",
+  properties: {
+    view:  { enum: ["summary", "tools", "spans"], default: "summary" },
+    tool:  { type: "string", description: "restrict to one tool" },
+    limit: { type: "integer", minimum: 1, maximum: 500, default: 50, description: "newest spans to include (view=spans)" },
+    since: { type: "integer", description: "only spans with seq greater than this" }
+  }
+}
+```
+
+Result: `content[0]` is the `summary()` text (§18.6) so a host that
+reads only text still gets the answer; `structuredContent` is the view:
+`summary` → `{ ok, format, session, status, totals, split }` (under
+1 KB); `tools` → adds `tools: ToolAggregate[]`; `spans` → adds
+`spans` (newest first, bounded by `limit`, filtered by `tool` and
+`since`, and `truncated: boolean`). The result records its own
+`estTokens` in `structuredContent.meta` so the agent sees what reading
+it cost.
+
+The tool is not measured: the descriptor carries a non-enumerable
+`PROFILER_INTERNAL` marker and `instrumentTool` skips it, so it never
+appears as a span. It is listed in `ledger.tools` with `internal: true`
+and its schema bytes count, because the host really does ship them.
+
+Unfolded registers it as its fifteenth tool. That makes the manifest's
+sentence true ("open a `?perf=1` link, work normally, then read the
+report") and it is the reference integration for the README. When the
+gate is closed the tool is not registered, so an unarmed session
+carries no extra schema bytes.
+
+### 18.6 Report views that respect the reader's budget
+
+```ts
+summary(): string
+report(options?: { spans?: boolean | number; tool?: string }): PerfReport
+```
+
+`summary()` returns text, four lines at most plus one per tool:
+
+```
+webmcp-profiler · session 3f9a1c2e · measuring · 14 tools · 27 calls
+schemas 9.8KB (~2.5K tok) · tools 0.3s · payloads 310KB (~78K tok) · host gaps 39s
+  get_preview_image   3 calls · p50 4.8ms · p95 5.1ms · last 7.1KB (~1.8K tok)
+  update_form         9 calls · p50 3.2ms · p95 6.0ms · last 812B (~200 tok)
+  …
+```
+
+`report()` with no arguments is unchanged (all buffered spans).
+`{ spans: false }` omits them; `{ spans: 50 }` keeps the newest 50;
+`{ tool }` filters spans and aggregates. `export()` keeps the full
+document. The README's report section says what each variant costs in
+bytes for a 500-span session, measured.
+
+### 18.7 The bench: `webmcp-profiler/bench`
+
+A Node harness, lifted from `e2e/perf.mjs` and made general, so any site
+can benchmark its tools in CI without an agent:
+
+```
+npx webmcp-profiler bench <url> [--runs 40] [--cases ./perf.cases.json]
+    [--allow-mutating a,b] [--seed 1] [--json out.json] [--budget ./budgets.json]
+```
+
+- Drives a real browser through Playwright, which is an optional peer
+  (`peerDependenciesMeta`), resolved at run time with a clear message if
+  absent; `CHROMIUM_PATH` honoured as today.
+- Injects `FAKE_HOST_INIT_SCRIPT` (§18.2), opens the URL with the gate
+  armed, waits for `status().phase === "tools-registered"`, and reads
+  the descriptors through the fake host.
+- Generates inputs from each `inputSchema`, deterministically under
+  `--seed`: numbers swept across `[minimum, maximum]` (or a documented
+  default range), enums cycled, strings by `maxLength`, booleans
+  toggled, optionals present and absent, nested objects and arrays
+  recursed to depth 3. A case file pins exact inputs per tool and adds
+  named variants (Unfolded's "type flip" case).
+- Runs tools annotated `readOnlyHint: true` by default; mutating tools
+  only when allow-listed, and always in the order of the case file.
+- Records through the profiler itself (spans flagged `synthetic: true`),
+  so the output is a `webmcp-perf-report/2` document, the same shape as
+  a live session, plus a console table identical to today's.
+- `--budget` reads `{ [tool]: { p95Ms?, resultBytes?, estTokens? } }`
+  and exits non-zero on a violation, naming it. This is the minimum of
+  the long-range spec's §8 needed for CI; grades and detectors remain
+  there.
+
+App side: `e2e/perf.mjs` becomes `e2e/perf.cases.json` (the current
+`CASES` array as data) and a ten-line wrapper that starts `vite
+preview` and calls the bench with `--perf` for the overhead run of
+§16.7. `docs/performance-report.md` §1 is regenerated from the JSON.
+
+### 18.8 A published schema and `compare()`
+
+- `schema/report.v2.json` in the tarball and in `exports` as
+  `./schema/report.v2.json`: JSON Schema (draft 2020-12) for
+  `PerfReport`, with `$id` at the package's GitHub raw URL pinned to the
+  tag. §11.26 validates a real report against it; the schema is
+  hand-maintained and the test is what keeps it honest.
+- `compare(base: PerfReport, head: PerfReport, thresholds?): ReportDiff`
+  in core, pure: per-tool deltas of p50, p95, last and total bytes,
+  tokens, error rate, and schema bytes; new and removed tools; a
+  `verdict: "pass" | "fail"` when thresholds are given (the same shape as
+  the bench's budgets, expressed as maximum relative or absolute
+  growth). The CLI exposes it: `npx webmcp-profiler compare base.json
+  head.json --thresholds t.json`. Unfolded's deploy workflow keeps a
+  `bench.json` artifact per run and compares against the previous
+  green one, non-blocking for one release, then blocking.
+
+### 18.9 `help()`
+
+`help()` prints the current `status().message`, then every `Profiler`
+method with its `METHOD_DOCS` line, then the two links (README, example
+page). It is the first thing the `announce` line mentions. Nothing in it
+is typed by hand.
+
+### 18.10 Contributor surfaces, human and agent
+
+Coding agents and new contributors act on what is in front of them. The
+co-evolution contract is in a spec they will not open unprompted, so it
+must also live where they look:
+
+- **Root `AGENTS.md`**, with `CLAUDE.md` containing one line pointing to
+  it. Contents, in this order, under 400 words: what the repo is (the
+  app and the package, and that the app imports the package source);
+  the same-PR rule and the app-side inventory (§2.1, copied, not
+  linked); the commands (fast loop `npm test --workspace
+  webmcp-profiler`, full gate `npm run lint && npm test && npm run build
+  && npm run e2e`); the public-entries rule; "generated blocks are
+  regenerated, never edited" (§18.1); where the specs live and the
+  status-line convention; the docs guard and its word ceiling. A test
+  asserts `AGENTS.md` mentions every path in the inventory, so the
+  inventory cannot go stale in one place and not the other.
+- **`.github/pull_request_template.md`** with the checklist: touched
+  `packages/webmcp-profiler`? then app-side inventory reviewed, full
+  gate run, generated docs regenerated, CHANGELOG entry, manifest
+  unchanged or regenerated. Unchecked boxes are the reviewer's cue.
+- **`packages/webmcp-profiler/CONTRIBUTING.md`**: the fast loop, the
+  full gate, how to run the example and the bench locally, how to
+  regenerate docs, how a release happens (version bump triggers
+  publish), and the rule that the package never imports from the app.
+  The README's "Files" section moves here.
