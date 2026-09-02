@@ -117,6 +117,13 @@ function plainError(message: string): ToolResult {
   return textResult(message, true, structured(false, message, safeState()))
 }
 
+/** a failure that must carry NO link at all, not even the permanent one
+    inside a state snapshot — the fail-closed handoff contract
+    (docs/live-handoff-link-spec.md §7): a substitute URL is the incident */
+function linklessError(message: string): ToolResult {
+  return textResult(message, true, { ok: false, message })
+}
+
 /**
  * The link policy, in one sentence, on every tool that creates, edits, or
  * opens a design (docs/live-handoff-link-spec.md §8.1): the full rules
@@ -414,7 +421,7 @@ export function buildTools(): ToolDescriptor[] {
           if (options?.signal?.aborted) return cancelledResult()
           if (!handoff) {
             // fail closed — no fallback URL of any kind (spec §7)
-            return plainError(
+            return linklessError(
               "A live handoff link could not be created because the pairing service is unavailable. " +
                 "No link was generated. Retry once, or use start_pairing to create a six-character code."
             )
@@ -426,7 +433,7 @@ export function buildTools(): ToolDescriptor[] {
           })
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          return plainError(`A live handoff link could not be created (${message}). No link was generated. Retry once, or use start_pairing.`)
+          return linklessError(`A live handoff link could not be created (${message}). No link was generated. Retry once, or use start_pairing.`)
         }
       },
     },

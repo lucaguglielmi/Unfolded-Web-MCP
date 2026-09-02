@@ -146,14 +146,16 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
     expect(bad).toMatchObject({ ok: false, state: before })
   })
 
-  it("fail-closed handoff: ok:false, message, no liveHandoffUrl", async () => {
+  it("fail-closed handoff: ok:false, message, and no URL anywhere — not even a state snapshot", async () => {
     mintToken.mockResolvedValueOnce(null)
     const { isError, structured } = await call("create_live_handoff")
     expect(isError).toBe(true)
     expect(structured!.ok).toBe(false)
     expect(structured!.message).toContain("could not be created")
-    expect("liveHandoffUrl" in structured!).toBe(false)
-    expect(structured!.state).toEqual(describeState())
+    // docs/live-handoff-link-spec.md §7: a failure returns no clickable URL
+    // of any kind — a state snapshot would smuggle designUrl back in
+    expect(Object.keys(structured!).sort()).toEqual(["message", "ok"])
+    expect(JSON.stringify(structured)).not.toMatch(/https?:\/\/|\?type=/)
   })
 
   it("create_live_handoff: the handoff object plus ok/message", async () => {
