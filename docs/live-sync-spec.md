@@ -370,7 +370,9 @@ initialized) · `patch {patchId, baseVersion, patches: SharePatches}` ·
 Server → client: `welcome {state, version, peers}` · `patch {version,
 patches, clientId, actor}` — broadcast to ALL including the sender, whose
 own echo is how it learns the version its edit landed at · `resync {state,
-version}` · `presence {peers}` · `code {code, expiresAt}` ·
+version}` (reserved — the server currently answers a gap-detecting client's
+fresh `hello` with a `welcome` instead of ever emitting `resync`) ·
+`presence {peers}` · `code {code, expiresAt}` ·
 `error {code, message}`.
 
 HTTP (worker): `POST /api/pair/claim {code}` → `{sid}` or uniform failure —
@@ -387,10 +389,12 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
   (free-tier compatible); `/api/*` handled before assets (already
   `run_worker_first: true`).
 - Worker (`worker.js` → `worker/index.ts`, TS so it can import the shared
-  schemas and `applyPatch`): routes `POST /api/pair/claim` (per-IP limit
-  here) and `GET /api/session/:sid/ws` (validate `sid` shape →
+  schemas and `applyPatch`): routes `POST /api/pair/claim` (forwarding the
+  connecting IP; the per-IP limit itself is enforced inside `PairingCore`)
+  and `GET /api/session/:sid/ws` (Origin-checked, validate `sid` shape →
   `idFromName(sid)` → forward upgrade); everything else falls through to
-  the www-redirect + assets behavior exactly as today.
+  the www-redirect + assets behavior, now with security headers on every
+  non-WebSocket response.
 - `SessionDO`: hibernation-aware; storage `state`, `version`, `updatedAt`;
   alarm deletes storage after 30 idle days; `mint_code` registers with
   `PairingDO`.
@@ -402,6 +406,20 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
 
 ## 12. Privacy & security review
 
+- **Session identifiers are bearer capabilities.** Knowing a `sid` IS the
+  authorization to join its room and edit its design — there are no
+  accounts and no second factor. Everything below exists to keep sids
+  unguessable (client-minted 128-bit randoms) and to make sure no sid is
+  ever written where it can be casually read: not in a URL, not in a tool
+  result, not in the printed QR. Codes and join tokens are the only things
+  that travel, and they are single-use, short-lived, and exchanged for the
+  sid server-side.
+- **Cross-site browsers are turned away at the worker.** WebSocket
+  upgrades and `POST /api/pair/claim` reject any request whose `Origin`
+  header names a different host (`worker/originCheck.ts`) — a malicious
+  page in a visitor's browser cannot drive this API. Requests without an
+  Origin header (non-browser clients) pass: they can fabricate any header,
+  so for them the protection is capability secrecy, as above.
 - **What leaves the device (new):** the design slice, coarse presence
   (actor kind, tab count), and — during pairing only — a 6-character code.
   No names, no chat content, no user agent stored. README updated (item 8).
@@ -409,7 +427,7 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
   URL is ever a live capability", which the single-use link tokens below
   superseded) — share links, address bar, printed
   QR (§6 keeps it parameter-only *by specification*), agent `shareUrl`s.
-- **Residual threats:** shoulder-surfing an unclaimed code (5-min window,
+- **Residual threats:** shoulder-surfing an unclaimed code (15-minute window,
   countdown visible, potter sees the device count change); a lost paired
   device (no peer eviction in v1 — abandon the session; eviction is
   stretch); brute force (§4.5); malicious peer garbage (schemas + clamps);

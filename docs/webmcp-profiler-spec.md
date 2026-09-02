@@ -103,9 +103,11 @@ wrapped transparently:
   registered): retrofits by re-registering wrapped copies where the host
   allows it, else falls back to wrapping the site's own registry if one
   is exposed (this app: `window.__unfoldedTools`).
-- **No host present**: installs a *recording* stub `modelContext` so
-  registration timing and tool surface are still captured, and flags the
-  session `hostless` (useful in CI).
+- **No host present** *(designed, not yet built)*: install a *recording*
+  stub `modelContext` so registration timing and tool surface are still
+  captured, and flag the session `hostless` (useful in CI). Today the
+  interceptor simply keeps polling until a host or the site registry
+  appears.
 
 The wrapper adds one `try/finally` and two `performance.now()` calls of
 overhead per invocation — budgeted at < 0.1 ms so the profiler never
@@ -209,11 +211,11 @@ Every WebMCP tool declares a JSON Schema. The bench runner uses it:
 ## 7 · Surfaces *(overlay and console API shipped; beacon and OTel exporter not yet built)*
 
 - **Overlay** (optional, lazy chunk): a shadow-DOM floating panel — no
-  style bleed, framework-free — showing a live per-tool table (calls,
-  p50/p95, payload, grade), a conversation waterfall (call bars with the
-  host gaps drawn between them, so the "where did 40 s go" picture is
-  literally visible), and budget violations as badges. Toggle with a
-  keyboard chord; hidden by default in production.
+  style bleed, framework-free — showing a live per-tool table and the
+  host-gap ledger line. The conversation waterfall (call bars with the
+  host gaps drawn between them) and budget-violation badges are designed
+  but *not yet built* — today the report JSON carries the data and the
+  table carries the numbers. Hidden by default in production.
 - **Console API**: `__webmcpPerf.table()`, `.report()`, `.export()`
   (downloads the JSON), `.bench(opts)` (not yet built), `.reset()` —
   everything works headless from DevTools. Shipped alongside: `.instrument()`
@@ -331,10 +333,14 @@ overlay are both views over this same document.
 The single source of truth for what has landed; the section markers
 above derive from this list.
 
-1. `npm run perf` (shipped) — Playwright bench of every tool, the
-   numbers in §1.
+1. `npm run perf` (shipped) — Playwright bench of the synchronous tool
+   surface (10 of the 14 tools; `export_templates`, `create_live_handoff`,
+   `join_session`, and `start_pairing` are excluded — they download files
+   or talk to the pairing service, so their latency is network, not
+   harness), the numbers in §1.
 2. (shipped) In-page interceptor + collector + console API, live on
-   tryunfolded.com behind `?perf=1` — `src/profiler/`, deliberately free
+   tryunfolded.com behind `?perf=1` — `packages/webmcp-profiler/src`,
+   consumed by the app via the `@/profiler` alias, deliberately free
    of app imports so it lifts out unchanged.
 3. (shipped) Overlay (`?perf=overlay` or `__webmcpPerf.overlay()`) +
    BroadcastChannel relay: a visible same-origin tab renders spans from

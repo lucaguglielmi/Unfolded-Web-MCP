@@ -1,6 +1,6 @@
 # Unfolded — WebMCP Hardening Specification
 
-Status: **largely landed** — §4 (contract alignment), §6.1, §8.4, §9.1, and §9.3 are Done inline; still open: 5.1's shared fallback component with the 2D silhouette (and 5.2's routing through it), 8.2 security headers, 8.3 the live-session threat model, and the manual repository-presentation tasks in 7.2  
+Status: **landed** — every code-facing section is Done inline (§4, §5, §6, §7.1, §8, §9); only the manual repository-presentation tasks in 7.2 remain  
 Baseline: `main` at `bdf87d0` (`docs: remove stale project plan`)  
 
 > **Amendments (first review).** Verified against the code: 6.4's
@@ -259,9 +259,13 @@ Observed issue: the review browser could not create a WebGL context. The
 > distinguishes true no-WebGL (honest message, no useless retry) from
 > transient GPU reclaim (auto-retry on visibility, capped, plus a
 > "Wake the preview" button), and a silent context loss remounts the canvas
-> on return to the tab. Remaining from this item: the 2D silhouette /
-> template thumbnail in the fallback, and routing both failure paths through
-> one shared component (5.2).
+> on return to the tab.
+>
+> **Done.** The remaining halves landed: both failure paths render one
+> shared `ViewportFallback` component, and instead of a logo it draws a
+> live 2D side-profile silhouette of the current form (an SVG from height
+> and diameters), so the potter still sees the design move while sliders
+> change with the canvas down.
 
 Required change:
 
@@ -289,6 +293,9 @@ Acceptance criteria:
   loss exceptions without unmounting the rest of the app.
 - Route it to the same fallback component as 5.1 so there is one truthful error
   experience.
+
+> **Done.** Both branches of the boundary render the shared
+> `ViewportFallback` (see 5.1).
 
 ### 5.3 One connection button: WebMCP + pairing status together
 
@@ -338,6 +345,11 @@ Required change:
 - Support deterministic delayed resolution and injected rejection.
 - Record the registration options signal and simulate abort-driven removal.
 - Add coverage for context replacement and page visibility transitions.
+
+> **Done.** The last gap closed: `e2e/run.mjs` now fakes `document.hidden`
+> with a configurable getter and proves a hidden tab never polls for a
+> host, then flips visibility and asserts the `visibilitychange` recheck
+> registers the full tool set.
 
 ### 6.3 Gate Worker and pairing behavior in deployment CI
 
@@ -455,6 +467,20 @@ Acceptance criteria:
 - Three.js, PDF generation, QR generation, and WebSocket pairing are not blocked.
 - Header behavior is verified on the production response, not only in source.
 
+> **Done.** Every non-WebSocket response leaves the worker through
+> `withSecurityHeaders` (`worker/securityHeaders.ts`): a CSP evaluated
+> against what the app actually does (`script-src 'self'` — index.html's
+> theme-init script moved to `/theme-init.js` so no inline hashes;
+> ws/wss pinned to the request host explicitly because older Safari does
+> not extend `'self'` to WebSockets), plus Referrer-Policy, nosniff,
+> Origin-Agent-Cluster, a deny-list Permissions-Policy, and HSTS.
+> `frame-ancestors` is deliberately absent — agent hosts may embed the
+> page. `Permissions-Policy: tools=(self)` is skipped: "tools" is not a
+> registered policy-controlled feature. The worker smoke suite asserts
+> the headers on every run; the pairing e2e loads the full app through
+> the same worker, so a CSP that broke three.js, the QR, or the sockets
+> would fail the gate.
+
 ### 8.3 Document the live-session threat model
 
 - State that session identifiers are bearer capabilities.
@@ -464,6 +490,16 @@ Acceptance criteria:
 - Confirm tool results do not expose durable capabilities or unnecessary tokens.
 - Keep pottery parameters classified as low-sensitivity data; do not imply that
   this design is suitable for secrets.
+
+> **Done.** `docs/live-sync-spec.md` §12 now opens with the
+> bearer-capability statement and documents the Origin posture. The
+> review found the worker accepted any Origin on WebSocket upgrades —
+> fixed, not just documented: `worker/originCheck.ts` rejects cross-site
+> browser origins on the socket and claim paths (403), unit-tested and
+> covered in the worker smoke suite. Expiry/single-use/rate-limit/idle
+> numbers were already in §4.5/§11; tool results were re-checked — the
+> only capability they carry is the deliberately single-use handoff
+> token, and `linklessError` keeps even that out of failure results.
 
 ### 8.4 Environment-file hygiene
 
@@ -510,7 +546,7 @@ drop in correct tool selection in the standard prompt suite.
 >
 > **Done, in that order**: `src/mcp/promptSuite.test.ts` — 13
 > prompts mapped to expected tools with required routing phrases, plus a
-> 9,800-char metadata budget — landed first; the trim then cut 11,360 →
+> metadata budget — landed first; the trim then cut 11,360 →
 > 9,128 chars (−19.6%, ~560 tokens per conversation), mostly by removing
 > description text that duplicated the input schemas and zod's `$schema`
 > boilerplate. The suite caught and reverted two over-trims during the
