@@ -198,7 +198,7 @@ describe("startInterception", () => {
     const { registry, calls } = fakeHost()
     const originalRegister = registry.registerTool
     const originalProvide = registry.provideContext
-    const execute = async () => ({ content: [] })
+    const execute = async (_input: unknown) => ({ content: [] })
     const tool = { name: "t", execute }
 
     const first = attachProfiler({ relay: false })
