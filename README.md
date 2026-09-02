@@ -66,9 +66,9 @@ committed e2e suite):
   that include the unchanged state.
 - **Every tool that changes the design returns the full new state** (PDF
   export included), so the agent never needs a follow-up read. Snapshots are
-  pure and carry a permanent `designUrl`; the *return channel* is a separate
-  tool that changes nothing — `create_live_handoff` mints a single-use
-  `liveHandoffUrl`, returns that link object, and fails closed, so the
+  pure and carry a permanent `designUrl`; the *return channel* is a separate,
+  non-mutating tool — `create_live_handoff` mints a single-use
+  `liveHandoffUrl` and fails closed, so the
   potter's own browser follows the agent's session, and a link that "opens
   the right shape but doesn't pair" can no longer be handed out by mistake.
 - **A solver, not just setters** — `set_capacity` computes the exact height for
