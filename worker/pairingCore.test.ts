@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import {
+  cryptoGlyphIndices,
   formatCode,
   normalizeCode,
   CODE_ALPHABET,
+  CODE_LENGTH,
   CODE_TTL_MS,
   TOKEN_TTL_MS,
   DEFAULT_GLOBAL_PER_SECOND,
@@ -81,14 +83,14 @@ describe("PairingCore", () => {
   it("takes both claim limits as constructor options, defaults unchanged", () => {
     expect(DEFAULT_PER_IP_PER_MINUTE).toBe(10)
     expect(DEFAULT_GLOBAL_PER_SECOND).toBe(100)
-    const core = new PairingCore(undefined, Math.random, { perIpPerMinute: 2, globalPerSecond: 3 })
+    const core = new PairingCore(undefined, undefined, { perIpPerMinute: 2, globalPerSecond: 3 })
     expect(core.claim("AAAAAA", "ip1", 0)).toEqual({ ok: false, reason: "invalid" })
     expect(core.claim("AAAAAA", "ip1", 1)).toEqual({ ok: false, reason: "invalid" })
     expect(core.claim("AAAAAA", "ip1", 2)).toEqual({ ok: false, reason: "rate_limited" })
     // the global cap counts every claim, throttled or not
     expect(core.claim("AAAAAA", "ip2", 3)).toEqual({ ok: false, reason: "rate_limited" })
     // a raised per-IP limit lets one address claim well past the default
-    const roomy = new PairingCore(undefined, Math.random, { perIpPerMinute: 1000 })
+    const roomy = new PairingCore(undefined, undefined, { perIpPerMinute: 1000 })
     for (let i = 0; i < 50; i++) {
       expect(core.claim("AAAAAA", "ip", 10_000 + i).ok).toBe(false)
       expect(roomy.claim("AAAAAA", "ip", 10_000 + i)).toEqual({ ok: false, reason: "invalid" })
@@ -161,5 +163,60 @@ describe("PairingCore", () => {
     const a = core.mint(SID, 0)
     const b = core.mint(SID, 0)
     expect(a.code).not.toBe(b.code)
+  })
+})
+
+describe("code randomness (hardening spec §8.1)", () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it("draws from crypto.getRandomValues by default, never Math.random", () => {
+    const math = vi.spyOn(Math, "random")
+    const csprng = vi.spyOn(crypto, "getRandomValues")
+    const core = new PairingCore()
+    for (let i = 0; i < 20; i++) core.mint(SID, 0)
+    expect(math).not.toHaveBeenCalled()
+    expect(csprng).toHaveBeenCalled()
+  })
+
+  it("keeps the length and stays inside the alphabet over thousands of mints", () => {
+    const core = new PairingCore()
+    const seen = new Set<string>()
+    const counts = new Map<string, number>()
+    const N = 5_000
+    for (let i = 0; i < N; i++) {
+      const { code } = core.mint(SID, 0)
+      expect(code).toHaveLength(CODE_LENGTH)
+      seen.add(code)
+      for (const ch of code) {
+        expect(CODE_ALPHABET).toContain(ch)
+        counts.set(ch, (counts.get(ch) ?? 0) + 1)
+      }
+    }
+    // no collision (the mint loop retries on one; this also proves the
+    // source isn't stuck) and every glyph shows up
+    expect(seen.size).toBe(N)
+    for (const ch of CODE_ALPHABET) expect(counts.get(ch) ?? 0).toBeGreaterThan(0)
+  })
+
+  it("selects glyphs without modulo bias (rejection sampling)", () => {
+    // 60k draws: each glyph expects ~1935 (sd ≈ 43). A biased `byte % 31`
+    // would give the first eight glyphs 2/256 of draws each and the rest
+    // 1/256 — a 2:1 skew — so ±20% is a loose but decisive bound.
+    const draws = 60_000
+    const counts = new Array<number>(CODE_ALPHABET.length).fill(0)
+    for (const i of cryptoGlyphIndices(draws)) {
+      expect(i).toBeGreaterThanOrEqual(0)
+      expect(i).toBeLessThan(CODE_ALPHABET.length)
+      counts[i] = (counts[i] ?? 0) + 1
+    }
+    const expected = draws / CODE_ALPHABET.length
+    for (const n of counts) {
+      expect(n).toBeGreaterThan(expected * 0.8)
+      expect(n).toBeLessThan(expected * 1.2)
+    }
+  })
+
+  it("returns exactly the number of indices asked for despite rejections", () => {
+    for (const n of [1, 6, 7, 100, 1_000]) expect(cryptoGlyphIndices(n)).toHaveLength(n)
   })
 })

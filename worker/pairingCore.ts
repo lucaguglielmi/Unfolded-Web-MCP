@@ -13,6 +13,29 @@ export const CODE_LENGTH = 6
 export const CODE_TTL_MS = 15 * 60_000
 
 /**
+ * Glyph indices from the platform CSPRNG, unbiased: 31 does not divide 256,
+ * so a plain `byte % 31` would favor the first eight glyphs. Bytes at or
+ * above the largest multiple of 31 (248) are thrown away instead of folded
+ * back — a ~3% rejection rate, refilled in batches until `count` survive.
+ */
+const REJECT_FROM = Math.floor(256 / CODE_ALPHABET.length) * CODE_ALPHABET.length
+export function cryptoGlyphIndices(count: number): number[] {
+  const out: number[] = []
+  // a batch is at most 4 KiB per call — plenty over what a code needs, and
+  // well under getRandomValues' 64 KiB cap for the bulk draws in tests
+  const buf = new Uint8Array(Math.min(count * 2, 4096))
+  while (out.length < count) {
+    crypto.getRandomValues(buf)
+    for (const b of buf) {
+      if (b >= REJECT_FROM) continue
+      out.push(b % CODE_ALPHABET.length)
+      if (out.length === count) break
+    }
+  }
+  return out
+}
+
+/**
  * Join tokens: the URL-borne sibling of a code (docs/live-sync-spec.md v3).
  * 24 crypto-random bytes as base64url (~128 bits — guessing is void, so no
  * process protections needed beyond the shared rate limits), the same
@@ -91,16 +114,13 @@ export class PairingCore {
   private codes = new Map<string, CodeRecord>()
   private globalClaims: number[] = []
   private ipClaims = new Map<string, number[]>()
-  private readonly random: () => number
+  /** test seam only: a [0,1) source that replaces the CSPRNG for rigged codes */
+  private readonly random: (() => number) | null
   private readonly perIpPerMinute: number
   private readonly globalPerSecond: number
 
-  constructor(
-    restored?: PairingSnapshot,
-    random: () => number = Math.random,
-    limits: PairingLimits = {}
-  ) {
-    this.random = random
+  constructor(restored?: PairingSnapshot, random?: () => number, limits: PairingLimits = {}) {
+    this.random = random ?? null
     this.perIpPerMinute = limits.perIpPerMinute ?? DEFAULT_PER_IP_PER_MINUTE
     this.globalPerSecond = limits.globalPerSecond ?? DEFAULT_GLOBAL_PER_SECOND
     if (restored) this.codes = new Map(restored.codes)
@@ -110,14 +130,20 @@ export class PairingCore {
     this.sweep(now)
     let code: string
     do {
-      code = Array.from(
-        { length: CODE_LENGTH },
-        () => CODE_ALPHABET[Math.floor(this.random() * CODE_ALPHABET.length)]
-      ).join("")
+      code = this.glyphIndices()
+        .map((i) => CODE_ALPHABET[i])
+        .join("")
     } while (this.codes.has(code))
     const expiresAt = now + CODE_TTL_MS
     this.codes.set(code, { sid, expiresAt })
     return { code, expiresAt }
+  }
+
+  /** production: crypto.getRandomValues, unbiased; tests may inject a rigged source */
+  private glyphIndices(): number[] {
+    const rng = this.random
+    if (!rng) return cryptoGlyphIndices(CODE_LENGTH)
+    return Array.from({ length: CODE_LENGTH }, () => Math.floor(rng() * CODE_ALPHABET.length))
   }
 
   mintToken(sid: string, now: number): MintTokenResult {

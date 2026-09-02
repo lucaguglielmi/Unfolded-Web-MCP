@@ -1,6 +1,6 @@
 # Unfolded — WebMCP and Hackathon Hardening Specification
 
-Status: **proposed, amended after review — early items landing**  
+Status: **largely landed** — §4 (contract alignment), §6.1, §8.4, §9.1, and §9.3 are Done inline; still open: 5.1's shared fallback component with the 2D silhouette (and 5.2's routing through it), 8.2 security headers, 8.3 the live-session threat model, and the manual submission tasks 7.2–7.4  
 Baseline: `main` at `bdf87d0` (`docs: remove stale project plan`)  
 Submission deadline: **2026-09-03 22:00 CEST**  
 
@@ -20,13 +20,24 @@ Submission deadline: **2026-09-03 22:00 CEST**
 > tab's edit reaching the agent's next read is asserted in `e2e/pairing.mjs`,
 > `EXPECTED_TOOLS` stays independent), and 9.2 (3D bundle review — measured
 > healthy in docs/performance-report.md). Executed: 8.4 (see its Done note).
+>
+> **Amendments (2026-09-02, later).** Status line rewritten to match the
+> Done notes now inline (§4, §6.1, §8.4, §9.1, §9.3) and to list what is
+> still open. The tool surface grew from the 13 tools this review saw to
+> 14 with `create_live_handoff` (docs/live-handoff-link-spec.md); the
+> acceptance criteria and validation matrix below now say 14, while the
+> historical counts in §1, §2, §9.1 and §12 keep describing the reviewed
+> surface. §9.3's Done note updated: `export_templates` now returns the
+> full state beside its page numbers, like every other tool that changes
+> the design.
 
 ## 1. Purpose
 
 This specification turns the 2026-09-01 repository, live-product, WebMCP,
 testing, and hackathon-compliance review into ordered implementation work.
 
-The product already works: ChatGPT discovered all 13 site tools in production,
+The product already works: ChatGPT discovered all 13 site tools then registered
+in production (the surface has since grown to 14 with `create_live_handoff`),
 representative read and mutation calls succeeded, the build passed, all 190
 unit tests passed, and the latest deployment workflow was green. The goal is
 therefore not to redesign Unfolded. The goal is to:
@@ -136,7 +147,8 @@ Acceptance criteria:
 - Unmount aborts the registrations exactly once.
 - Replacing `document.modelContext` causes one clean re-registration.
 - Late host injection still works.
-- The production tool list still contains exactly the expected 13 names.
+- The production tool list still contains exactly the expected names —
+  currently 14, pinned by the e2e suite's independent `EXPECTED_TOOLS` list.
 
 ### 4.2 Replace the hand-written proposal contract
 
@@ -457,6 +469,18 @@ P1 starts only after the final video and submission assets are safe.
 - Add collision and alphabet tests; do not claim a statistical security level
   that the short human-readable code cannot provide.
 
+> **Done (2026-09-02).** `PairingCore.mint` now draws glyphs from
+> `crypto.getRandomValues` via rejection sampling (`cryptoGlyphIndices`:
+> bytes ≥ 248 are discarded, since 31 does not divide 256 and a modulo would
+> favor the first eight glyphs); `PairingDO` no longer injects `Math.random`,
+> which survives only as an optional test seam for rigged sequences. Length,
+> alphabet, TTL, single use, and rate limits are unchanged. Tests cover
+> every glyph appearing, length, no collision over 5,000 mints, a ±20%
+> uniformity bound over 60k draws, and a spy proving the default path never
+> touches `Math.random`. `docs/live-sync-spec.md` §4.5/§11 stopped claiming
+> a "constant-time compare" — resolution is a map lookup, and the 30-bit
+> space is still protected by process, not entropy.
+
 ### 8.2 Review browser and Worker security headers
 
 Evaluate and test, rather than blindly add:
@@ -554,8 +578,8 @@ After submission:
 > returns `structuredContent`: `{ ok, message, state?, warnings? }` for the
 > state-reporting tools (ok:false plus the unchanged state on validation
 > errors, failed joins, and the fail-closed handoff); the handoff object,
-> the template summary, and `{ pages, paper, rows, cols }` for the export,
-> each with ok/message; the preview keeps its image content and adds
+> the template summary, and `{ pages, paper, rows, cols }` plus the full
+> `state` for the export (paper size is design state), each with ok/message; the preview keeps its image content and adds
 > `{ ok, message, summary }`. Additive rather than a migration because the
 > judged host (ChatGPT's agent browser) is verified only against the text
 > envelope — until structured results are confirmed there, removing the
@@ -576,7 +600,7 @@ After submission:
 
 | Environment | Required checks |
 | --- | --- |
-| ChatGPT built-in browser, GPT-5.6 Sol/Terra | 13 tools discovered; titles visible; read/mutate/solve/undo/export; consecutive mutations; human edit read-back |
+| ChatGPT built-in browser, GPT-5.6 Sol/Terra | all 14 tools discovered (`create_live_handoff` included); titles visible; read/mutate/solve/undo/export; consecutive mutations; human edit read-back |
 | Chrome with current WebMCP testing support | registration, inspector metadata, cancellation smoke test, URL synchronization |
 | Browser without WebGL | designed fallback; all non-3D functionality remains usable |
 | Mobile browser | core editing, template navigation, share link, fallback layout, no accidental horizontal overflow |
