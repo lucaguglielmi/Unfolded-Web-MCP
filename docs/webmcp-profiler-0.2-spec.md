@@ -13,7 +13,7 @@ work, and traceability.
 
 ## 1. Purpose
 
-The 2026-09-02 review of `packages/webmcp-profiler` found the core sound
+The review of `packages/webmcp-profiler` at the baseline commit found the core sound
 (interceptor, collector, detach path, 11 green tests, 2.9 KB gzipped ESM)
 and the *integration surface* still shaped like an internal module of
 Unfolded: hardcoded names, no typed exports, no hook to get spans out, a
@@ -1529,11 +1529,12 @@ has three parts:
 ### 19.1 The index: `docs/README.md`
 
 One table, one row per document in `docs/`, three columns: what it is,
-who it is for, status (design / partly built / landed / snapshot dated
-YYYY-MM-DD). The profiler rows read, in this order: the package README
+who it is for, status (design / partly built / landed / snapshot at a
+named commit). The profiler rows read, in this order: the package README
 (the user manual and the npm page), this spec (the next release), the
 long-range spec (the design beyond it), the performance report (the
-only numbers; a dated snapshot), `AGENTS.md` (how to work here). The
+only numbers; a snapshot at a
+named commit), `AGENTS.md` (how to work here). The
 root README's profiler section and the package README's "Home" line
 both link to the index. §11.30 asserts every file in `docs/` has a row.
 
@@ -1572,7 +1573,7 @@ docs-only, take an hour, and do not wait for 0.2:
 ### 19.4 One source of numbers
 
 `docs/performance-report.md` is the only document that states measured
-timings, sizes, and token counts, with its commit hash and date. Every
+timings, sizes, and token counts, with the commit hash it measured. Every
 other document that wants a number links to the report's section
 instead; the two allowed exceptions are the README's one-line "first
 finding" (130 KB to 7 KB, because it is the story) and the overhead
