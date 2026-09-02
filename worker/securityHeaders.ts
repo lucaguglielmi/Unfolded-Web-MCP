@@ -1,5 +1,5 @@
 /**
- * Security headers for every non-WebSocket response (hardening spec §8.2).
+ * Security headers for every non-WebSocket response.
  *
  * Evaluated against what the app actually does, not blindly added:
  * - scripts are all same-origin bundles (index.html's theme-init script

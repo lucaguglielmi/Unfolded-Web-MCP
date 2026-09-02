@@ -702,7 +702,7 @@ export function createSyncClient({
     if (!claimed.ok || !claimed.sid) return { ok: false, retryable: claimed.retryable === true }
     // a host cancellation that lands after the claim resolved must not
     // mutate session state — the single-use code is spent, but this tab
-    // stays exactly as it was (spec 4.4)
+    // stays exactly as it was
     if (signal?.aborted) return { ok: false, retryable: false }
     stop() // leaving any current session — the claimer follows the minted one
     // entering a code IS proof another device exists — this pairing is real

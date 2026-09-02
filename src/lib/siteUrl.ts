@@ -1,5 +1,5 @@
 /**
- * The single authoritative deployed origin (refactor spec item 4).
+ * The single authoritative deployed origin.
  *
  * Sourced from VITE_SITE_URL — vite.config.ts fills it from .env.example
  * when the environment doesn't set it, and index.html's OG tags read the

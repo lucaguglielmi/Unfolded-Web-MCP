@@ -313,6 +313,12 @@ Link down to detail instead of duplicating it. When two documents make the same 
 
 Target: no more than about 1,200 words excluding commands and the tool table.
 
+> **Done.** The rewrite landed at roughly 1,400 prose words (about 1,700
+> whole-file); `docsGuard.test.ts` now pins an 1,800-word whole-file
+> ceiling. The structure below shipped as recommended, with "Verify in
+> 60 seconds" as the quick-start heading and a closing "Deeper reading"
+> list in place of scattered links.
+
 Recommended order:
 
 1. One-sentence product pitch, live link, guide link, repository status badges.

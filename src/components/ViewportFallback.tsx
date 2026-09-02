@@ -2,8 +2,7 @@ import { useProjectStore } from "@/store/useProjectStore"
 import { Button } from "@/components/ui/button"
 
 /**
- * The one truthful fallback for a downed 3D preview (hardening spec
- * §5.1/§5.2): both failure paths — no WebGL at all, and a reclaimed/lost
+ * The one truthful fallback for a downed 3D preview: both failure paths — no WebGL at all, and a reclaimed/lost
  * context — render this component, so there is a single error experience.
  *
  * Instead of a logo, it draws a lightweight 2D silhouette of the CURRENT

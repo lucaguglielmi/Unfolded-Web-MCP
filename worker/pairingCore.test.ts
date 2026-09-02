@@ -166,7 +166,7 @@ describe("PairingCore", () => {
   })
 })
 
-describe("code randomness (hardening spec §8.1)", () => {
+describe("code randomness (crypto, not Math.random)", () => {
   afterEach(() => vi.restoreAllMocks())
 
   it("draws from crypto.getRandomValues by default, never Math.random", () => {

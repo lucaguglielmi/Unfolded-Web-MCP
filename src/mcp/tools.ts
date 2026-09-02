@@ -60,7 +60,7 @@ function stateText(prefix?: string, state: StateSnapshot = describeState()): str
 }
 
 /**
- * Structured results (hardening spec 9.3, contract tool-result/1) ride
+ * Structured results (contract tool-result/1) ride
  * beside the unchanged text content: `ok` mirrors !isError, `message` is
  * the sentence the text opens with, `state` is the same snapshot the text
  * serializes, and `warnings` appears only when the design has any.
@@ -140,7 +140,7 @@ function toInputSchema(schema: z.ZodType): Record<string, unknown> {
   return json
 }
 
-/** the one consistent shape for a host-cancelled call (spec 4.4) */
+/** the one consistent shape for a host-cancelled call */
 function cancelledResult(): ToolResult {
   const message = "Cancelled by the host before completing — no changes were made."
   return textResult(message, true, { ok: false, message })

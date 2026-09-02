@@ -457,7 +457,7 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
 - **Contract guards:** `TOOL_SUMMARIES` ↔ `buildTools` test already forces
   summaries for both tools; a no-`/api` boot test asserts today's behavior.
 
-## 14. Work items (ordered; each ships alone, green gates as in refactor-spec)
+## 14. Work items (ordered; each ships alone behind the full lint / test / build / e2e gate)
 
 1. **`applyPatch.ts` extraction** — store behavior byte-identical.
    *Prerequisite; valuable standalone.*

@@ -46,7 +46,7 @@ const server = await startWrangler({
 // drive edits without reaching into React internals
 const mcpHostInit = () => {
   window.__mcpTools = {}
-  // async fake host, mirroring e2e/run.mjs (spec 6.1)
+  // async fake host, mirroring e2e/run.mjs
   document.modelContext = {
     registerTool: (t, opts) =>
       new Promise((resolve) => {
@@ -346,7 +346,7 @@ try {
   await f.evaluate(() => window.__mcpTools.set_clay.execute({ shrinkagePct: 7 }))
   await g.waitForFunction(() => window.location.search.includes("shrinkage=7"), null, { timeout: 15000 })
   check("agent tab: the visible tab follows the hidden browser live", true)
-  // and the visible tab's edits reach the agent's next read (hardening spec 6.4)
+  // and the visible tab's edits reach the agent's next read
   await g.waitForFunction(() => window.__mcpTools?.update_form, null, { timeout: 15000 })
   await g.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 171 }))
   await f.waitForFunction(() => window.location.search.includes("height=171"), null, { timeout: 15000 })
