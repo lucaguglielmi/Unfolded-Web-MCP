@@ -1,5 +1,10 @@
 import { DurableObject } from "cloudflare:workers"
-import { PairingCore, type PairingSnapshot } from "./pairingCore"
+import {
+  DEFAULT_PER_IP_PER_MINUTE,
+  PairingCore,
+  parseClaimLimit,
+  type PairingSnapshot,
+} from "./pairingCore"
 import type { Env } from "./index"
 
 /**
@@ -18,7 +23,15 @@ export class PairingDO extends DurableObject<Env> {
   private async loadCore(): Promise<PairingCore> {
     if (!this.core) {
       const stored = await this.ctx.storage.get<PairingSnapshot>(STORAGE_KEY)
-      this.core = new PairingCore(stored ?? undefined)
+      // the per-IP claim limit is overridable for local test runs only
+      // (`wrangler dev --var PAIR_CLAIMS_PER_IP_PER_MINUTE:…`); unset or
+      // malformed means the production default
+      this.core = new PairingCore(stored ?? undefined, Math.random, {
+        perIpPerMinute: parseClaimLimit(
+          this.env.PAIR_CLAIMS_PER_IP_PER_MINUTE,
+          DEFAULT_PER_IP_PER_MINUTE
+        ),
+      })
     }
     return this.core
   }
