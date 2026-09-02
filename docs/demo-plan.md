@@ -1,98 +1,149 @@
-# Demo plan — structure (draft)
+# Demo plan — structure (draft 2)
 
 Target: ~3:00 video for the WebMCP Challenge Devpost submission, recorded
-against the live site (tryunfolded.com) in ChatGPT's built-in browser.
+against the live site (tryunfolded.com). All footage is screen capture —
+no printing, no physical clay shots.
 
 ## Narrative choice
 
-One continuous story, not a feature tour: a potter recreates a mug they love
-from a photo, sizes it precisely with the agent, pulls the design out of
-ChatGPT's hidden browser onto their own phone, and ends with paper on clay.
-Each of the three hero beats answers a "why is this hard without an agent /
-without WebMCP" question:
+Open on Luca's real-problem framing, then make the **Safari ↔ hidden-browser
+pairing the stage for the whole demo**, not one beat among many: the user
+starts in Safari (no WebMCP), pairs with the agent once, and from then on
+*every* agent action — recreating a mug from a photo, the 350 ml resize —
+visibly lands in the Safari tab in about a second. The sync isn't
+demonstrated once; it's demonstrated continuously.
 
-1. **Photo → slab template** — the agent's eyes plus the app's geometry.
-2. **Capacity with proportions kept** — math a human can't do at the wheel
-   (cube-root scaling + closed-form capacity), one sentence for an agent.
-3. **Pairing out of the hidden browser** — the structural problem every
-   WebMCP-in-ChatGPT app has, solved with join links / codes + live sync.
+The three hero capabilities, in the order they appear:
+
+1. **Pairing both directions** — Safari can't run WebMCP; the agent's
+   browser is hidden. A 6-character code bridges them over WebSockets, and
+   after that neither side is special.
+2. **Photo → slab template** — the agent's eyes plus the app's
+   deterministic geometry (the answer to "AI templates silently fail").
+3. **Capacity with proportions kept** — cube-root scaling plus a
+   closed-form capacity solve; one sentence for an agent, hours of
+   guess-fire-regret for a human.
 
 ## Shot list
 
-### 0:00–0:15 — Hook: the paper problem
-Real footage: a hand-drawn cereal-box template next to a fired mug that came
-out too small. One line of narration: slab potters do the sizing math by
-hand, and the two classic errors (wrong shrinkage direction, wrong surface)
-only show up after the firing.
+### 0:00–0:30 — Intro: a real problem for a real niche (Luca on script)
+Voiceover over footage of the app (or a still of a slab-built piece):
+introduce yourself, the niche, and the core insight — *generating a precise
+printable template from a 3D form with pure AI is error-prone, and a
+template that's "almost right" fails silently; the potter finds out four
+hours of building later, or worse, after the firing.* Then the one-line
+thesis: a parametric app with the pottery know-how embedded
+deterministically, and WebMCP as the way an agent drives it.
 
-### 0:15–0:35 — The app in twenty seconds
-Screen: drag a slider, 3D preview and flat templates update together.
-Name what's under the hood in one breath: shrinkage-compensated, mid-surface
-developed, exact capacity. Then the pivot line: "and the whole app speaks
-WebMCP — so an agent can drive it."
+### 0:30–0:50 — The app in twenty seconds (in Safari, deliberately)
+Screen: **Safari**, tryunfolded.com. Drag a slider; 3D preview and flat
+templates update together. One breath on the hidden math: shrinkage
+compensated the right way, walls developed on the slab mid-surface, exact
+capacity. Point out on camera that this is Safari — no WebMCP here — which
+sets up the next beat.
 
-### 0:35–1:10 — Beat 1: from a photo to a template
-In ChatGPT (built-in browser open on tryunfolded.com): upload a photo of a
-favorite mug/vase. Prompt: *"Recreate this as a slab template — it's about
-10 cm tall."*
+### 0:50–1:30 — Beat 1: pairing Safari to the agent's hidden browser
+The UX-designer pride point — name the problem explicitly, judges won't
+know it exists: *ChatGPT's browser is invisible, and Safari can't speak
+WebMCP. How do the two talk?*
+- In Safari: open **Continue on another screen** (the connection button —
+  the two status dots), show the 6-character code.
+- In ChatGPT: *"Join my design session, code K7F-3QP."* → `join_session`.
+  The agent's hidden browser adopts the Safari design.
+- Prove it immediately with something small: ask the agent to make it
+  hexagonal → the Safari tab changes in about a second. Then the reverse:
+  drag a slider **in Safari**, ask the agent *"what did I just change?"* —
+  it reads the current state on its next tool call.
+- One line on the mechanics worth saying out loud: WebSockets to a
+  per-session room, single-use short-lived codes, every edit is an undo
+  step on both sides.
+
+### 1:30–2:05 — Beat 2: from a photo to a template (Safari still visible)
+In ChatGPT: upload a photo of a favorite mug/vase. Prompt: *"Recreate this
+as a slab template — it's about 10 cm tall."*
 - Agent estimates proportions from the photo, calls `update_form` (and/or
-  `apply_preset` as a starting point), then `get_preview_image` to check its
-  own work against the photo.
-- On-screen: the tool-call chips in the chat + the preview converging on the
-  photographed shape. Side-by-side photo vs. preview at the end of the beat.
+  `apply_preset`), checks itself with `get_preview_image`.
+- The payoff shot: the shape converging **in the Safari tab**, side by side
+  with the photo. This is the "AI eyes, deterministic geometry" argument
+  made visible: the agent chooses the parameters, the app guarantees the
+  math.
 
-### 1:10–1:40 — Beat 2: capacity, proportions kept
-Prompt: *"Make it hold exactly 350 ml, but keep these proportions."*
-- This is the "impossible by hand" beat: volume scales with the cube, so the
-  agent computes the scale factor, calls `update_form` with scaled diameters
-  and height, and lets `set_capacity` do the closed-form finish. Show
-  `capacityMl` in the tool result landing on 350.
-- One narration line contrasting the human version: guess, recompute, remake
-  the template, fire, find out you were wrong.
+### 2:05–2:35 — Beat 3: capacity, proportions kept
+In ChatGPT: *"Make it hold exactly 350 ml, but keep these proportions."*
+- The "impossible by hand" beat: volume scales with the cube, so the agent
+  computes the scale factor, sets scaled diameters and height via
+  `update_form`, and `set_capacity` does the closed-form finish. Show
+  `capacityMl` landing on 350 in the tool result — and the Safari preview
+  tracking it live.
+- One contrast line: by hand this is guess, recompute, rebuild the
+  template, fire, and find out you were wrong.
 
-### 1:40–2:25 — Beat 3: escaping the hidden browser
-Name the problem out loud: ChatGPT's browser is hidden — you can't print
-from it, and your own browser can't talk back to it. Then show the answer:
-- Every link the agent hands back is a **live** one (single-use join token).
-  Tap it on the phone → the visible tab silently joins the agent's session.
-- Drag a slider on the phone; then ask the agent *"what did I just
-  change?"* — it reads the current state on its next tool call. Both
-  directions, ~1 s, no link ferried back.
-- Flash the fallback for one second: the 6-character pairing code
-  (`start_pairing` / `join_session`) for when a link can't travel.
+### 2:35–2:55 — Payoff: the template, on screen
+Prompt: *"Export the PDF for A4."* → `export_templates`.
+Open the exported PDF full-screen (no printing needed):
+- zoom the **calibration bar** and say what it's for (print at 100%, check
+  with a ruler);
+- flip through the tiled pages with registration ticks;
+- zoom the **QR inside the largest piece** — months later it re-derives the
+  same design for a new clay body.
+One narration line covers the physical step we don't film: cut, tape, lay
+on the slab.
 
-### 2:25–2:50 — Payoff: paper on clay
-Prompt: *"Export the PDF for A4."* → `export_templates`. Real footage:
-printed sheets, the calibration ruler measured with a real ruler, pieces cut
-and laid on a slab. Show the QR printed inside the largest piece and say why:
-months later it re-derives the same design for a new clay body.
+### 2:55–3:00 — End card
+tryunfolded.com · 13 WebMCP tools on `document.modelContext` · live sync
+via Durable Objects · open source (MIT) · 190 unit tests + e2e against a
+real WebMCP host.
 
-### 2:50–3:00 — End card
-tryunfolded.com · 13 WebMCP tools on `document.modelContext` · live sync via
-Durable Objects · open source (MIT) · 190 unit tests + e2e against a real
-WebMCP host.
+## Suggested narration (draft to edit)
+
+> Hi, I'm Luca. For this hackathon I solved a real problem for a niche I
+> know well: slab pottery.
+>
+> Asking an AI to generate a printable pottery template is error-prone in
+> the worst way: a template that's *almost* right fails silently, and the
+> potter finds out four hours of building later — or after the firing.
+>
+> So I built Unfolded: a parametric 3D designer where the pottery know-how
+> — shrinkage, mid-surface development, exact capacity — is deterministic
+> code, and WebMCP is how an agent drives it. The agent chooses the
+> parameters; the geometry is always right.
+>
+> Here's the part I'm proudest of as a UX designer. I'm designing in
+> Safari — which has no WebMCP at all. ChatGPT's browser does, but it's
+> hidden. I read one six-character code into the chat, and the two are
+> paired over WebSockets — both directions. Watch: every change the agent
+> makes lands in my Safari tab in about a second, and every slider I drag
+> here is visible to the agent on its next tool call.
+>
+> [photo beat] … [capacity beat] …
+>
+> And the output is physical: a multi-page PDF at true scale, calibration
+> bar on every sheet, and a QR inside the largest piece that re-derives
+> the design years later. Print it, cut it, lay it on clay.
 
 ## Production notes
 
-- **Layout:** ChatGPT screen recording as the main frame; phone footage
-  picture-in-picture for beat 3; real-world footage full-frame for hook and
-  payoff.
-- **Keep visible:** the tool-call chips in ChatGPT (proof it's WebMCP, not
-  editing sleight-of-hand) and the header's two status dots when pairing.
-- **Rehearse the prompts verbatim** and record each beat as a separate take;
-  the story order is fixed but takes don't have to be one session — an
-  `open_model` on a share link restores any state between takes.
+- **Layout:** Safari window and ChatGPT side by side for the whole paired
+  section — the point *is* seeing both at once. Full-screen the PDF only
+  for the payoff.
+- **Keep visible:** ChatGPT's tool-call chips (proof it's WebMCP, not
+  editing tricks) and the two status dots turning on in Safari when the
+  session pairs.
+- **Mint the code in Safari, not in the agent** — the joining side adopts
+  the other's design, and we want the agent to adopt the Safari design.
+- **Record beats as separate takes**; `open_model` on a share link
+  restores any state between takes.
 
 ## Risks / fallbacks
 
-- **WebMCP flakiness in ChatGPT:** back-up recording path is desktop Chrome
-  with `chrome://flags/#enable-webmcp-testing` — same tools, same chips.
-- **Join token expiry (10 min):** mint the link immediately before the
-  beat-3 take.
-- **Photo beat variance:** pick the photo in rehearsal and keep it; if the
-  agent's first estimate is off, that's fine on camera *once* — it
-  self-corrects via `get_preview_image` — but cut if it takes more than two
-  rounds.
-- **Capacity beat:** verify in rehearsal that the agent chooses proportional
-  scaling (not height-only `set_capacity`) for the "keep proportions"
-  phrasing; if it doesn't, tighten the prompt.
+- **WebMCP flakiness in ChatGPT:** backup recording path is desktop Chrome
+  with `chrome://flags/#enable-webmcp-testing` standing in for the hidden
+  browser — same tools, same chips; the Safari side of the story is
+  unchanged.
+- **Pairing code expiry (5 min):** mint the code right before the take.
+- **Photo beat variance:** pick the photo in rehearsal and keep it. One
+  visible self-correction round via `get_preview_image` is fine on camera;
+  cut if it takes more than two.
+- **Capacity beat:** verify in rehearsal that the agent chooses
+  proportional scaling (not height-only `set_capacity`) for the "keep
+  proportions" phrasing; tighten the prompt if it doesn't.
