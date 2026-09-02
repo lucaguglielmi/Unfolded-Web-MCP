@@ -164,4 +164,7 @@ src/profiler.test.ts
 ```
 
 Home: [`packages/webmcp-profiler`](https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/packages/webmcp-profiler)
-in the Unfolded repo, which is also its first consumer. MIT.
+in the Unfolded repo, which is also its first consumer: the site imports
+the package source, so every change is compiled, tested, and driven end
+to end by Unfolded before it is published. The package will move to its
+own repository once it no longer needs that safety net. MIT.

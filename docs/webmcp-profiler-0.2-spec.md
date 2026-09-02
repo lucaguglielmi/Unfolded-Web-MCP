@@ -1,6 +1,7 @@
 # webmcp-profiler 0.2 — generic-package hardening spec
 
 Status: **design spec, nothing landed**  
+Governing rule: **the profiler and the Unfolded site change together** — every change to the package lands in the same pull request as the app-side updates it needs, and is gated by the whole repo's checks (§2.1)  
 Baseline: `main` at `85e31b9` (`Merge pull request #7`), package `webmcp-profiler@0.1.1` as published on npm  
 Companion: [`webmcp-profiler-spec.md`](./webmcp-profiler-spec.md) is the long-range design; this document is the work between 0.1.1 and 0.2.0 only.
 
@@ -13,7 +14,10 @@ Unfolded: hardcoded names, no typed exports, no hook to get spans out, a
 tarball without a license, and a README that leads with tryunfolded.com.
 Every finding of that review is turned into ordered, testable work below.
 Nothing here changes what the profiler measures for Unfolded; everything
-here changes whether a stranger can `npm install` it and trust it.
+here changes whether a stranger can `npm install` it and trust it. And
+nothing here may break the profiler as this very site uses it: Unfolded
+is the package's first consumer and its regression suite, so §2.1 binds
+every section below.
 
 §14 is the traceability table: one row per review finding, pointing at the
 section that closes it. A finding with no row is a bug in this spec.
@@ -35,6 +39,65 @@ Compatibility rule for the release: 0.1.1 call sites keep working
 unchanged. `attachProfiler()` and `maybeAttachProfiler()` with no
 arguments behave as today. The one intentional break is the report
 format version (§7.6), because the byte semantics change.
+
+### 2.1 Co-evolution contract with Unfolded
+
+The package grows toward its own repository, but until that day it is a
+workspace of this one, and the site is wired to the package *source*,
+not the npm build: `vite.config.ts` aliases `@/profiler` to
+`packages/webmcp-profiler/src`, and `tsconfig.app.json` typechecks that
+directory as part of the app. That wiring is deliberate and stays: it
+means every edit to the profiler is compiled, linted, unit-tested, and
+driven end to end by Unfolded before it can be published. The contract
+that keeps it true:
+
+1. **Same pull request.** A change under `packages/webmcp-profiler/**`
+   ships with every app-side change it requires, in one PR. No PR may
+   leave the site on an older shape of the package "to be caught up
+   later".
+2. **Whole-repo gate, never the package alone.** Each such PR runs the
+   root `npm run lint && npm test && npm run build && npm run e2e`. The
+   package's own `vitest` is a subset of the root run, not a substitute
+   for it. The e2e profiler check in `e2e/run.mjs` (`?perf=1` → spans,
+   payload accounting, registered-tool count, report format) is the
+   live regression test and grows with every section that adds a field.
+3. **The app's surface is frozen for 0.2.** These must keep working on
+   tryunfolded.com with no change to the app's boot line or links:
+   `?perf=1`, `?perf=overlay`, `?perf=0`; the `webmcp-perf:mode`
+   storage key; the `__webmcpPerf` global; `maybeAttachProfiler()` with
+   no arguments in `src/main.tsx`. Every default in §4.3 and §5 exists
+   to satisfy this line.
+4. **Public entry points only.** The app imports the package through
+   `@/profiler/attach` and `@/profiler/index` and nothing deeper.
+   Today `src/pages/agentManifest.ts` imports `REPORT_FORMAT` from
+   `@/profiler/collector`, which §12's move to `src/core/` would break;
+   §4.1 re-exports the constant from the root, and that import switches
+   in the same PR as the move. A lint-style test (§11.10) enforces the
+   rule from then on, and it is also the first precondition for
+   spinning the package out: an app that only touches public entries
+   can swap the alias for the npm package with a one-line change.
+5. **The agent manifest is part of the API.** `src/pages/agentManifest.ts`
+   tells agents the console methods, span fields, ledger fields, and
+   activation flags. Any section that adds or renames one (§4.2, §5,
+   §7.3, §7.4, §7.5, §7.7) updates the manifest in the same PR, and a
+   test (§11.11) checks the manifest's span field list against a real
+   recorded span.
+6. **The app-side inventory** that every profiler PR must review:
+   `src/main.tsx` (boot gate), `src/pages/agentManifest.ts` (manifest,
+   `PERF_STORAGE_KEY`, `REPORT_FORMAT`), `src/pages/WebMCPPage.tsx`
+   (console API mentions, npm links), `e2e/run.mjs` (profiler check),
+   `README.md` (profiler section, subject to the docs guard's word
+   ceiling), `docs/performance-report.md` (numbers and claims), and the
+   long-range `docs/webmcp-profiler-spec.md`.
+7. **Path to its own repository** (not part of 0.2, but 0.2 must not
+   make it harder): when the package leaves, the app switches
+   `@/profiler/*` to `webmcp-profiler` / `webmcp-profiler/attach`
+   (already linked in the lockfile as a workspace), the history goes
+   with `git subtree split -P packages/webmcp-profiler`, and the
+   publish workflow and `docs/webmcp-profiler-spec.md` move with it.
+   Nothing in this spec adds an app import of package internals, an
+   app dependency inside the package, or a build step that assumes the
+   repo root.
 
 ## 3. Packaging
 
@@ -391,10 +454,13 @@ is the span's identity.
 
 `REPORT_FORMAT = "webmcp-perf-report/2"`. Reasons: §7.1 changes the
 meaning of every byte field, §7.3 and §7.4 add fields, §7.5 adds ids.
-The README's report section lists the diff from `/1`. App-side:
-`e2e/run.mjs` compares against the constant imported from the package
-source instead of a string literal, and `src/pages/agentManifest.ts`
-already interpolates `REPORT_FORMAT`.
+The README's report section lists the diff from `/1`. App-side, in
+the same PR (§2.1): `e2e/run.mjs` updates its literal to
+`webmcp-perf-report/2` (it runs as plain Node against the built site and
+cannot import the TypeScript source), `src/pages/agentManifest.ts`
+already interpolates `REPORT_FORMAT` and switches its import to the root
+entry (§2.1 item 4), and `docs/performance-report.md` re-states any
+byte figure it quotes in UTF-8 terms.
 
 ### 7.7 Long-Task attribution and concurrency
 
@@ -552,15 +618,26 @@ environment with hand-stubbed globals. Additions:
    and every exported type.
 9. `ssr.test.ts`: §6.1.
 
+10. `src/mcp/profilerBoundary.test.ts` (app side, §2.1 item 4): every
+    `@/profiler/` import under `src/` and `e2e/` resolves to `attach` or
+    `index` and nothing deeper.
+11. `src/mcp/profilerManifest.test.ts` (app side, §2.1 item 5): records
+    one span through a `Collector` and asserts the manifest's
+    `span.fields` keys equal the span's keys, and that every
+    `consoleApi.methods` name exists on a `Profiler` instance.
+
 `e2e/run.mjs`'s profiler check additionally asserts `schemaBytes > 0`
-for every registered tool and `report.session.id` is 8 hex chars.
+for every registered tool and `report.session.id` is 8 hex chars. It
+stays the site-level regression test required by §2.1 item 2.
 
 ## 12. Build
 
 - Move `collector.ts` and `interceptor.ts` to `src/core/`, so Vite's
   directory-derived chunk name becomes `core-<hash>.js` instead of
   `src-<hash>.js`. The `@/profiler` alias in the app still resolves;
-  `src/main.tsx` imports `attach`, whose path is unchanged.
+  `src/main.tsx` imports `attach`, whose path is unchanged, and
+  `agentManifest.ts` moves its `REPORT_FORMAT` import to the root entry
+  in the same PR (§2.1 item 4).
 - Remove `rollupOptions.output.inlineDynamicImports` from
   `vite.iife.config.ts`; Vite 8 already inlines for a single-entry IIFE
   and warns that the option is ignored.
@@ -573,17 +650,25 @@ warnings; `dist/` contains `core-*.js`, no `src-*.js`.
 ## 13. Release plan — one version, ordered PRs
 
 All of the above lands in `webmcp-profiler@0.2.0`. Suggested PR order,
-each independently green:
+each independently green under the whole-repo gate of §2.1, each
+carrying its own app-side changes:
 
 1. Packaging and build (§3, §12) plus the package and hygiene tests
-   (§11.6, §11.7, §4.5). No behaviour change.
+   (§11.6, §11.7, §4.5). App side: `agentManifest.ts` import moves to
+   the root entry; the boundary test (§11.10) lands.
 2. API and safety (§4, §5, §6) with their tests. Additive; defaults
-   preserve 0.1.1 behaviour.
-3. Measurement (§7) and registry (§8), report format `/2`, app-side
-   `e2e/run.mjs` update, `CHANGELOG` entry.
-4. Overlay and relay (§9) with the DOM tests.
-5. Docs (§10), then the version bump to 0.2.0 in `package.json`, which
-   is what triggers the publish workflow.
+   preserve 0.1.1 behaviour. App side: the manifest's `consoleApi`
+   gains `onSpan`, `ledger`, `active`, `sessionId`; the manifest test
+   (§11.11) lands; `WebMCPPage.tsx` console-API copy checked.
+3. Measurement (§7) and registry (§8), report format `/2`, `CHANGELOG`
+   entry. App side: `e2e/run.mjs` literal and new assertions, the
+   manifest's `span.fields` and `ledger` text, `performance-report.md`
+   byte figures.
+4. Overlay and relay (§9) with the DOM tests. App side: none expected;
+   `?perf=overlay` verified by hand on the preview build.
+5. Docs (§10) including the root README's profiler section, then the
+   version bump to 0.2.0 in `package.json`, which is what triggers the
+   publish workflow.
 
 Validation before the bump: root `npm run lint && npm test && npm run
 build && npm run e2e` green; `npm pack --dry-run` shows `LICENSE`,
@@ -618,6 +703,10 @@ tarball (import, `/attach`, script tag) and produce a report with
 | 20 | No DOM-side tests (gate, overlay, report shape, Long Tasks) | §11 |
 | 21 | Vite 8 warning; `src-<hash>` chunk name; no CHANGELOG; no `engines` | §12, §3.4, §3.3 |
 | 22 | `table()` prints unrounded floats | §4.4 |
+
+Requirements beyond the review: the co-evolution contract (§2.1) and
+its two app-side tests (§11.10, §11.11), which exist so that no row above
+can be closed by breaking the site that hosts the package.
 
 Additions beyond the review, flagged where they appear: `pollMs` and the
 stop-polling rule (§4.3), null gaps for overlapping calls (§7.7),
