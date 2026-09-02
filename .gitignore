@@ -26,3 +26,8 @@ dist-ssr
 
 # wrangler dev scratch
 .wrangler
+
+# environment files: VITE_ values are public by construction, but only the
+# committed example (also the build's default) belongs in the repo
+.env*
+!.env.example

@@ -27,7 +27,7 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
   {
     prompt: "What am I designing right now?",
     tool: "describe_project",
-    mustMention: ["call this first", "shareurl", "capacityml"],
+    mustMention: ["call this first", "designurl", "capacityml"],
   },
   {
     prompt: "Make it hold about 350 ml.",
@@ -89,14 +89,22 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
     tool: "get_template_summary",
     mustMention: ["pages"],
   },
+  {
+    prompt: "Send me the link.",
+    tool: "create_live_handoff",
+    mustMention: ["default link tool", "verbatim", "address-bar", "works once"],
+  },
 ]
 
 /**
- * Room above the post-trim size (~9,000 chars ≈ 2,250 tokens), tight
- * enough that metadata can't quietly balloon back toward the 11,360-char
- * baseline. Raising this number is a deliberate decision, not a fix.
+ * Room above the current size, tight enough that metadata can't quietly
+ * balloon. Raising this number is a deliberate decision, not a fix. History:
+ * the 9.1 trim cut 11,360 → 9,128 chars under a 9,800 budget; the fourteenth
+ * tool (create_live_handoff, with the one-sentence link rule on every
+ * editing tool — docs/live-handoff-link-spec.md) then raised it, on
+ * purpose, to the figure below — still under the pre-trim baseline.
  */
-const METADATA_BUDGET_CHARS = 9_800
+const METADATA_BUDGET_CHARS = 11_000
 
 describe("prompt suite — tool selection signals survive metadata trims", () => {
   const tools = buildTools()
@@ -115,6 +123,13 @@ describe("prompt suite — tool selection signals survive metadata trims", () =>
     })
   }
 
+  it("every tool that creates, edits, or opens a design carries the link rule", () => {
+    const linkTools = ["open_model", "update_form", "set_clay", "set_capacity", "set_units", "apply_preset", "undo_last_change"]
+    for (const name of linkTools) {
+      expect(byName.get(name)!.description, `${name} must route links to create_live_handoff`).toContain("create_live_handoff")
+    }
+  })
+
   it("update_form defers target volumes to set_capacity", () => {
     // the single most valuable routing sentence: without it agents
     // guess-loop update_form toward a volume the solver answers exactly
@@ -124,7 +139,7 @@ describe("prompt suite — tool selection signals survive metadata trims", () =>
   it("every mutating tool promises the full new state", () => {
     const readOnly = new Set(["describe_project", "get_template_summary", "get_preview_image"])
     for (const tool of buildTools()) {
-      if (readOnly.has(tool.name) || tool.name === "export_templates") continue
+      if (readOnly.has(tool.name) || tool.name === "export_templates" || tool.name === "create_live_handoff") continue
       expect(
         /full (new )?state/i.test(tool.description),
         `${tool.name} must promise the full state`

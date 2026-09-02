@@ -274,13 +274,13 @@ export function PairDialog({
           {agentStatus === "chatgpt" ? (
             <p className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-xs leading-relaxed">
               You're viewing through ChatGPT. The easiest way to pair: <strong>ask your
-              agent for its latest link</strong> — every link it hands you is a live
+              agent for a live link</strong> — its default link is a single-use live
               invitation, and tapping it keeps this very tab in sync. The QR below works
               for any <em>other</em> device.
             </p>
           ) : agentStatus === "native" ? (
             <p className="bg-muted text-muted-foreground rounded-lg px-3 py-2 text-xs leading-relaxed">
-              An agent is connected to this tab — the links it shares already carry a live
+              An agent is connected to this tab — its default link is a fresh live
               invitation, so you can also just ask it to <em>&ldquo;send me the latest
               link&rdquo;</em> for any other screen.
             </p>

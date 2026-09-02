@@ -10,7 +10,6 @@ import {
 import { countPages, layoutPieces, PAGE_OVERLAP_MM, type PaperSize } from "@/lib/export/svg"
 import { shareUrl } from "@/lib/model/shareLink"
 import type { Unit } from "@/lib/units"
-import { takeJoinToken } from "./agentContinuity"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -18,6 +17,10 @@ import { useProjectStore } from "@/store/useProjectStore"
  * structured snapshots the WebMCP tools return — so they live with the MCP
  * layer, not in the store. All lengths in the numeric fields stay
  * millimeters; only the human-readable strings follow the display unit.
+ *
+ * Pure: a snapshot never mints, prefetches, or spends a live-session
+ * token. The permanent designUrl is the only link here; live handoff
+ * links come from create_live_handoff alone (see liveHandoff.ts).
  */
 
 /** Structured snapshot returned by read tools and after every mutation. */
@@ -27,8 +30,11 @@ export function describeState(): {
   paperSize: PaperSize
   /** the potter's preferred display unit; all numeric fields stay in mm */
   units: Unit
-  /** deep link that reopens exactly this design — share it with the potter */
-  shareUrl: string
+  /** permanent permalink: reopens an independent copy — never a live session */
+  designUrl: string
+  linkMode: "independent-copy"
+  /** the tool that mints a live continuation link, on demand */
+  liveHandoffTool: "create_live_handoff"
   /** approximate fired interior volume in milliliters */
   capacityMl: number
   pieces: string[]
@@ -44,16 +50,9 @@ export function describeState(): {
     clay,
     paperSize,
     units: unit,
-    // agent snapshots tag the link (?via=chatgpt) so an opening tab knows
-    // it came through the agent's session — and carry a single-use join
-    // token, so tapping it makes the visible tab a LIVE follower of this
-    // (possibly hidden) one. Null token = plain link; the next result
-    // carries a fresh one.
-    shareUrl: shareUrl(form, clay, paperSize, {
-      unit,
-      viaChatGpt: useProjectStore.getState().agentStatus === "native",
-      joinToken: takeJoinToken() ?? undefined,
-    }),
+    designUrl: shareUrl(form, clay, paperSize, { unit }),
+    linkMode: "independent-copy",
+    liveHandoffTool: "create_live_handoff",
     capacityMl: capacityMl(form, clay),
     pieces: pieces.map((p) => describePiece(p, scale, unit)),
     printedPages: pages.totalPages,

@@ -61,7 +61,8 @@ export function buildAgentManifest(): Record<string, unknown> {
         "faceted walls are flat panels cut to the outer face; the corner miter absorbs thickness",
         "straight forms mirror topDiameterMm = bottomDiameterMm; turning taper on without an explicit top flares it to min(300, round(bottom * 1.4))",
         "interior capacity is linear in heightMm at fixed diameters — set_capacity solves it exactly, never iterate",
-        "every mutating tool returns the full new state (form, clay, paperSize, units, capacityMl, pieces, printedPages, warnings, shareUrl)",
+        "every mutating tool returns the full new state (form, clay, paperSize, units, capacityMl, pieces, printedPages, warnings, designUrl) — snapshots are pure and never spend a live token",
+        "designUrl is a permanent permalink (independent copy, no session); liveHandoffUrl exists only as create_live_handoff output and is the default link to hand the potter after any edit",
         "invalid input returns isError text with per-field issues AND the unchanged state",
       ],
       formulas: {
@@ -99,7 +100,7 @@ export function buildAgentManifest(): Record<string, unknown> {
         wall: { mapsTo: "clay.wallThicknessMm", range: [2, 15], unit: "mm" },
         paper: { accepts: ["A4", "A3", "Letter"] },
         units: { accepts: ["cm", "in", "inch", "inches", "metric"] },
-        via: { emitOnly: "chatgpt", meaning: "agent-minted link — the opening tab shows 'Connected via ChatGPT'" },
+        via: { emitOnly: "chatgpt", meaning: "set only on liveHandoffUrl — the opening tab shows 'Opened from ChatGPT' (provenance; pairing is confirmed separately by the sync dot)" },
       },
     },
     liveSync: {
@@ -115,7 +116,7 @@ export function buildAgentManifest(): Record<string, unknown> {
         miss: "unknown, expired, and already-used codes are indistinguishable by design",
       },
       joinToken: {
-        what: "the URL-borne sibling of a code: while an agent drives this tab, every shareUrl in your tool results carries ?join=<single-use token> — the tab that opens it silently follows YOUR session (both ways) and strips the parameter. Hand your latest shareUrl to the potter and their visible browser stays live with you.",
+        what: "the URL-borne sibling of a code, minted on demand by create_live_handoff: liveHandoffUrl carries ?join=<single-use token> — the tab that opens it silently follows YOUR session (both ways) and strips the parameter. Call the tool right before replying with a link and return liveHandoffUrl verbatim; a failed mint yields no link (retry once, then start_pairing).",
         regex: "^[A-Za-z0-9_-]{20,64}$",
         ttlMs: TOKEN_TTL_MS,
         singleUse: true,

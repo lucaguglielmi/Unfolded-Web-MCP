@@ -16,13 +16,14 @@ user's side, one scenario at a time.
   peer in about a second, both directions, and lands as a normal undo
   step. No device is special once it has joined.
 - **Two ways into the room:**
-  - **Join token** — while an agent drives a tab, every `shareUrl` in its
-    tool results carries `?join=<token>`: single-use, expires in
-    10 minutes, dead after its first open. The tab that opens it silently
+  - **Join token** — minted on demand by the agent's `create_live_handoff`
+    tool (its default link after any edit) or by the Continue dialog: the
+    `liveHandoffUrl` carries `?join=<token>`, single-use, expires in
+    15 minutes, dead after its first open. The tab that opens it silently
     joins the agent's session and strips the parameter from the address
-    bar.
+    bar. The permanent `designUrl` in every tool result never carries one.
   - **Pairing code** — 6 characters, read-aloud friendly (no I/L/O/0/1),
-    single-use, expires in 5 minutes. Humans mint one from the **Continue
+    single-use, expires in 15 minutes. Humans mint one from the **Continue
     on another screen** dialog (behind the header's connection button — the
     two status dots); agents mint one
     with `start_pairing` or enter one with `join_session`.
@@ -65,11 +66,13 @@ never watch.
 
 1. You ask the agent to design something ("make me a 400 ml tapered
    mug"). Its hidden tab connects over WebMCP and calls the tools.
-2. The moment a real agent is driving the tab, the tab quietly opens a
-   live session and prefetches a join token. From then on, **every link
-   the agent hands back into the chat carries `?join=`** — no one has to
-   ask for it.
-3. Tap the agent's **latest** link in the chat. ChatGPT opens its visible
+2. When the agent hands you a link it calls `create_live_handoff` first:
+   the tab opens a live session and mints a single-use join token on the
+   spot, and the agent returns that `liveHandoffUrl` verbatim — its
+   **default link after any edit**. (Its state snapshots carry only a
+   permanent `designUrl`; you get that one only if you ask for a
+   bookmarkable copy.)
+3. Tap the agent's **latest** live link in the chat. ChatGPT opens its visible
    in-app browser; the page claims the token, strips it from the address
    bar, and silently becomes a live peer of the hidden tab. The presence
    badge shows **2 devices**.
@@ -133,7 +136,7 @@ else:
    A new ChatGPT chat opens (the app itself, on phones) with a
    ready-made prompt already injected: it tells the agent to open
    tryunfolded.com in its built-in browser and join your session with a
-   fresh single-use code (valid 5 minutes). Just send it. The **Copy
+   fresh single-use code (valid 15 minutes). Just send it. The **Copy
    prompt** button beside it is the same text for pasting into any
    other assistant.
 2. Or by voice: **Continue on another screen** → **or use a code** →
@@ -193,11 +196,11 @@ dialog on desktop, scan with the phone camera, done.
 ## When something looks off
 
 - **The link opened the design but the badge shows nothing live** — the
-  token was already used or older than 10 minutes. Ask the agent for its
+  token was already used or older than 15 minutes. Ask the agent for its
   latest link (agent flows), or mint a fresh invite from the dialog
   (human flows). You still got the right parameters either way.
 - **The code is rejected** — codes are single-use and expire after
-  5 minutes; unknown, expired, and used codes are deliberately
+  15 minutes; unknown, expired, and used codes are deliberately
   indistinguishable. Mint a new one.
 - **You adopted the wrong side's design** — it landed as one undo step.
   Undo, then redo the pairing minting from the side you want to keep.

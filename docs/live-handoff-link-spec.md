@@ -1,9 +1,9 @@
 # Reliable ChatGPT Live Handoff Links
 
-Status: Proposed  
-Scope: Specification only; no implementation in this commit  
+Status: Implemented (2026-09-02) — see §15 "Implementation notes"  
+Scope: Normative for link selection and the create_live_handoff contract  
 Repository: Unfolded WebMCP  
-Date: 2026-09-01
+Date: 2026-09-01 (spec), 2026-09-02 (implementation)
 
 ## 1. Summary
 
@@ -40,7 +40,7 @@ The live-sync backend and join-token claim path worked correctly. The failure wa
 - Never silently substitute a permanent design link when live handoff creation fails.
 - Keep permanent links safe, durable, repeatable, and independent of a live session.
 - Keep join tokens out of the address bar after they are claimed.
-- Preserve the existing security model: single-use capability, ten-minute TTL, no session ID in URLs.
+- Preserve the existing security model: single-use capability, fifteen-minute TTL, no session ID in URLs.
 - Provide deterministic tests for the complete agent-to-human-to-agent round trip.
 - Make product copy and technical documentation accurately describe the two URL types.
 
@@ -352,7 +352,7 @@ Avoid hardcoded test counts because they become stale. Use commands and suite na
 | "Every link the agent hands you is live" | Overbroad and not enforceable for arbitrary links | Newly created conversational result links default to liveHandoffUrl; permanent links require explicit intent |
 | "Connected via ChatGPT" means paired | via=chatgpt proves provenance, not successful live sync | Label it "Opened from ChatGPT"; show pairing only from confirmed live-sync state |
 | "Human and agent share one live session" for direct WebMCP | Confuses same-tab state with cross-device pairing | Say they edit the same in-tab store; live session means confirmed cross-device sync |
-| "No URL ever carries a live capability" | False for temporary handoff URLs | No URL carries a session ID or durable access; live handoff URLs carry a ten-minute single-use token |
+| "No URL ever carries a live capability" | False for temporary handoff URLs | No URL carries a session ID or durable access; live handoff URLs carry a fifteen-minute single-use token |
 | "Design parameters are the only thing that leaves the device" | Omits coarse presence and session protocol metadata | The synced payload is the design slice plus minimal session/version/presence metadata |
 | "set_capacity iterates until it matches" | Incorrect; it uses a closed-form solution | set_capacity solves height directly and clamps only at build limits |
 | "share link" without a qualifier | Ambiguous | Say design permalink or live handoff link every time |
@@ -390,7 +390,7 @@ Update it to:
 - Show design permalink versus live handoff link in a two-row table.
 - Distinguish agent connection, ChatGPT provenance, and confirmed device pairing.
 - Show the six-character code only as the fallback or reverse-direction flow.
-- State the ten-minute link TTL and five-minute code TTL once.
+- State the fifteen-minute link TTL and fifteen-minute code TTL once.
 - Link to the live-handoff and live-sync specs instead of reproducing protocol details.
 - Remove any old shareUrl terminology.
 
@@ -414,7 +414,7 @@ Required corrections:
 - Change the title and status to the implemented version.
 - Remove statements that agent URLs are always inert.
 - Replace "no URL is ever a live capability" with the temporary-versus-durable distinction.
-- Describe ten-minute single-use URL tokens and five-minute codes separately.
+- Describe fifteen-minute single-use URL tokens and fifteen-minute codes separately.
 - State that join is stripped from the address bar after it is read.
 - Name create_live_handoff as the agent's outbound handoff path.
 - Keep design permalink and printed QR behaviour explicitly token-free.

@@ -31,12 +31,34 @@ const RECONNECT_MIN_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 /**
  * A session that has NEVER seen a second device forgets itself after this
- * long connected alone — comfortably past a pairing code's 5-minute TTL.
+ * long connected alone — comfortably past a pairing code's 15-minute TTL.
  * Minting a code creates the session eagerly (so the code outlives the
  * minting tab), but an expired, never-claimed code must not leave the tab
  * claiming "paired" forever.
  */
-const SOLO_GRACE_MS = 6 * 60_000
+const SOLO_GRACE_MS = 16 * 60_000
+/**
+ * A wake (focus/visibility/online) with a socket that is open ON PAPER
+ * probes it with a `hello`: the server answers with a full snapshot, so
+ * anything broadcast while the OS had the tab frozen is caught up. Silence
+ * for this long means the socket is a zombie — close it and reconnect.
+ */
+const WAKE_PROBE_MS = 4_000
+/**
+ * A socket younger than this that has not opened yet is simply still
+ * connecting — a wake leaves it alone. Phones fire focus, visibility, and
+ * online together on resume; dropping a fresh attempt on each would never
+ * let a slow handshake finish.
+ */
+const CONNECT_GRACE_MS = 4_000
+/**
+ * A timer that fires this much later than scheduled means the tab was
+ * suspended (phones freeze background tabs wholesale), not connected the
+ * whole time — its verdict can't be trusted until a resync says otherwise.
+ */
+const SUSPEND_SLACK_MS = 30_000
+/** post-suspension probation for the solo timer: room for the wake resync to report peers */
+const SOLO_PROBATION_MS = 15_000
 
 /** the synced design slice — exactly what persistence.ts persists */
 export interface DesignSlice {
@@ -104,6 +126,9 @@ export interface SyncClient {
   start(): void
   /** disconnect and go inert (the stored session, if any, is kept) */
   stop(): void
+  /** the tab is back (focus/visibility/online): converge now — reconnect
+      a lost socket, or probe a frozen one for a fresh snapshot */
+  wake(): void
   status(): SyncStatus
   /** peers currently in the session, as last reported by the server (self included) */
   peers(): number
@@ -174,6 +199,18 @@ export function createSyncClient({
 }: SyncClientDeps = {}): SyncClient {
   const clientId = randomId()
   let socket: SocketLike | null = null
+  /** the current socket has fired onopen (a CONNECTING socket never did) */
+  let socketOpen = false
+  /** when the current socket was created — a wake judges a CONNECTING one by its age */
+  let socketStartedAt = 0
+  let probeTimer: ReturnType<typeof setTimeout> | undefined
+  /**
+   * Patches sent but not yet echoed back by the server, by patchId. A
+   * frozen socket swallows sends silently, so a welcome after a wake
+   * re-applies these on top of the server state (local wins per-field,
+   * same rule as offline edits) and sends them again.
+   */
+  const unacked = new Map<string, SharePatches>()
   let status: SyncStatus = "off"
   let peers = 1
   let version = 0
@@ -185,6 +222,8 @@ export function createSyncClient({
   /** another device has been in this session at some point (persisted) */
   let everPeered = false
   let soloTimer: ReturnType<typeof setTimeout> | undefined
+  /** when the pending solo timer was due — a late firing betrays a suspended tab */
+  let soloDueAt = 0
   let reconnectDelay = RECONNECT_MIN_MS
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined
   let removeWakeListeners: (() => void) | undefined
@@ -270,13 +309,26 @@ export function createSyncClient({
         // the offline edit no longer applies — the server state stands
       }
     }
+    // sends the server never acknowledged (swallowed by a frozen socket)
+    // are local edits too: re-apply them, oldest first, and let the flush
+    // that follows every snapshot send them again as one fresh patch
+    for (const patches of unacked.values()) {
+      try {
+        store.getState().openModel(patches)
+      } catch {
+        // no longer applies — the server state stands
+      }
+    }
+    unacked.clear()
   }
 
   const flushLocalEdits = () => {
     if (!lastSynced || status !== "syncing") return
     const patches = diffDesign(lastSynced, slice())
     if (!patches) return
-    send({ kind: "patch", patchId: randomId(), baseVersion: version, patches })
+    const patchId = randomId()
+    send({ kind: "patch", patchId, baseVersion: version, patches })
+    unacked.set(patchId, patches)
     lastSynced = slice()
   }
 
@@ -289,6 +341,9 @@ export function createSyncClient({
     } catch {
       return
     }
+    // any frame proves the socket alive — a pending wake probe is answered
+    clearTimeout(probeTimer)
+    probeTimer = undefined
     switch (msg.kind) {
       case "welcome":
       case "resync": {
@@ -298,10 +353,7 @@ export function createSyncClient({
         if (!everPeered) {
           // connected alone with no history of a peer: give any minted code
           // its full lifetime, then quietly forget the session
-          clearTimeout(soloTimer)
-          soloTimer = setTimeout(() => {
-            if (!everPeered) unpair()
-          }, SOLO_GRACE_MS)
+          armSoloTimer(SOLO_GRACE_MS)
         }
         adoptServerState(msg.state, typeof msg.version === "number" ? msg.version : 0)
         // edits made while the snapshot was in flight still go out
@@ -313,6 +365,7 @@ export function createSyncClient({
           // own echo: nothing to apply, but the version bump is ours too —
           // without tracking it, the next peer patch would look like a gap
           if (typeof msg.version === "number") version = Math.max(version, msg.version)
+          if (typeof msg.patchId === "string") unacked.delete(msg.patchId)
           break
         }
         const newVersion = typeof msg.version === "number" ? msg.version : version + 1
@@ -384,8 +437,12 @@ export function createSyncClient({
       return
     }
     socket = s
+    socketOpen = false
+    socketStartedAt = Date.now()
     setStatus("connecting")
     s.onopen = () => {
+      if (socket !== s) return
+      socketOpen = true
       // state rides along for first-contact bootstrap: an eagerly created
       // session adopts the minting tab's design instead of a default mug
       send({
@@ -400,6 +457,9 @@ export function createSyncClient({
     s.onclose = () => {
       if (socket !== s) return
       socket = null
+      socketOpen = false
+      clearTimeout(probeTimer)
+      probeTimer = undefined
       setPeers(1)
       if (wantConnected) {
         // lost, not left: keep the baseline (offline edits diff against
@@ -421,13 +481,74 @@ export function createSyncClient({
     reconnectDelay = Math.min(RECONNECT_MAX_MS, reconnectDelay * 2)
   }
 
-  /** mobile Chrome freezes background sockets — every return to the tab
-      (focus, visibility, network back) is an immediate reconnect check */
+  /** discard the current socket without waiting for its close event
+      (which a frozen or half-open socket may never deliver) */
+  const dropSocket = () => {
+    const s = socket
+    socket = null
+    socketOpen = false
+    clearTimeout(probeTimer)
+    probeTimer = undefined
+    try {
+      s?.close()
+    } catch {
+      /* already gone */
+    }
+  }
+
+  /**
+   * Every return to the tab (focus, visibility, network back) is a
+   * convergence check. Phones freeze background tabs wholesale: the socket
+   * may have been torn down without a close event, or left half-open with
+   * every broadcast since the freeze lost. So:
+   *  - no socket → reconnect now, backoff reset;
+   *  - a socket that never opened → it is stuck: drop it and reconnect;
+   *  - an open socket → probe it with a `hello`; the server re-welcomes
+   *    with a full snapshot (the catch-up), and silence means it is dead.
+   */
   const wake = () => {
-    if (!wantConnected || socket) return
+    if (!wantConnected) return
     clearTimeout(reconnectTimer)
     reconnectDelay = RECONNECT_MIN_MS
-    connect()
+    if (!socket) {
+      connect()
+      return
+    }
+    if (!socketOpen) {
+      if (Date.now() - socketStartedAt < CONNECT_GRACE_MS) return // still connecting, fresh
+      dropSocket()
+      connect()
+      return
+    }
+    if (probeTimer) return // a probe is already in flight — one hello is enough
+    const s = socket
+    send({ kind: "hello", protocolVersion: SYNC_PROTOCOL_VERSION, clientId, actor: "human" })
+    probeTimer = setTimeout(() => {
+      if (socket !== s) return
+      dropSocket()
+      setStatus("connecting")
+      connect()
+    }, WAKE_PROBE_MS)
+  }
+
+  /**
+   * The solo grace, suspension-aware: a timer that fires far past its due
+   * time ran while the tab was frozen, so "still alone" is unproven — a
+   * peer may have joined (and even left) meanwhile, and the wake probe's
+   * welcome is about to report the truth. Give it a short probation
+   * instead of forgetting the session on a stale verdict.
+   */
+  const armSoloTimer = (ms: number) => {
+    clearTimeout(soloTimer)
+    soloDueAt = Date.now() + ms
+    soloTimer = setTimeout(() => {
+      if (everPeered) return
+      if (Date.now() - soloDueAt > SUSPEND_SLACK_MS) {
+        armSoloTimer(SOLO_PROBATION_MS)
+        return
+      }
+      unpair()
+    }, ms)
   }
 
   const start = () => {
@@ -464,6 +585,9 @@ export function createSyncClient({
     clearTimeout(sendTimer)
     clearTimeout(reconnectTimer)
     clearTimeout(soloTimer)
+    clearTimeout(probeTimer)
+    probeTimer = undefined
+    unacked.clear()
     unsubscribe?.()
     unsubscribe = undefined
     removeWakeListeners?.()
@@ -474,6 +598,7 @@ export function createSyncClient({
     pendingToken = null
     const s = socket
     socket = null
+    socketOpen = false
     setStatus("off")
     setPeers(1)
     lastSynced = null
@@ -584,6 +709,7 @@ export function createSyncClient({
   return {
     start,
     stop,
+    wake,
     status: () => status,
     peers: () => peers,
     everPeered: () => everPeered,

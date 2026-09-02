@@ -60,6 +60,19 @@ const openContinue = async (page) => {
 }
 
 const browser = await chromium.launch({ executablePath })
+/**
+ * The Worker allows 10 claims per IP per minute (worker/pairingCore.ts) and
+ * every context here shares one address. The suite spends most of that
+ * budget before the handoff scenario, so it waits the window out first —
+ * a rate-limited claim would read as "the link didn't pair", which is the
+ * one thing that scenario must prove.
+ */
+const suiteStartedAt = Date.now()
+const CLAIM_WINDOW_MS = 62_000
+const waitForClaimWindow = async () => {
+  const remaining = suiteStartedAt + CLAIM_WINDOW_MS - Date.now()
+  if (remaining > 0) await new Promise((r) => setTimeout(r, remaining))
+}
 try {
   const ctxA = await browser.newContext()
   const ctxB = await browser.newContext()
@@ -292,34 +305,75 @@ try {
   await ctxH.close()
   await ctxI.close()
 
-  // agent continuity: a tab driven by an agent hands out tokened shareUrls;
-  // tapping one makes the visible tab a live follower of the hidden one
+  // live handoff (docs/live-handoff-link-spec.md): a tab driven by an
+  // agent mints a single-use liveHandoffUrl ON DEMAND; state reads carry
+  // only the permanent designUrl. Opening the handoff link makes the
+  // visible tab a live follower of the hidden one — both ways.
+  await waitForClaimWindow()
   const ctxF = await browser.newContext()
   const f = await ctxF.newPage()
   await f.addInitScript(mcpHostInit)
   await f.goto(`${BASE}/?type=pentagon&height=90&bottom=110&name=Hidden%20browser`)
-  await f.waitForFunction(() => window.__mcpTools?.describe_project, null, { timeout: 15000 })
-  let agentUrl = ""
-  for (let i = 0; i < 30 && !agentUrl.includes("join="); i++) {
-    await new Promise((r) => setTimeout(r, 500))
-    agentUrl = await f.evaluate(async () => {
-      const r = await window.__mcpTools.describe_project.execute({})
-      const text = r.content.find((c) => c.type === "text")?.text ?? ""
-      return JSON.parse(text).shareUrl ?? ""
-    })
-  }
-  check("agent tab: shareUrl carries a join token", agentUrl.includes("join="), agentUrl.slice(0, 120))
+  await f.waitForFunction(() => window.__mcpTools?.create_live_handoff, null, { timeout: 15000 })
+  const described = await f.evaluate(async () => {
+    const r = await window.__mcpTools.describe_project.execute({})
+    return JSON.parse(r.content.find((c) => c.type === "text")?.text ?? "{}")
+  })
+  check(
+    "agent tab: describe_project carries a permanent designUrl and no token",
+    typeof described.designUrl === "string" &&
+      !described.designUrl.includes("join=") &&
+      described.shareUrl === undefined &&
+      described.liveHandoffTool === "create_live_handoff",
+    JSON.stringify({ designUrl: described.designUrl, shareUrl: described.shareUrl }).slice(0, 160)
+  )
+  const handoff = await f.evaluate(async () => {
+    const r = await window.__mcpTools.create_live_handoff.execute({})
+    const text = r.content.find((c) => c.type === "text")?.text ?? ""
+    return { isError: r.isError ?? false, ...(r.isError ? { text } : JSON.parse(text)) }
+  })
+  check(
+    "agent tab: create_live_handoff mints via=chatgpt + a single-use join token",
+    !handoff.isError &&
+      handoff.liveHandoffUrl?.includes("via=chatgpt") &&
+      handoff.liveHandoffUrl?.includes("join=") &&
+      handoff.designUrl && !handoff.designUrl.includes("join=") &&
+      handoff.singleUse === true,
+    JSON.stringify(handoff).slice(0, 200)
+  )
+  const agentUrl = handoff.liveHandoffUrl ?? ""
   const ctxG = await browser.newContext()
   const g = await ctxG.newPage()
+  await g.addInitScript(mcpHostInit) // a host in the visible tab stands in for the human's UI edit below
   await g.goto(agentUrl)
   await g.waitForFunction(() => !window.location.search.includes("join="), null, { timeout: 10000 })
   await f.evaluate(() => window.__mcpTools.set_clay.execute({ shrinkagePct: 7 }))
   await g.waitForFunction(() => window.location.search.includes("shrinkage=7"), null, { timeout: 15000 })
   check("agent tab: the visible tab follows the hidden browser live", true)
-  // and the visible tab's edits reach the agent's next read
-  await g.evaluate(() => {
-    window.history.replaceState(null, "", window.location.pathname + window.location.search)
+  // and the visible tab's edits reach the agent's next read (hardening spec 6.4)
+  await g.waitForFunction(() => window.__mcpTools?.update_form, null, { timeout: 15000 })
+  await g.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 171 }))
+  await f.waitForFunction(() => window.location.search.includes("height=171"), null, { timeout: 15000 })
+  const agentRead = await f.evaluate(async () => {
+    const r = await window.__mcpTools.describe_project.execute({})
+    return JSON.parse(r.content.find((c) => c.type === "text")?.text ?? "{}").form?.heightMm
   })
+  check("agent tab: the visible tab's edit reaches the agent's next read", agentRead === 171, String(agentRead))
+  // a burned handoff link opens the snapshot but does not pair
+  const ctxJ = await browser.newContext()
+  const j = await ctxJ.newPage()
+  await j.goto(agentUrl)
+  await j.waitForFunction(() => !window.location.search.includes("join="), null, { timeout: 10000 })
+  await f.evaluate(() => window.__mcpTools.set_clay.execute({ wallThicknessMm: 9 }))
+  await g.waitForFunction(() => window.location.search.includes("wall=9"), null, { timeout: 15000 })
+  await new Promise((r) => setTimeout(r, 1200))
+  const burnedSearch = await j.evaluate(() => window.location.search)
+  check(
+    "burned handoff link: opens the design snapshot it encodes but no longer follows",
+    !burnedSearch.includes("wall=9") && burnedSearch.includes("name=Hidden"),
+    burnedSearch.slice(0, 120)
+  )
+  await ctxJ.close()
   await ctxF.close()
   await ctxG.close()
 } catch (e) {

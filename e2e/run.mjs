@@ -27,6 +27,7 @@ const EXPECTED_TOOLS = [
   "get_preview_image",
   "export_templates",
   "apply_preset",
+  "create_live_handoff",
   "join_session",
   "start_pairing",
   "undo_last_change",
@@ -172,12 +173,23 @@ try {
 
   const desc = stateFrom(await callTool(page, "describe_project"))
   check(
-    "describe_project carries capacity and a session-tagged share link",
+    "describe_project carries capacity and a permanent, token-free designUrl",
     desc.capacityMl > 0 &&
-      typeof desc.shareUrl === "string" &&
-      desc.shareUrl.includes("type=") &&
-      desc.shareUrl.includes("via=chatgpt"),
-    JSON.stringify({ capacityMl: desc.capacityMl, shareUrl: desc.shareUrl })
+      typeof desc.designUrl === "string" &&
+      desc.designUrl.includes("type=") &&
+      !desc.designUrl.includes("via=") &&
+      !desc.designUrl.includes("join=") &&
+      desc.shareUrl === undefined &&
+      desc.liveHandoffTool === "create_live_handoff",
+    JSON.stringify({ capacityMl: desc.capacityMl, designUrl: desc.designUrl })
+  )
+  // no /api in this static harness: the live link must fail CLOSED — an
+  // error and no URL of any kind, never a permanent link in its place
+  const handoff = await callTool(page, "create_live_handoff")
+  check(
+    "create_live_handoff without a pairing service returns an error and no link",
+    handoff.isError === true && !/https?:\/\//.test(handoff.text) && !handoff.text.includes("?type="),
+    handoff.text.slice(0, 120)
   )
 
   // ------------------------------------------------------------ set_capacity
@@ -194,12 +206,12 @@ try {
   check(
     "set_units switches every human-facing measurement to inches",
     inches.units === "in" &&
-      inches.shareUrl.includes("units=in") &&
+      inches.designUrl.includes("units=in") &&
       inches.pieces.every((p) => p.includes(" in")),
     JSON.stringify({ units: inches.units, piece: inches.pieces[0] })
   )
   const metric = stateFrom(await callTool(page, "set_units", { units: "cm" }))
-  check("set_units switches back to centimeters", metric.units === "cm" && metric.shareUrl.includes("units=cm"))
+  check("set_units switches back to centimeters", metric.units === "cm" && metric.designUrl.includes("units=cm"))
   const unitToggles = await page
     .locator('[role="radiogroup"][aria-label="Measurement units"]')
     .count()
@@ -368,8 +380,8 @@ try {
     ping: !!document.querySelector('[data-connection-hub] .animate-ping'),
   }))
   check(
-    "an agent-minted link shows 'Connected via ChatGPT' (solid green, no pulse)",
-    viaPill.text === "Connected via ChatGPT" && !viaPill.ping,
+    "an agent-minted link shows 'Opened from ChatGPT' (solid green, no pulse)",
+    viaPill.text === "Opened from ChatGPT" && !viaPill.ping,
     JSON.stringify(viaPill)
   )
   await viaPage.close()
