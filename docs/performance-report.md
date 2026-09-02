@@ -65,6 +65,39 @@ costs an agent conversation actually pays are metadata (~2.3 K tokens
 once per conversation, now 560 tokens cheaper) and per-result payloads
 (minimal).
 
+### 1.1 · Bench at webmcp-profiler 0.2.0 (`npm run perf -- --overhead`)
+
+Sandbox Chromium, production bundle via `vite preview`, 40 runs per case
+(15 for the image), driven by the package's own bench through its fake
+host (`e2e/perf.cases.json`). The two right-hand columns are the
+profiler's own cost: the same cases run a second time with `?perf=1`
+unarmed, and the delta of p50 and p95 is printed. Every delta is within
+run-to-run noise, which is what one serialization per call buys
+(docs/webmcp-profiler-0.2-spec.md §7.2, §16.7).
+
+```
+tool                      runs   min     p50     p95     max     result-bytes  schema-bytes   Δp50 (profiler)   Δp95
+describe_project            40     0.1     0.5     1.3     2.5         1480          938       0.30ms          0.30ms
+get_template_summary        40     0.1     0.3     1.0     1.7         1486          453       0.10ms          0.10ms
+update_form                 40     2.7     3.9     6.5     9.4         1499         2114       0.20ms         -0.40ms
+update_form (type flip)     40     0.7     3.6     6.1     6.4         1607         2114      -0.10ms          0.90ms
+set_clay                    40     2.3     2.5     3.9     6.7         1627          862      -0.20ms         -0.20ms
+set_capacity                40     2.5     3.0     4.2     4.3         1699          765       0.10ms         -0.20ms
+set_units                   40     0.9     2.7     3.4     4.3         1649          722      -0.20ms         -1.90ms
+apply_preset                40     2.8     3.3     5.6     8.5         1527          615       0.20ms          0.40ms
+undo_last_change            40     2.9     3.7     5.9     6.1         1629          560       0.50ms          0.10ms
+open_model                  40     2.5     2.8     4.2     6.3         1515          898       0.00ms         -0.30ms
+get_preview_image           15     1.2     1.5     5.2     5.2         7378          462       0.20ms          0.60ms
+```
+
+The `schema-bytes` column is new in 0.2: the descriptor bytes the host
+ships for that tool in every conversation (UTF-8, from
+`ledger.tools[name].schemaBytes`). `update_form` carries the heaviest
+schema on the surface; the whole 15-tool surface is about 12 KB, the
+`get_perf_report` tool included while profiling is armed. Byte columns
+across this report are UTF-8 from 0.2 on (0.1 counted UTF-16 units;
+the difference is nil for these ASCII payloads).
+
 ## 2 · Boot and load
 
 | metric | desktop 1× | 4× CPU, 390 px |

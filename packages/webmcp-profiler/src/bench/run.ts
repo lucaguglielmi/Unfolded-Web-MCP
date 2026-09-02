@@ -6,7 +6,7 @@
  */
 
 import { FAKE_HOST_INIT_SCRIPT } from "webmcp-profiler/testing"
-import { generateInputs, type SchemaLike } from "./inputs"
+import { generateInputs, type SchemaLike } from "./inputs.js"
 
 /** A pinned case: exact inputs (or a generator index range) for one tool, under a display name. */
 export interface BenchCase {
@@ -85,9 +85,24 @@ async function loadPlaywright(): Promise<{ chromium: { launch: (o: Record<string
 interface Page {
   addInitScript(script: string): Promise<void>
   goto(url: string, options?: Record<string, unknown>): Promise<unknown>
-  waitForFunction(fn: string, arg?: unknown, options?: Record<string, unknown>): Promise<unknown>
-  evaluate<R>(fn: string | ((arg: never) => R), arg?: unknown): Promise<R>
+  waitForFunction(fn: string | ((arg: never) => unknown), arg?: unknown, options?: Record<string, unknown>): Promise<unknown>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  evaluate<R>(fn: (arg: any) => R | Promise<R>, arg?: unknown): Promise<R>
   close(): Promise<void>
+}
+
+/** What the fake host exposes on the page (see webmcp-profiler/testing). */
+interface PageGlobals {
+  __webmcpFakeHost: {
+    tools: Map<string, unknown>
+    descriptors(): Descriptor[]
+    call(name: string, input: unknown): Promise<unknown>
+  }
+  __webmcpPerf?: {
+    synthetic(flag: boolean): void
+    ledger(): { tools: Record<string, { schemaBytes: number }> }
+    report(): unknown
+  }
 }
 interface Browser {
   newPage(options?: Record<string, unknown>): Promise<Page>
@@ -102,9 +117,9 @@ interface Descriptor {
 
 async function drive(page: Page, tool: string, inputs: unknown[]): Promise<{ durations: number[]; bytes: number }> {
   return page.evaluate(
-    `(async ([toolName, inputList]) => {
-      const host = window.__webmcpFakeHost
-      const durations = []
+    async ([toolName, inputList]: [string, unknown[]]) => {
+      const host = (globalThis as unknown as PageGlobals).__webmcpFakeHost
+      const durations: number[] = []
       let bytes = 0
       for (const input of inputList) {
         const t0 = performance.now()
@@ -113,7 +128,7 @@ async function drive(page: Page, tool: string, inputs: unknown[]): Promise<{ dur
         bytes = JSON.stringify(res).length
       }
       return { durations, bytes }
-    })`,
+    },
     [tool, inputs]
   )
 }
@@ -124,16 +139,22 @@ async function openPage(browser: Browser, url: string, armed: boolean, opts: Ben
   const target = new URL(url)
   if (armed) target.searchParams.set(opts.param ?? "perf", "1")
   await page.goto(target.toString(), { waitUntil: "networkidle" })
-  await page.waitForFunction("() => window.__webmcpFakeHost && window.__webmcpFakeHost.tools.size > 0", undefined, {
-    timeout: opts.registrationTimeoutMs ?? 20_000,
-  })
-  // let a polling site finish its whole set
-  await page.waitForFunction(
-    "(prev) => new Promise((r) => setTimeout(() => r(window.__webmcpFakeHost.tools.size === prev), 1500))",
-    await page.evaluate("() => window.__webmcpFakeHost.tools.size")
-  )
-  const descriptors = await page.evaluate<Descriptor[]>(
-    "() => window.__webmcpFakeHost.descriptors().map((t) => ({ name: t.name, inputSchema: t.inputSchema, annotations: t.annotations }))"
+  await page.waitForFunction(() => {
+    const host = (globalThis as unknown as PageGlobals).__webmcpFakeHost
+    return !!host && host.tools.size > 0
+  }, undefined, { timeout: opts.registrationTimeoutMs ?? 20_000 })
+  // let a polling site finish its whole set: wait until the count is stable for 1.5 s
+  let count = -1
+  for (;;) {
+    const next = await page.evaluate(() => (globalThis as unknown as PageGlobals).__webmcpFakeHost.tools.size)
+    if (next === count) break
+    count = next
+    await new Promise((r) => setTimeout(r, 1500))
+  }
+  const descriptors = await page.evaluate(() =>
+    (globalThis as unknown as PageGlobals).__webmcpFakeHost
+      .descriptors()
+      .map((t) => ({ name: t.name, inputSchema: t.inputSchema, annotations: t.annotations }))
   )
   return { page, descriptors }
 }
@@ -172,15 +193,19 @@ export async function runBench(opts: BenchOptions): Promise<BenchResult> {
           : generateInputs(byName.get(c.tool)!.inputSchema, { runs: c.runs ?? runs, seed: opts.seed }),
       }))
 
-    await page.evaluate("() => window.__webmcpPerf && window.__webmcpPerf.synthetic(true)")
-    const boot = await page.evaluate<{ domContentLoaded: number; load: number }>(
-      "() => { const t = performance.getEntriesByType('navigation')[0]; return { domContentLoaded: t.domContentLoadedEventEnd, load: t.loadEventEnd } }"
-    )
+    await page.evaluate(() => (globalThis as unknown as PageGlobals).__webmcpPerf?.synthetic(true))
+    const boot = await page.evaluate(() => {
+      const t = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming
+      return { domContentLoaded: t.domContentLoadedEventEnd, load: t.loadEventEnd }
+    })
     const rows: BenchRow[] = []
     for (const c of plan) {
       const { durations, bytes } = await drive(page, c.tool, c.inputs)
       const sorted = [...durations].sort((a, b) => a - b)
-      const schemaBytes = await page.evaluate<number>(`() => (window.__webmcpPerf ? window.__webmcpPerf.ledger().tools[${JSON.stringify(c.tool)}]?.schemaBytes ?? 0 : 0)`)
+      const schemaBytes = await page.evaluate(
+        (name: string) => (globalThis as unknown as PageGlobals).__webmcpPerf?.ledger().tools[name]?.schemaBytes ?? 0,
+        c.tool
+      )
       const row: BenchRow = {
         name: c.name,
         tool: c.tool,
@@ -203,7 +228,7 @@ export async function runBench(opts: BenchOptions): Promise<BenchResult> {
       rows.push(row)
       log(`${c.name}: p50 ${row.p50Ms.toFixed(1)}ms · p95 ${row.p95Ms.toFixed(1)}ms · ${bytes}B`)
     }
-    const report = await page.evaluate<unknown>("() => (window.__webmcpPerf ? window.__webmcpPerf.report() : null)")
+    const report = await page.evaluate(() => (globalThis as unknown as PageGlobals).__webmcpPerf?.report() ?? null)
     await page.close()
 
     if (opts.overhead) {
