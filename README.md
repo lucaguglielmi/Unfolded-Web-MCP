@@ -287,15 +287,17 @@ mid-surface development (`r − t/2`). See
 ## Built-in performance profiler
 
 The repo also ships [`webmcp-profiler`](./packages/webmcp-profiler) — a
-zero-dependency analyser for WebMCP tool surfaces, published to
-[npm](https://www.npmjs.com/package/webmcp-profiler) with provenance and
-usable by any WebMCP site. Open the live app with `?perf=overlay` and every
-tool call is measured: wall time, main-thread blocking, payload bytes and
-estimated tokens, and the host+model "think time" between calls. It answered
-this repo's own question — the tools run in single-digit milliseconds; the
-seconds an agent conversation takes live in the model loop — and its first
-finding (an oversized preview payload) is already fixed above. Design
-rationale: [`docs/webmcp-profiler-spec.md`](./docs/webmcp-profiler-spec.md).
+zero-dependency analyser for any WebMCP tool surface, on
+[npm](https://www.npmjs.com/package/webmcp-profiler) with provenance. Open
+the live app with `?perf=overlay` and every tool call is measured: wall
+time, main-thread blocking, payload bytes and estimated tokens, and the
+host+model "think time" between calls. Its first finding — the tools run in
+single-digit milliseconds; an oversized preview payload was the real cost —
+is fixed above. The package is a workspace here and the site imports its
+source, so profiler and app change in the same pull request until the
+package moves to its own repo. Design rationale:
+[`docs/webmcp-profiler-spec.md`](./docs/webmcp-profiler-spec.md); next
+release: [`docs/webmcp-profiler-0.2-spec.md`](./docs/webmcp-profiler-0.2-spec.md).
 
 ## Deploy
 
