@@ -650,3 +650,8 @@ link selection; this section only reconciles the wording above.
   times the exposure of a code that sits in a transcript, still centuries
   per hit inside the rate limits. The minting tab's solo grace moved to
   16 minutes with it. All numbers in this document were updated in place.
+  Considered and **declined** (owner's decision, 2026-09-02): carrying a
+  128-bit join token instead of a spoken code in the Open-in-ChatGPT
+  prompt, which would have let the spoken code stay short. One
+  invitation shape per surface stays: codes for the prompt and voice,
+  tokens for links.
