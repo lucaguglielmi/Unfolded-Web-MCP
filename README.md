@@ -104,7 +104,7 @@ To verify the repo from a clean checkout:
 npm ci
 npx playwright install chromium   # for the e2e suites
 npm run lint
-npm test          # 190 unit tests: geometry, schemas, sync client, profiler
+npm test          # 282 unit tests: geometry, schemas, sync client, profiler
 npm run build
 npm run e2e       # real Chromium against the production bundle + a simulated WebMCP host
 ```

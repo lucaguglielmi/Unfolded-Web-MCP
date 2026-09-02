@@ -39,7 +39,7 @@ connection.
 
 The metadata trim is the spec §9.1 pair, done in the safe order: the
 **standard prompt suite** landed first (`src/mcp/promptSuite.test.ts` —
-13 representative potter prompts mapped to the tool that should handle
+15 representative potter prompts mapped to the tool that should handle
 them, asserting the discriminating phrases survive in that tool's
 metadata), then descriptions were cut where they duplicated their own
 input schemas. The suite caught two over-trims during the work (the
