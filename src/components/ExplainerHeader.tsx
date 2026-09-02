@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils"
  * Shared top bar of the /why and /webmcp explainer pages: the logomark, a
  * pill nav that switches between the studio and the two pages (every link
  * carries the current design's parameters, so nothing is lost crossing
- * over), and the theme toggle. Same pill grammar as ReadingDepthToolbar.
+ * over), and the theme toggle. Same pill grammar as ReadingDepthToolbar,
+ * minus the outline: the active item's filled pill is the only chrome.
  */
 export function ExplainerHeader({ current }: { current: "why" | "webmcp" }) {
   const studioHref = useStudioHref()
@@ -27,7 +28,7 @@ export function ExplainerHeader({ current }: { current: "why" | "webmcp" }) {
         <span className="text-base font-semibold tracking-tight">unfolded</span>
       </a>
       <div className="flex items-center gap-1.5">
-        <nav aria-label="Site" className="flex items-center rounded-full border border-border p-0.5">
+        <nav aria-label="Site" className="flex items-center rounded-full p-0.5">
           {items.map((item) => (
             <a
               key={item.key}

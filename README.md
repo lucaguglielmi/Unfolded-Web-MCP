@@ -63,7 +63,9 @@ committed e2e suite):
 - **Fourteen tools with real contracts** — zod-validated inputs exported as JSON
   Schema, current-draft descriptors (top-level titles, `readOnlyHint` where
   truthful, host cancellation signals honored), and graceful `isError` results
-  that include the unchanged state.
+  that include the unchanged state, plus a parseable `structuredContent`
+  half (`tool-result/1`, [contract](./docs/performance-report.md)):
+  `{ ok, message, state, … }`.
 - **Every mutation returns the full new state**, so the agent never needs a
   follow-up read. Snapshots are pure and carry a permanent `designUrl`; the
   *return channel* is a separate, explicit tool — `create_live_handoff` mints

@@ -93,7 +93,7 @@ function OneMinute() {
 const NON_TRIVIAL: { title: string; body: string }[] = [
   {
     title: "Fourteen tools with real contracts",
-    body: "zod-validated inputs exported as JSON Schema, honest annotations (read-only / idempotent / destructive hints), and graceful error results that include the unchanged state.",
+    body: "zod-validated inputs exported as JSON Schema, honest annotations (read-only / idempotent / destructive hints), graceful error results that include the unchanged state, and a versioned structured half beside the text of every result — { ok, message, state } a host can parse instead of reading prose.",
   },
   {
     title: "Every mutation returns the full new state",
@@ -351,9 +351,9 @@ const AGENT_MECHANICS: [string, string][] = [
   ["Registration", "document.modelContext.registerTool preferred; navigator/window fallbacks; provideContext({tools}) for hosts without registerTool."],
   ["Late injection", "polling every 500 ms for 15 s, then a 3 s heartbeat forever (paused while the tab is hidden), plus focus/visibility re-checks. Any executed tool call flips the app to connected."],
   ["Units contract", "all tool inputs and outputs are millimeters and milliliters; set_units changes only what humans see (UI, warnings, printed PDF, its scale-check bar: 3 cm vs 1 in)."],
-  ["State returns", "every mutating tool returns the complete state snapshot: form, clay, paperSize, units, capacityMl, pieces (annotated), printedPages, warnings, designUrl — a permanent permalink, never a session."],
+  ["State returns", "every mutating tool returns the complete state snapshot: form, clay, paperSize, units, capacityMl, pieces (annotated), printedPages, warnings, designUrl — a permanent permalink, never a session. The same snapshot rides beside the text as structuredContent.state (contract tool-result/1), with ok mirroring !isError."],
   ["Live handoff", "the return channel is create_live_handoff: it mints liveHandoffUrl — the design parameters plus ?via=chatgpt and a single-use ?join= token — so the tab that opens it follows your session both ways. Fail-closed: no token, no link. The PDF's printed QR is deliberately untagged (paper outlives a chat)."],
-  ["Errors", "invalid input returns isError with per-field zod issues AND the unchanged state; out-of-range link values clamp instead of failing."],
+  ["Errors", "invalid input returns isError with per-field zod issues AND the unchanged state (structuredContent: { ok: false, message, state }); out-of-range link values clamp instead of failing."],
   ["Console access", "window.__unfoldedTools exposes every registered tool for manual driving, e.g. __unfoldedTools.set_capacity.execute({capacityMl: 350})."],
 ]
 
