@@ -60,14 +60,16 @@ The short list of what makes this more than tools bolted onto a page
 (everything below is in [`src/mcp/`](./src/mcp/) and covered by the
 committed e2e suite):
 
-- **Thirteen tools with real contracts** — zod-validated inputs exported as JSON
+- **Fourteen tools with real contracts** — zod-validated inputs exported as JSON
   Schema, current-draft descriptors (top-level titles, `readOnlyHint` where
   truthful, host cancellation signals honored), and graceful `isError` results
   that include the unchanged state.
 - **Every mutation returns the full new state**, so the agent never needs a
-  follow-up read — and every state snapshot carries `shareUrl`, which doubles
-  as the *return channel*: a page can't push text into a chat, but the agent
-  can always hand the potter a link that reopens the exact design.
+  follow-up read. Snapshots are pure and carry a permanent `designUrl`; the
+  *return channel* is a separate, explicit tool — `create_live_handoff` mints
+  a single-use `liveHandoffUrl` on demand and fails closed, so the potter's
+  own browser follows the agent's session, and a link that "opens the right
+  shape but doesn't pair" can no longer be handed out by mistake.
 - **A solver, not just setters** — `set_capacity` computes the exact height for
   a target volume in one call instead of letting the agent iterate.
 - **The agent sees what the potter sees** — `get_preview_image` returns the
@@ -95,7 +97,7 @@ committed e2e suite):
 ## Judge in 60 seconds
 
 The live app is **<https://tryunfolded.com>** — no account, no setup; open it
-in ChatGPT's built-in browser and the agent has all 13 tools immediately.
+in ChatGPT's built-in browser and the agent has all 14 tools immediately.
 To verify the repo from a clean checkout:
 
 ```bash
@@ -146,7 +148,7 @@ sync — and tells the truth about both. The agent states:
 | State | Dot | Meaning |
 |---|---|---|
 | **WebMCP active** | pulsing green | The API is available in *this* tab (`document`/`navigator`/`window.modelContext`) and tool registration succeeded — human and agent share one live session. |
-| **Connected via ChatGPT** | solid green | This tab has no direct WebMCP, but the design arrived through an agent-minted link (`?via=chatgpt` on tool-issued `shareUrl`s) — the explicit signal that it's open in the conversation's internal browser. Agent links also carry a single-use join token, so tapping the latest one makes this tab a live follower of the agent's session. |
+| **Opened from ChatGPT** | solid green | This tab has no direct WebMCP, but the design arrived through an agent-minted link (`?via=chatgpt`, set only on `liveHandoffUrl`s) — provenance, not pairing. A live handoff link also carries a single-use join token, so tapping it makes this tab a live follower of the agent's session; the second dot confirms that separately. |
 | **WebMCP** | grey | Neither could be confirmed — the button just names the capability; tapping it explains how to connect. |
 
 A ChatGPT connection is shown **only** on that explicit link signal — never inferred
@@ -186,25 +188,34 @@ Registered on `document.modelContext` per the current WebMCP draft (legacy
      the /webmcp page renders) — README can't import, so this table is manual -->
 | Tool | What it does |
 |---|---|
-| `describe_project` | Read the current design, clay, template pieces, capacity (ml), and its share link |
+| `describe_project` | Read the current design, clay, template pieces, capacity (ml), and its permanent design link |
 | `open_model` | Open a design from a share link the user pastes in chat, then keep editing it |
 | `update_form` | Change shape / taper / facets / height / diameters (fired mm) — any shape can be straight or tapered |
 | `set_clay` | Change shrinkage % and wall thickness |
-| `set_capacity` | Solve the height for a target interior volume ("make it 350 ml") |
 | `set_units` | Switch display units between cm and inches — UI, warnings, and the printed PDF |
+| `set_capacity` | Solve the height for a target interior volume ("make it 350 ml") |
 | `get_template_summary` | Template layout, per-piece dimensions, exact PDF page count |
 | `get_preview_image` | Compact JPEG snapshot of the live 3D preview (~7 KB, deliberately cheap to read) — the agent sees what the potter sees |
 | `export_templates` | Generate and download the multi-page PDF (A4 / A3 / Letter) |
 | `apply_preset` | Start from a preset (classic mug, tumbler, bud vase, hex planter) |
+| `create_live_handoff` | Mint the single-use live link that continues this design on the potter's own screen — the default link after any edit |
 | `join_session` | Pair this tab into a live cross-device session using the 6-character code from the potter's other device |
 | `start_pairing` | Mint a 6-character code so the potter's other device can join this design's live session |
 | `undo_last_change` | Revert the last change, whoever made it (up to 50 steps) |
 
 UI and agent tools share the same zustand store and zod schemas, so human and agent
 edits stay in sync in the same session. Every mutating tool returns the full new
-state — including `capacityMl` (ask for *"a 350 ml mug"* and the agent iterates until
-it matches) and `shareUrl` (the agent can always hand the current design's link back
-into the chat).
+state — including `capacityMl` (`set_capacity` solves the height for *"a 350 ml mug"*
+in closed form) and `designUrl`, a permanent permalink.
+
+**Two links, never confused.** `designUrl` reopens an independent copy: parameters
+only, bookmarkable, printable, months later — it is also the address bar and the
+printed QR. `liveHandoffUrl` comes only from `create_live_handoff`: the same
+parameters plus `?via=chatgpt` and a single-use join token, so the tab that opens it
+follows the agent's session both ways. The tool descriptions make the live link the
+default for every newly created result link ("send me the link", "show me", "open
+it"), to be returned verbatim — never the address bar; a permanent link is sent only
+on an explicit bookmark/print/archive ask, and a failed mint yields no link at all.
 
 Things to try in a WebMCP-capable browser:
 
@@ -219,10 +230,11 @@ A design doesn't live in one chair — and the other chair needs no WebMCP,
 just a browser. **Continue on another screen** (inside the header's connection button) shows
 a QR and a copyable link carrying a **single-use join token**: the device
 that opens it follows this design live, both ways, within about a second —
-whoever made the edit. In ChatGPT it's automatic: **every link the agent
-hands you is a live one** — tap it and the tab you're looking at stays
-current with the agent's hidden browser (and your edits there appear in the
-agent's next read). The spoken **6-character code** remains the fallback,
+whoever made the edit. In ChatGPT it's automatic: **the agent's default
+link after any edit is a live handoff** (`create_live_handoff`) — tap it and
+the tab you're looking at stays current with the agent's hidden browser (and
+your edits there appear in the agent's next read). Ask for a permanent link
+only when you want an independent copy. The spoken **6-character code** remains the fallback,
 collapsed behind "or use a code": read it aloud, or tell your agent *"join
 my desktop session, code K7F-3QP"* (`join_session`); the reverse direction
 is `start_pairing`. Phones freezing background tabs is expected: every

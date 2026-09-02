@@ -214,8 +214,8 @@ function FiveMinutes() {
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground/80">
               Heads up: tapping a link in the chat opens ChatGPT's <em>ordinary</em> in-app
               browser — a separate tab without WebMCP. When the agent minted that link, the
-              tab says &ldquo;Connected via ChatGPT&rdquo;; the agent itself keeps editing
-              in its own internal browser.
+              tab says &ldquo;Opened from ChatGPT&rdquo;; the agent itself keeps editing
+              in its own internal browser, and a live handoff link keeps the two in sync.
             </p>
           </div>
           <div className="rounded-2xl border border-border p-6">
@@ -276,12 +276,13 @@ function FiveMinutes() {
           <li className="flex items-start gap-3">
             <span className="mt-1 inline-flex size-2 shrink-0 rounded-full bg-emerald-500" />
             <p className="text-sm leading-relaxed text-foreground/75">
-              <span className="font-semibold text-foreground">Connected via ChatGPT</span> — this
+              <span className="font-semibold text-foreground">Opened from ChatGPT</span> — this
               tab has no direct WebMCP, but the design arrived through a link the agent minted
-              in your ChatGPT conversation. Those links carry a live invitation: tapping one
-              makes this tab follow the agent's session both ways, so your edits here show up
-              in its next read — the button's second dot turns green when it's live. If
-              this tab somehow isn't following, ask the agent for its latest link.
+              in your ChatGPT conversation. That is provenance, not pairing: the agent's
+              default link is a <em>live handoff</em> carrying a single-use invitation, and
+              tapping one makes this tab follow the agent's session both ways — the button's
+              second dot turns green only when that is confirmed. If it's grey, ask the agent
+              for a fresh live link.
             </p>
           </li>
           <li className="flex items-start gap-3">
@@ -316,9 +317,10 @@ function FiveMinutes() {
           browser. Open <strong>Continue on another screen</strong> (inside the connection
           button — the two dots in the header) and scan its QR, or copy its link: the device that opens it follows
           this design live, both ways, within about a second — whoever made the edit, you
-          or an agent. In ChatGPT it's even simpler: <em>every link your agent hands you is
-          a live one</em> — tap it, and the tab you're looking at stays current with the
-          agent's own browser from then on.
+          or an agent. In ChatGPT it's even simpler: the agent's default link after any
+          edit is a <em>live handoff</em> — tap it, and the tab you're looking at stays
+          current with the agent's own browser from then on. Ask for a permanent link only
+          when you want an independent copy to bookmark or print.
         </p>
         <ul className="mt-6 max-w-xl space-y-3 text-sm leading-relaxed text-foreground/75">
           <li>
@@ -453,7 +455,7 @@ function FiveMinutes() {
  * the etiquette — but the page shows only its first line: it's for pasting,
  * not reading.
  */
-const KICKSTART_PROMPT = `Open https://tryunfolded.com in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get ${TOOL_COUNT} typed tools: ${TOOL_SUMMARIES.map((t) => t.name).join(", ")}. Start by calling describe_project to see the current design. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it through the tools — all dimensions are FIRED sizes in millimeters; for a target volume use set_capacity, which solves the exact height in one call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and give me the shareUrl from your last tool result — it doubles as a live link: when I open it, my browser follows your session and my edits show up in your next read. If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
+const KICKSTART_PROMPT = `Open https://tryunfolded.com in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get ${TOOL_COUNT} typed tools: ${TOOL_SUMMARIES.map((t) => t.name).join(", ")}. Start by calling describe_project to see the current design. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it through the tools — all dimensions are FIRED sizes in millimeters; for a target volume use set_capacity, which solves the exact height in one call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and then call create_live_handoff and give me its liveHandoffUrl exactly as returned — it's a single-use live link: when I open it, my browser follows your session and my edits show up in your next read (never send me the address-bar URL instead). If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
 
 function HumanEasterEgg() {
   const [copied, setCopied] = useState(false)
@@ -521,23 +523,23 @@ function JsonBlock({ label, data }: { label?: string; data: unknown }) {
 }
 
 const AGENT_CONNECTION: [string, string][] = [
-  ["Registration", "current WebMCP draft: document.modelContext.registerTool, awaited, all-or-nothing under one AbortController — the connection reads active only after the last of the 13 tools resolves, and a replaced registry re-registers cleanly. Legacy hosts (navigator/window locations, provideContext, void returns) work via a compatibility layer. Registration is automatic — nothing for you to enable."],
+  ["Registration", "current WebMCP draft: document.modelContext.registerTool, awaited, all-or-nothing under one AbortController — the connection reads active only after the last tool resolves, and a replaced registry re-registers cleanly. Legacy hosts (navigator/window locations, provideContext, void returns) work via a compatibility layer. Registration is automatic — nothing for you to enable."],
   ["Late injection", "the app never stops watching: 500 ms polling for 15 s, then a 3 s heartbeat (paused while the tab is hidden), plus focus/visibility re-checks. Your execute() calls receive an options bag whose signal cancels cleanly — a cancelled mutation commits nothing. Executing any tool flips the app to connected."],
   ["Knowing you're in", "the header connection button's agent dot pulses green once your tools registered in this tab (its second dot is cross-device sync); the live status also renders at the top of this page. If it's grey, your host hasn't exposed WebMCP here."],
-  ["Link semantics", "shareUrl in your tool results carries ?via=chatgpt AND a single-use ?join= token: the tab that opens it silently follows YOUR session (both ways) and strips the token. Hand the potter your latest shareUrl and their visible browser stays live with you. Links parse forgivingly: legacy vocabulary normalizes, unknown keys are ignored, out-of-range values clamp."],
+  ["Two links, never confused", "designUrl (in every state snapshot) is a permanent permalink: parameters only, reopens an independent copy — for explicit bookmark/print/archive asks. liveHandoffUrl comes ONLY from create_live_handoff: the same parameters plus ?via=chatgpt and a single-use ?join= token; the tab that opens it silently follows YOUR session both ways and strips the token. It is the default link after any edit — call the tool right before you reply, return it verbatim, never the address bar. Links parse forgivingly: legacy vocabulary normalizes, unknown keys are ignored, out-of-range values clamp."],
   ["Units contract", "tool inputs and outputs are millimeters and milliliters, always. set_units only changes what the human sees (UI, warnings, printed PDF)."],
-  ["Full-state returns", "every mutation returns the complete snapshot — form, clay, paperSize, units, capacityMl, annotated pieces, printedPages, warnings, shareUrl — so you never need a read-after-write."],
+  ["Full-state returns", "every mutation returns the complete snapshot — form, clay, paperSize, units, capacityMl, annotated pieces, printedPages, warnings, designUrl — so you never need a read-after-write. Snapshots are pure: they never mint or spend a live token."],
   ["Manual driving", "window.__unfoldedTools exposes each registered tool: __unfoldedTools.set_capacity.execute({capacityMl: 350})."],
-  ["Live sessions", "your shareUrls invite the tap automatically; join_session (the potter reads you a code) and start_pairing (you mint one for them) cover the spoken path. Once any device joins, syncing is transparent — peers' edits simply appear in your next read, so re-read before assuming state."],
+  ["Live sessions", "create_live_handoff invites the tap; join_session (the potter reads you a code) and start_pairing (you mint one for them) cover the spoken path. Once any device joins, syncing is transparent — peers' edits simply appear in your next read, so re-read before assuming state."],
 ]
 
 const AGENT_PLAYBOOK: string[] = [
-  "Call describe_project first — one read gives you the whole design plus the share link to hand back.",
+  "Call describe_project first — one read gives you the whole design. Finish with create_live_handoff whenever you hand back a link: it is the potter's way to continue in their own browser.",
   "For a target volume use set_capacity, never an update_form guessing loop: volume is linear in height and the tool solves it exactly.",
   "After a visual change, get_preview_image shows you exactly what the potter sees — verify before you announce.",
   "Errors come back as isError text with per-field issues AND the unchanged state; recover by correcting the field, not by re-reading.",
   "The human is your peer: they may edit between your calls (you'll see it in your next result), and undo_last_change reverts either of you.",
-  "Pairing direction matters: the device that opens a link or enters a code ADOPTS this session's design. The potter wants to SEE your work elsewhere → just hand them your latest shareUrl (it already invites the tap), or start_pairing for a spoken code. The work lives on their other screen → ask for its code and join_session.",
+  "Pairing direction matters: the device that opens a link or enters a code ADOPTS this session's design. The potter wants to SEE your work elsewhere → create_live_handoff and hand them liveHandoffUrl verbatim, or start_pairing for a spoken code. The work lives on their other screen → ask for its code and join_session. If a live link fails to mint, send no link — retry once, then offer a code.",
 ]
 
 function ForAgents() {

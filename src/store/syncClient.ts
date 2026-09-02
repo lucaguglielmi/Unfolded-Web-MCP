@@ -45,6 +45,13 @@ const SOLO_GRACE_MS = 6 * 60_000
  */
 const WAKE_PROBE_MS = 4_000
 /**
+ * A socket younger than this that has not opened yet is simply still
+ * connecting — a wake leaves it alone. Phones fire focus, visibility, and
+ * online together on resume; dropping a fresh attempt on each would never
+ * let a slow handshake finish.
+ */
+const CONNECT_GRACE_MS = 4_000
+/**
  * A timer that fires this much later than scheduled means the tab was
  * suspended (phones freeze background tabs wholesale), not connected the
  * whole time — its verdict can't be trusted until a resync says otherwise.
@@ -194,6 +201,8 @@ export function createSyncClient({
   let socket: SocketLike | null = null
   /** the current socket has fired onopen (a CONNECTING socket never did) */
   let socketOpen = false
+  /** when the current socket was created — a wake judges a CONNECTING one by its age */
+  let socketStartedAt = 0
   let probeTimer: ReturnType<typeof setTimeout> | undefined
   /**
    * Patches sent but not yet echoed back by the server, by patchId. A
@@ -429,6 +438,7 @@ export function createSyncClient({
     }
     socket = s
     socketOpen = false
+    socketStartedAt = Date.now()
     setStatus("connecting")
     s.onopen = () => {
       if (socket !== s) return
@@ -505,13 +515,14 @@ export function createSyncClient({
       return
     }
     if (!socketOpen) {
+      if (Date.now() - socketStartedAt < CONNECT_GRACE_MS) return // still connecting, fresh
       dropSocket()
       connect()
       return
     }
+    if (probeTimer) return // a probe is already in flight — one hello is enough
     const s = socket
     send({ kind: "hello", protocolVersion: SYNC_PROTOCOL_VERSION, clientId, actor: "human" })
-    clearTimeout(probeTimer)
     probeTimer = setTimeout(() => {
       if (socket !== s) return
       dropSocket()

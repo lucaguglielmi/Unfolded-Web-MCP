@@ -522,13 +522,29 @@ describe("wake()", () => {
     fresh.stop()
   })
 
-  it("drops a socket that never opened and reconnects at once", () => {
+  it("drops a socket that never opened and reconnects at once — unless it is still fresh", () => {
     const { fresh, sockets } = freshWithSockets()
     fresh.start() // CONNECTING when the tab was frozen — it may hang forever
+    fresh.wake() // resume fires focus/visibility/online together: a young attempt is left alone
+    expect(sockets[0].closed).toBe(false)
+    expect(sockets).toHaveLength(1)
+    vi.advanceTimersByTime(5_000)
     fresh.wake()
     expect(sockets[0].closed).toBe(true)
     expect(sockets).toHaveLength(2)
     expect(fresh.status()).toBe("connecting")
+    fresh.stop()
+  })
+
+  it("sends one probe per wake burst", () => {
+    const { fresh, sockets } = freshWithSockets()
+    fresh.start()
+    sockets[0].open()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+    fresh.wake()
+    fresh.wake()
+    fresh.wake()
+    expect(sockets[0].sentOfKind("hello")).toHaveLength(2) // the connect hello + one probe
     fresh.stop()
   })
 

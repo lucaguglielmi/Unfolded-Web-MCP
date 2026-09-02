@@ -42,7 +42,7 @@ const DIGEST: { title: string; body: string }[] = [
   },
   {
     title: "The AI part",
-    body: "WebMCP-native: an agent browsing with you gets thirteen typed tools and edits the same live design — \"make it hold 350 ml\" is one exact call, not a guessing loop.",
+    body: "WebMCP-native: an agent browsing with you gets fourteen typed tools and edits the same live design — \"make it hold 350 ml\" is one exact call, not a guessing loop.",
   },
   {
     title: "The output",
@@ -92,12 +92,12 @@ function OneMinute() {
 
 const NON_TRIVIAL: { title: string; body: string }[] = [
   {
-    title: "Thirteen tools with real contracts",
+    title: "Fourteen tools with real contracts",
     body: "zod-validated inputs exported as JSON Schema, honest annotations (read-only / idempotent / destructive hints), and graceful error results that include the unchanged state.",
   },
   {
     title: "Every mutation returns the full new state",
-    body: "so the agent never needs a follow-up read — and every snapshot carries a share link, which doubles as the return channel: a page can't push text into a chat, but the agent can always hand the potter a link that reopens the exact design.",
+    body: "so the agent never needs a follow-up read — and every snapshot carries a permanent design link. The return channel is a separate, explicit tool: a page can't push text into a chat, but create_live_handoff mints a single-use live link the agent hands the potter, so the potter's own browser follows the agent's session both ways.",
   },
   {
     title: "A solver, not just setters",
@@ -351,8 +351,8 @@ const AGENT_MECHANICS: [string, string][] = [
   ["Registration", "document.modelContext.registerTool preferred; navigator/window fallbacks; provideContext({tools}) for hosts without registerTool."],
   ["Late injection", "polling every 500 ms for 15 s, then a 3 s heartbeat forever (paused while the tab is hidden), plus focus/visibility re-checks. Any executed tool call flips the app to connected."],
   ["Units contract", "all tool inputs and outputs are millimeters and milliliters; set_units changes only what humans see (UI, warnings, printed PDF, its scale-check bar: 3 cm vs 1 in)."],
-  ["State returns", "every mutating tool returns the complete state snapshot: form, clay, paperSize, units, capacityMl, pieces (annotated), printedPages, warnings, shareUrl."],
-  ["shareUrl", "the return channel — and a live one: agent-minted links carry ?via=chatgpt plus a single-use ?join= token, so the tab that opens one follows your session both ways. The PDF's printed QR is deliberately untagged (paper outlives a chat)."],
+  ["State returns", "every mutating tool returns the complete state snapshot: form, clay, paperSize, units, capacityMl, pieces (annotated), printedPages, warnings, designUrl — a permanent permalink, never a session."],
+  ["Live handoff", "the return channel is create_live_handoff: it mints liveHandoffUrl — the design parameters plus ?via=chatgpt and a single-use ?join= token — so the tab that opens it follows your session both ways. Fail-closed: no token, no link. The PDF's printed QR is deliberately untagged (paper outlives a chat)."],
   ["Errors", "invalid input returns isError with per-field zod issues AND the unchanged state; out-of-range link values clamp instead of failing."],
   ["Console access", "window.__unfoldedTools exposes every registered tool for manual driving, e.g. __unfoldedTools.set_capacity.execute({capacityMl: 350})."],
 ]
@@ -363,7 +363,7 @@ const WHY_FIT: string[] = [
   "set_capacity is a closed-form solver — never iterate update_form toward a target volume.",
   "get_preview_image lets you verify your own change visually before telling the potter it's done.",
   "Parsing is forgiving by design: legacy vocabulary is normalized, unknown link keys are ignored, out-of-range values clamp. Prefer canonical inputs anyway.",
-  "The human is your peer, not your environment: they may change anything between your calls (their edits show in your next read), and undo_last_change reverts either of you. Compose freely — variations at equal capacity, re-speccing for a new clay body, eyeballing a reference photo into parameters — the tools are thirteen, what they compose into is open-ended.",
+  "The human is your peer, not your environment: they may change anything between your calls (their edits show in your next read), and undo_last_change reverts either of you. Compose freely — variations at equal capacity, re-speccing for a new clay body, eyeballing a reference photo into parameters — the tools are fourteen, what they compose into is open-ended.",
 ]
 
 function ForAgents() {
@@ -375,7 +375,7 @@ function ForAgents() {
         </h1>
         <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
           Unfolded is a deterministic, parametric 3D editor for slab-built pottery that
-          registers thirteen WebMCP tools the moment it loads. Below is everything you need to
+          registers fourteen WebMCP tools the moment it loads. Below is everything you need to
           use it well: the data model and its ranges, the tool surface and its contracts, the
           geometry it computes for you, and why handing you tools beats asking you to generate
           templates.

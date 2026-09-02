@@ -190,13 +190,15 @@ export interface ShareUrlOptions {
    * Attach a single-use live-session join token (?join=…). The opening tab
    * claims it, follows the session, and strips the parameter; a claimed or
    * expired token degrades to a plain design link. Never the session id —
-   * see docs/live-sync-spec.md v3 for the amended privacy rule.
+   * see docs/live-sync-spec.md v3 for the amended privacy rule. Only the
+   * Continue dialog and create_live_handoff ever set this: a permanent
+   * design link (designUrl, the address bar, the printed QR) never does.
    */
   joinToken?: string
   /**
    * Tag the link as minted by an agent session (?via=chatgpt). A tab that
-   * opens such a link shows "Connected via ChatGPT" — the explicit signal
-   * that this design is open in the conversation's internal browser.
+   * opens such a link shows "Opened from ChatGPT" — provenance only, never
+   * proof of pairing; the sync dot states what the socket confirms.
    * Never emitted for links built by the human-facing UI.
    */
   viaChatGpt?: boolean

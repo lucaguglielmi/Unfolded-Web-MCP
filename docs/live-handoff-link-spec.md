@@ -1,9 +1,9 @@
 # Reliable ChatGPT Live Handoff Links
 
-Status: Proposed  
-Scope: Specification only; no implementation in this commit  
+Status: Implemented (2026-09-02) — see §15 "Implementation notes"  
+Scope: Normative for link selection and the create_live_handoff contract  
 Repository: Unfolded WebMCP  
-Date: 2026-09-01
+Date: 2026-09-01 (spec), 2026-09-02 (implementation)
 
 ## 1. Summary
 

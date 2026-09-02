@@ -1,6 +1,6 @@
-# Live Sync Spec v2 — WebSocket session layer with 6-character code pairing
+# Live Sync Spec v3 — WebSocket sessions, codes, and single-use link tokens
 
-Status: **implemented on this branch** (all ten work items, in order, each
+Status: **implemented** — the v2 work items below (all ten, in order, each
 with green gates — see the branch history). Supersedes the v1 spec (link/QR
 `sid` pairing). Direction: **pairing happens by relaying a short-lived
 6-character code between devices — spoken or typed through the agent chat —
@@ -342,7 +342,8 @@ copy lands with the feature (work item 8), not before.
   - New **"Sync live between devices"** section: the three flows, the code
     ceremony, the privacy line — *the design slice is the only thing that
     ever leaves the device, sessions are unlisted and expire after 30 idle
-    days, and no URL is ever a live capability.*
+    days, and no URL ever carries a durable capability.* (v3 wording —
+    see the amendment at the end of this document.)
   - Tool table + "non-trivial WebMCP parts" updated for the two new tools;
     the share-links section states explicitly that links (and the printed
     QR) stay parameter-only.
@@ -399,7 +400,9 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
 - **What leaves the device (new):** the design slice, coarse presence
   (actor kind, tab count), and — during pairing only — a 6-character code.
   No names, no chat content, no user agent stored. README updated (item 8).
-- **No URL is ever a live capability** — share links, address bar, printed
+- **No URL ever carries a durable capability** (v3 amendment; v2 said "no
+  URL is ever a live capability", which the single-use link tokens below
+  superseded) — share links, address bar, printed
   QR (§6 keeps it parameter-only *by specification*), agent `shareUrl`s.
 - **Residual threats:** shoulder-surfing an unclaimed code (5-min window,
   countdown visible, potter sees the device count change); a lost paired
@@ -606,3 +609,36 @@ design; the Continue dialog QR pairs a second context.
    collapsed? **Recommend: yes.**
 3. Token TTL: **recommend 10 minutes** (links sit in chat a little longer
    than spoken codes).
+
+
+---
+
+# Handoff amendment (2026-09-02) — two links, one tool
+
+Implemented per `docs/live-handoff-link-spec.md`, which is normative for
+link selection; this section only reconciles the wording above.
+
+- **Agent-facing URLs are two, by name.** `designUrl` (in every state
+  snapshot) is the permanent permalink: parameters only, no token, no
+  session — the address bar, the Share dialog, the printed QR. It reopens
+  an independent copy. `liveHandoffUrl` is the same parameters plus
+  `?via=chatgpt` and a **single-use, 10-minute join token**; it exists
+  only as the output of the `create_live_handoff` tool, minted on demand
+  (`mint_token` on the session socket) and fail-closed: no token, no link.
+- **State reads are pure.** `describe_project` and every mutation return
+  `designUrl` and never mint, prefetch, or spend a token. The v3 "prefetch
+  one token per agent tab and attach it to every shareUrl" mechanism is
+  retired: it produced links that pair without anyone asking, and — the
+  incident that motivated the change — let an agent substitute the
+  address-bar URL for the tokened one, handing out a link that opened the
+  right shape and silently did not pair.
+- **Claim behaviour is unchanged.** An opening tab applies the design
+  parameters, reads `join`, strips it from the address bar, claims it, and
+  follows on success; a burned or expired token degrades to the design
+  snapshot. `via=chatgpt` is provenance only ("Opened from ChatGPT"); the
+  sync dot states pairing from the socket alone.
+- **Wording.** "No URL is ever a live capability" → "no URL ever carries a
+  *durable* capability": a live handoff URL carries a single-use,
+  short-lived claim ticket; no URL ever carries a session id.
+- **Tool count** is fourteen; `/webmcp` derives it from `TOOL_SUMMARIES`
+  and `src/mcp/docsGuard.test.ts` pins the README table to the same list.

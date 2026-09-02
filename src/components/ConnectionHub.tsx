@@ -34,7 +34,7 @@ const AGENT: Record<
   },
   chatgpt: {
     title: "Opened from ChatGPT",
-    label: "Connected via ChatGPT",
+    label: "Opened from ChatGPT",
     dot: "bg-emerald-500",
     ping: false,
   },
@@ -52,7 +52,7 @@ function agentDescription(agentStatus: AgentStatus): string {
     return "This tab is directly connected through WebMCP — you and the agent edit the same live design, and every change is one undo step, whoever made it."
   }
   if (agentStatus === "chatgpt") {
-    return "This design arrived through a link your agent minted. Agent links are live invitations: tapping the latest one makes this tab follow the agent's session both ways — your edits here reach it on its next read."
+    return "This design arrived through a link your agent minted. If it was a live handoff link (the agent's default), this tab follows the agent's session both ways and the second dot turns green. If that dot is grey, ask the agent for a fresh live link."
   }
   // action-first, jargon-free: the buttons below do the work (Chrome's
   // experimental-flag hint lives in the dedicated nudge banner instead)
