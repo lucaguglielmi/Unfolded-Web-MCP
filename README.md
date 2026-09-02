@@ -155,8 +155,9 @@ A ChatGPT connection is shown **only** on that explicit link signal — never in
 from the user agent, referrer, screen size, or being inside an in-app browser. Direct
 registration (or any actual tool call) always upgrades the state to active.
 
-**Launch in ChatGPT, one tap.** When no agent is connected, the panel offers two
-actions that both carry a ready-made instruction plus a fresh single-use pairing code
+**Launch in ChatGPT, one tap.** In every agent state — including when this browser's
+own WebMCP is on — the panel offers two actions that both carry a ready-made
+instruction plus a fresh single-use pairing code
 (15-minute TTL): **Open in ChatGPT** injects it straight into a new chat via
 `chatgpt.com/?q=` (on phones the link hands off into the ChatGPT app), and **Copy
 prompt** puts the same text on the clipboard for any other assistant. Sending it makes

@@ -16,6 +16,11 @@ import { useProjectStore, type AgentStatus } from "@/store/useProjectStore"
  * actions that matter: Continue on another screen, the agent-prompt
  * buttons, and a How-does-it-work link to /webmcp.
  *
+ * The agent-prompt buttons (Open in ChatGPT / Copy prompt) show in EVERY
+ * agent state. A green dot only says this browser exposes WebMCP (Chrome's
+ * flag turns it on with no agent attached at all); bringing ChatGPT into
+ * this exact live session is a separate, always-available step.
+ *
  * Honesty rules inherited unchanged from the pill and badge it replaces:
  * the agent dot never guesses from the user agent (green only on a real
  * registration or an explicit agent-minted link), and pairing is never
@@ -49,10 +54,10 @@ const AGENT: Record<
 /** browser-aware, most-useful-true-thing description of the agent state */
 function agentDescription(agentStatus: AgentStatus): string {
   if (agentStatus === "native") {
-    return "This tab is directly connected through WebMCP — you and the agent edit the same live design, and every change is one undo step, whoever made it."
+    return "This tab exposes WebMCP — an agent attached here edits the same live design, and every change is one undo step, whoever made it. To bring ChatGPT into this exact session, tap Open in ChatGPT below or copy the prompt for any assistant."
   }
   if (agentStatus === "chatgpt") {
-    return "This design arrived through a link your agent minted. If it was a live handoff link (the agent's default), this tab follows the agent's session both ways and the second dot turns green. If that dot is grey, ask the agent for a fresh live link."
+    return "This design arrived through a link your agent minted. If it was a live handoff link (the agent's default), this tab follows the agent's session both ways and the second dot turns green. If that dot is grey, ask the agent for a fresh live link — or use the buttons below to start a new ChatGPT conversation on this session."
   }
   // action-first, jargon-free: the buttons below do the work (Chrome's
   // experimental-flag hint lives in the dedicated nudge banner instead)
@@ -150,9 +155,10 @@ export function ConnectionHub() {
   // only works reliably from a genuine anchor tap, not a scripted open
   // after an async mint). Codes are single-use and cheap, same as the
   // Continue dialog's eager QR tokens; a panel outliving the 15-minute TTL
-  // re-mints just before expiry.
+  // re-mints just before expiry. Minted in every agent state: a green dot
+  // means the browser exposes WebMCP, not that ChatGPT is in this session.
   useEffect(() => {
-    if (!open || agentStatus !== "unavailable") return
+    if (!open) return
     let cancelled = false
     let timer: number | undefined
     const mint = async () => {
@@ -175,7 +181,7 @@ export function ConnectionHub() {
       if (timer) window.clearTimeout(timer)
       setChatgptInvite(null)
     }
-  }, [open, agentStatus])
+  }, [open])
 
   const chatgptHref = chatgptInvite
     ? `https://chatgpt.com/?q=${encodeURIComponent(chatgptInvite.prompt)}`
@@ -276,56 +282,55 @@ export function ConnectionHub() {
                 >
                   How does it work <ArrowUpRight className="size-3" />
                 </a>
-                {agentStatus === "unavailable" && (
-                  // compact sizing: the pair must fit the panel's width on
-                  // phones without the row overflowing
-                  <div className="mt-2.5 flex gap-1.5">
-                    {chatgptHref ? (
-                      <Button asChild variant="secondary" size="sm" className="min-w-0 flex-1 px-2 text-xs">
-                        <a
-                          href={chatgptHref}
-                          target="_blank"
-                          rel="noopener"
-                          data-chatgpt-prompt
-                          aria-label="Open ChatGPT with a prompt that visits this site and pairs with this session"
-                          onClick={() => setOpen(false)}
-                        >
-                          <ArrowUpRight className="size-3.5" />
-                          Open in ChatGPT
-                        </a>
-                      </Button>
-                    ) : (
-                      <Button variant="secondary" size="sm" className="min-w-0 flex-1 px-2 text-xs" disabled>
-                        Preparing…
-                      </Button>
-                    )}
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className={cn(
-                        "min-w-0 flex-1 px-2 text-xs",
-                        promptState === "copied" && "text-emerald-600",
-                        promptState === "error" && "text-red-600"
-                      )}
-                      onClick={() => void copyAgentPrompt()}
-                      aria-label="Copy a prompt that opens this site and pairs with this session"
-                    >
-                      {promptState === "copied" ? (
-                        <>
-                          <Check className="size-3.5" /> Copied
-                        </>
-                      ) : promptState === "error" ? (
-                        <>Retry</>
-                      ) : promptState === "minting" ? (
-                        <>Preparing…</>
-                      ) : (
-                        <>
-                          <Copy className="size-3.5" /> Copy prompt
-                        </>
-                      )}
+                {/* always shown, whatever the agent state — compact sizing:
+                    the pair must fit the panel's width on phones without
+                    the row overflowing */}
+                <div className="mt-2.5 flex gap-1.5">
+                  {chatgptHref ? (
+                    <Button asChild variant="secondary" size="sm" className="min-w-0 flex-1 px-2 text-xs">
+                      <a
+                        href={chatgptHref}
+                        target="_blank"
+                        rel="noopener"
+                        data-chatgpt-prompt
+                        aria-label="Open ChatGPT with a prompt that visits this site and pairs with this session"
+                        onClick={() => setOpen(false)}
+                      >
+                        <ArrowUpRight className="size-3.5" />
+                        Open in ChatGPT
+                      </a>
                     </Button>
-                  </div>
-                )}
+                  ) : (
+                    <Button variant="secondary" size="sm" className="min-w-0 flex-1 px-2 text-xs" disabled>
+                      Preparing…
+                    </Button>
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className={cn(
+                      "min-w-0 flex-1 px-2 text-xs",
+                      promptState === "copied" && "text-emerald-600",
+                      promptState === "error" && "text-red-600"
+                    )}
+                    onClick={() => void copyAgentPrompt()}
+                    aria-label="Copy a prompt that opens this site and pairs with this session"
+                  >
+                    {promptState === "copied" ? (
+                      <>
+                        <Check className="size-3.5" /> Copied
+                      </>
+                    ) : promptState === "error" ? (
+                      <>Retry</>
+                    ) : promptState === "minting" ? (
+                      <>Preparing…</>
+                    ) : (
+                      <>
+                        <Copy className="size-3.5" /> Copy prompt
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
 
