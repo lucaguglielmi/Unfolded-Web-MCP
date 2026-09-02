@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 import { useDesignHref } from "@/lib/useStudioHref"
+import { useTimeout } from "@/lib/useTimeout"
 import { liveSync } from "@/store/syncClient"
 import { useProjectStore, type AgentStatus } from "@/store/useProjectStore"
 
@@ -110,6 +111,7 @@ export function ConnectionHub() {
   const [open, setOpen] = useState(false)
   const [pairOpen, setPairOpen] = useState(false)
   const [promptState, setPromptState] = useState<"idle" | "minting" | "copied" | "error">("idle")
+  const resetPrompt = useTimeout()
   const [chatgptInvite, setChatgptInvite] = useState<{
     code: string
     expiresAt: number
@@ -200,7 +202,7 @@ export function ConnectionHub() {
       const minted = await liveSync.mintCode()
       if (!minted) {
         setPromptState("error")
-        window.setTimeout(() => setPromptState("idle"), 2500)
+        resetPrompt(() => setPromptState("idle"), 2500)
         return
       }
       const minutes = Math.max(1, Math.round((minted.expiresAt - Date.now()) / 60_000))
@@ -210,7 +212,7 @@ export function ConnectionHub() {
       await navigator.clipboard.writeText(prompt)
       feedback("success")
       setPromptState("copied")
-      window.setTimeout(() => setPromptState("idle"), 2000)
+      resetPrompt(() => setPromptState("idle"), 2000)
     } catch {
       window.prompt("Copy this prompt into ChatGPT:", prompt)
       setPromptState("idle")

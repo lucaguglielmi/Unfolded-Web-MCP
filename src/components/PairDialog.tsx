@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input"
 import { feedback } from "@/lib/feedback"
 import { shareUrl } from "@/lib/model/shareLink"
 import { useIsDesktop } from "@/lib/useIsDesktop"
+import { useTimeout } from "@/lib/useTimeout"
 import { liveSync } from "@/store/syncClient"
 import { useProjectStore } from "@/store/useProjectStore"
 
@@ -57,12 +58,14 @@ export function PairDialog({
   // ---- QR + link (primary path) ----
   const [invite, setInvite] = useState<{ url: string; qr: string | null; expiresAt: number } | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
+  const unflashLink = useTimeout()
 
   // ---- code (fallback path) ----
   const [showCode, setShowCode] = useState(false)
   const [code, setCode] = useState<{ code: string; expiresAt: number } | null>(null)
   const [minting, setMinting] = useState(false)
   const [copied, setCopied] = useState(false)
+  const unflashCode = useTimeout()
   const [entry, setEntry] = useState("")
   const [joining, setJoining] = useState(false)
   const [notice, setNotice] = useState<{ tone: "ok" | "error"; text: string } | null>(null)
@@ -157,7 +160,7 @@ export function PairDialog({
       await navigator.clipboard.writeText(invite.url)
       feedback("success")
       setLinkCopied(true)
-      window.setTimeout(() => setLinkCopied(false), 1500)
+      unflashLink(() => setLinkCopied(false), 1500)
     } catch {
       window.prompt("Copy this link to continue on another screen:", invite.url)
     }
@@ -188,7 +191,7 @@ export function PairDialog({
       await navigator.clipboard.writeText(activeCode.code)
       feedback("success")
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
+      unflashCode(() => setCopied(false), 1500)
     } catch {
       window.prompt("Copy this pairing code:", activeCode.code)
     }

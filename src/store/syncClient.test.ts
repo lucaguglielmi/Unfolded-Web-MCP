@@ -569,6 +569,49 @@ describe("wake()", () => {
     fresh.stop()
   })
 
+  it("forgets a patch the server refused and resyncs so the session's state wins", () => {
+    const { fresh, sockets } = freshWithSockets()
+    fresh.start()
+    sockets[0].open()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+    const before = store.getState().form.heightMm
+    store.getState().updateForm({ heightMm: 150 })
+    vi.advanceTimersByTime(300)
+    expect(sockets[0].sentOfKind("patch")).toHaveLength(1)
+    sockets[0].receive({ kind: "error", code: "invalid_patch", message: "nope" })
+    // a fresh hello asks for the canonical snapshot…
+    expect(sockets[0].sentOfKind("hello")).toHaveLength(2)
+    sockets[0].receive({ kind: "welcome", state: { ...slice(store), form: { ...store.getState().form, heightMm: before } }, version: 1, peers: 2 })
+    // …which wins the field back; the refused edit is neither kept nor resent
+    expect(store.getState().form.heightMm).toBe(before)
+    vi.advanceTimersByTime(300)
+    expect(sockets[0].sentOfKind("patch")).toHaveLength(1)
+    fresh.stop()
+  })
+
+  it("a refusal only drops the oldest unacknowledged patch — later ones still go out", () => {
+    const { fresh, sockets } = freshWithSockets()
+    fresh.start()
+    sockets[0].open()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+    const before = store.getState().form.heightMm
+    store.getState().updateForm({ heightMm: 150 })
+    vi.advanceTimersByTime(300)
+    store.getState().setClay({ wallThicknessMm: 7 })
+    vi.advanceTimersByTime(300)
+    expect(sockets[0].sentOfKind("patch")).toHaveLength(2)
+    sockets[0].receive({ kind: "error", code: "invalid_patch", message: "nope" }) // refuses the height
+    sockets[0].receive({ kind: "welcome", state: { ...slice(store), form: { ...store.getState().form, heightMm: before }, clay: { ...store.getState().clay, wallThicknessMm: 5 } }, version: 1, peers: 2 })
+    expect(store.getState().form.heightMm).toBe(before)
+    // the wall edit was never echoed either — it survives the snapshot and is resent
+    expect(store.getState().clay.wallThicknessMm).toBe(7)
+    vi.advanceTimersByTime(300)
+    const patches = sockets[0].sentOfKind("patch")
+    expect(patches).toHaveLength(3)
+    expect(patches[2].patches).toEqual({ clay: { wallThicknessMm: 7 } })
+    fresh.stop()
+  })
+
   it("does not resend an edit the server already echoed", () => {
     const { fresh, sockets } = freshWithSockets()
     fresh.start()

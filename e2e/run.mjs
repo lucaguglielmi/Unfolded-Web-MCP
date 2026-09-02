@@ -154,8 +154,8 @@ try {
         }),
     }
   })
-  // detection rides the slow 3s heartbeat and the 13 awaited registrations
-  // land one by one, so poll for completion instead of sampling a fixed
+  // detection rides the slow 3s heartbeat and the awaited registrations
+  // (one per EXPECTED_TOOLS entry) land one by one, so poll for completion instead of sampling a fixed
   // instant (a fixed 4.5s wait caught slow CI runners mid-registration)
   await page
     .waitForFunction(

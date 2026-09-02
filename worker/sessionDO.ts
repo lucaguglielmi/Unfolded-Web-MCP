@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers"
-import { SessionCore, type SessionSnapshot } from "./sessionCore"
+import { oversizedFrame, SessionCore, type SessionSnapshot } from "./sessionCore"
 import type { Env } from "./index"
 
 /**
@@ -63,7 +63,7 @@ export class SessionDO extends DurableObject<Env> {
   }
 
   override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    if (typeof message !== "string" || message.length > MAX_FRAME_BYTES) {
+    if (typeof message !== "string" || oversizedFrame(message, MAX_FRAME_BYTES)) {
       this.fail(ws, "unsupported frame")
       return
     }
@@ -79,6 +79,9 @@ export class SessionDO extends DurableObject<Env> {
       return
     }
     attachment.recent.push(now)
+    // persist the window before looking at the payload, so non-JSON frames
+    // and unknown kinds count against the limit like everything else
+    ws.serializeAttachment(attachment)
 
     let msg: Record<string, unknown>
     try {
@@ -107,7 +110,6 @@ export class SessionDO extends DurableObject<Env> {
         return
       }
       case "patch": {
-        ws.serializeAttachment(attachment)
         const result = core.apply(msg.patches)
         if (!result.ok) {
           this.send(ws, { kind: "error", code: "invalid_patch", message: result.error })
@@ -130,7 +132,6 @@ export class SessionDO extends DurableObject<Env> {
       }
       case "mint_code":
       case "mint_token": {
-        ws.serializeAttachment(attachment)
         const sid = this.ctx.id.name
         if (!sid) {
           this.send(ws, { kind: "error", code: "unaddressable", message: "session has no name" })
@@ -163,7 +164,7 @@ export class SessionDO extends DurableObject<Env> {
   }
 
   override async webSocketClose(ws: WebSocket): Promise<void> {
-    this.broadcastPresence(ws)
+    this.broadcastPresence(ws, true)
     await this.persist() // restart the idle clock from the last departure
   }
 
@@ -189,12 +190,17 @@ export class SessionDO extends DurableObject<Env> {
     }
   }
 
-  private broadcastPresence(except: WebSocket): void {
+  /**
+   * Tell everyone but `ws` how many sockets the session has. `ws` itself
+   * is counted (it learned the number from its welcome) unless it is the
+   * one leaving — the runtime may still list a closing socket, so the
+   * departure case counts the others rather than trusting the list.
+   */
+  private broadcastPresence(ws: WebSocket, leaving = false): void {
     const sockets = this.ctx.getWebSockets()
-    const msg = { kind: "presence", peers: sockets.length }
-    for (const peer of sockets) {
-      if (peer !== except) this.send(peer, msg)
-    }
+    const others = sockets.filter((peer) => peer !== ws)
+    const msg = { kind: "presence", peers: leaving ? others.length : sockets.length }
+    for (const peer of others) this.send(peer, msg)
   }
 
   private fail(ws: WebSocket, reason: string): void {

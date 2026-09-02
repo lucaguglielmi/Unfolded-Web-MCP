@@ -169,7 +169,7 @@ export function ParamsPanel() {
         />
         <p className="text-muted-foreground text-xs leading-relaxed">
           {SHAPE_DESCRIPTIONS[form.type][form.tapered ? "tapered" : "straight"]} Curved profiles
-          are coming next.
+          and multilayer compositions are coming next.
         </p>
 
         <DimensionSlider

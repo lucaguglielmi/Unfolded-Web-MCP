@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { buildShareParams, parseShareParams, shareUrl } from "./shareLink"
 import { DEFAULT_CLAY, PRESETS } from "./schemas"
 
@@ -117,6 +117,20 @@ describe("buildShareParams / shareUrl", () => {
     const url = shareUrl(PRESETS["classic-mug"], DEFAULT_CLAY, "A4")
     expect(url.startsWith("?type=cylinder")).toBe(true)
     expect(url).not.toContain("via=")
+  })
+
+  describe("in a browser", () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    it("targets the studio even when minted on an explainer page", () => {
+      // the agent's tools register on /webmcp too — a link handed out from
+      // there must open the studio, not the explainer
+      vi.stubGlobal("location", { origin: "https://unfolded.example.com", pathname: "/webmcp" })
+      const url = shareUrl(PRESETS["classic-mug"], DEFAULT_CLAY, "A4", { unit: "in" })
+      expect(url.startsWith("https://unfolded.example.com/?type=cylinder")).toBe(true)
+      expect(url).not.toContain("/webmcp")
+      expect(new URL(url).pathname).toBe("/")
+    })
   })
 
   it("tags agent-minted links with via=chatgpt, which parsing ignores", () => {

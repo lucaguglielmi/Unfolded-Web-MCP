@@ -64,12 +64,13 @@ committed e2e suite):
   Schema, current-draft descriptors (top-level titles, `readOnlyHint` where
   truthful, host cancellation signals honored), and graceful `isError` results
   that include the unchanged state.
-- **Every mutation returns the full new state**, so the agent never needs a
-  follow-up read. Snapshots are pure and carry a permanent `designUrl`; the
-  *return channel* is a separate, explicit tool — `create_live_handoff` mints
-  a single-use `liveHandoffUrl` on demand and fails closed, so the potter's
-  own browser follows the agent's session, and a link that "opens the right
-  shape but doesn't pair" can no longer be handed out by mistake.
+- **Every tool that changes the design returns the full new state** (PDF
+  export included), so the agent never needs a follow-up read. Snapshots are
+  pure and carry a permanent `designUrl`; the *return channel* is a separate,
+  non-mutating tool — `create_live_handoff` mints a single-use
+  `liveHandoffUrl` and fails closed, so the
+  potter's own browser follows the agent's session, and a link that "opens
+  the right shape but doesn't pair" can no longer be handed out by mistake.
 - **A solver, not just setters** — `set_capacity` computes the exact height for
   a target volume in one call instead of letting the agent iterate.
 - **The agent sees what the potter sees** — `get_preview_image` returns the
@@ -82,8 +83,7 @@ committed e2e suite):
   focus/visibility re-checks, across `document`/`navigator`/`window`, with a
   `provideContext` fallback for hosts without `registerTool`.
 - **An honest connection model** — the three-state pill never guesses: direct
-  registration, an explicit agent-minted link signal, or nothing. No user-agent
-  sniffing, ever.
+  registration, an explicit agent-minted link signal, or nothing.
 - **Human and agent are true peers** — same store, same validation, shared
   undo/redo over both actors' edits, and concurrent PDF exports counted, not
   flag-locked.
@@ -104,7 +104,7 @@ To verify the repo from a clean checkout:
 npm ci
 npx playwright install chromium   # for the e2e suites
 npm run lint
-npm test          # 190 unit tests: geometry, schemas, sync client, profiler
+npm test          # 282 unit tests: geometry, schemas, sync client, profiler
 npm run build
 npm run e2e       # real Chromium against the production bundle + a simulated WebMCP host
 ```
@@ -205,8 +205,8 @@ Registered on `document.modelContext` per the current WebMCP draft (legacy
 | `undo_last_change` | Revert the last change, whoever made it (up to 50 steps) |
 
 UI and agent tools share the same zustand store and zod schemas, so human and agent
-edits stay in sync in the same session. Every mutating tool returns the full new
-state — including `capacityMl` (`set_capacity` solves the height for *"a 350 ml mug"*
+edits stay in sync in the same session. Every tool that changes the design returns
+the full new state — including `capacityMl` (`set_capacity` solves the height for *"a 350 ml mug"*
 in closed form) and `designUrl`, a permanent permalink.
 
 **Two links, never confused.** `designUrl` reopens an independent copy: parameters
