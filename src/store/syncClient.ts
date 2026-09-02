@@ -405,6 +405,20 @@ export function createSyncClient({
         if (typeof msg.peers === "number") setPeers(msg.peers)
         break
       }
+      case "error": {
+        if (msg.code !== "invalid_patch") break
+        // The server refused a patch of ours. It handles a socket's frames
+        // in order and echoes every patch it accepts, so the refused one is
+        // the oldest still unacknowledged: forget it — a later welcome must
+        // not re-apply and resend it forever. The baseline already moved
+        // past the edit (flushLocalEdits is optimistic), so a fresh hello
+        // fetches the canonical snapshot and the session's value wins the
+        // field back instead of the tab believing the edit synced.
+        const refused = unacked.keys().next().value
+        if (refused !== undefined) unacked.delete(refused)
+        send({ kind: "hello", protocolVersion: SYNC_PROTOCOL_VERSION, clientId, actor: "human" })
+        break
+      }
       case "code": {
         if (pendingMint && typeof msg.code === "string" && typeof msg.expiresAt === "number") {
           pendingMint({ code: msg.code, expiresAt: msg.expiresAt })

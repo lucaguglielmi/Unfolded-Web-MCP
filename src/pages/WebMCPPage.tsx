@@ -6,6 +6,7 @@ import { useDesignHref } from "@/lib/useStudioHref"
 import { StudioCtaBar } from "@/components/StudioCtaBar"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 import { feedback } from "@/lib/feedback"
+import { useTimeout } from "@/lib/useTimeout"
 import { cn } from "@/lib/utils"
 // the tool list renders from its single source next to the registrations
 import { TOOL_SUMMARIES } from "@/mcp/tools"
@@ -459,13 +460,14 @@ const KICKSTART_PROMPT = `Open https://tryunfolded.com in your built-in browser.
 
 function HumanEasterEgg() {
   const [copied, setCopied] = useState(false)
+  const later = useTimeout()
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(KICKSTART_PROMPT)
       feedback("success")
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 1800)
+      later(() => setCopied(false), 1800)
     } catch {
       // clipboard can be unavailable (permissions, older webviews)
       window.prompt("Copy this prompt for your agent:", KICKSTART_PROMPT)
