@@ -1,0 +1,55 @@
+direction: down
+
+ask: Ask ChatGPT to design a form
+internal: ChatGPT opens its internal WebMCP tab
+tools: Agent reads and edits with WebMCP tools
+handoff: create_live_handoff mints a fresh link
+open: Open the link in another browser
+valid: Is the token valid and unused? {
+  shape: diamond
+}
+claim: Join the live session and remove the token from the URL
+support: Does the new browser expose WebMCP? {
+  shape: diamond
+}
+both: WebMCP tools available + live sync
+sync: Complete visual editor + live sync
+copy: Open a safe, independent design copy
+fresh: Ask ChatGPT for a fresh live link
+
+ask -> internal -> tools
+tools -> handoff: After the final edit
+handoff -> open -> valid
+valid -> claim: Yes
+claim -> support
+support -> both: Yes
+support -> sync: No
+valid -> copy: Expired or already used
+copy -> fresh: Need live continuation
+fresh -> handoff
+
+*.style.border-radius: 12
+ask.style.fill: "#dbeafe"
+ask.style.stroke: "#2563eb"
+internal.style.fill: "#ede9fe"
+internal.style.stroke: "#7c3aed"
+tools.style.fill: "#ede9fe"
+tools.style.stroke: "#7c3aed"
+handoff.style.fill: "#ffedd5"
+handoff.style.stroke: "#ea580c"
+open.style.fill: "#dbeafe"
+open.style.stroke: "#2563eb"
+valid.style.fill: "#fef3c7"
+valid.style.stroke: "#d97706"
+claim.style.fill: "#ffedd5"
+claim.style.stroke: "#ea580c"
+support.style.fill: "#fef3c7"
+support.style.stroke: "#d97706"
+both.style.fill: "#d1fae5"
+both.style.stroke: "#059669"
+sync.style.fill: "#d1fae5"
+sync.style.stroke: "#059669"
+copy.style.fill: "#f5f5f4"
+copy.style.stroke: "#78716c"
+fresh.style.fill: "#dbeafe"
+fresh.style.stroke: "#2563eb"

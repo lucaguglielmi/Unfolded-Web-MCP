@@ -4,7 +4,8 @@
 
 **Live: [tryunfolded.com](https://tryunfolded.com)** · guide at
 [/webmcp](https://tryunfolded.com/webmcp) · story at
-[/why](https://tryunfolded.com/why)
+[/why](https://tryunfolded.com/why) · browser flows at
+[/user-flow](https://tryunfolded.com/user-flow)
 
 [![Deploy](https://github.com/lucaguglielmi/Unfolded-Web-MCP/actions/workflows/deploy.yml/badge.svg)](https://github.com/lucaguglielmi/Unfolded-Web-MCP/actions/workflows/deploy.yml)
 [![npm: webmcp-profiler](https://img.shields.io/npm/v/webmcp-profiler?label=webmcp-profiler)](https://www.npmjs.com/package/webmcp-profiler)
