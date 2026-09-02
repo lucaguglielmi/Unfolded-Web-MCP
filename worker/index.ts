@@ -12,6 +12,12 @@ export interface Env {
   ASSETS: Fetcher
   SESSION: DurableObjectNamespace
   PAIRING: DurableObjectNamespace
+  /**
+   * Dev-only: raises the per-IP claim limit for local e2e runs, where every
+   * browser context shares one address. Never set in wrangler.jsonc —
+   * production keeps the default in worker/pairingCore.ts.
+   */
+  PAIR_CLAIMS_PER_IP_PER_MINUTE?: string
 }
 
 /** session ids are client-minted 128-bit randoms in url-safe base64/base58ish */

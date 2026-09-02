@@ -8,7 +8,13 @@ import { useProjectStore } from "@/store/useProjectStore"
 import { describeState, describeTemplates } from "./describe"
 import { createLiveHandoff } from "./liveHandoff"
 import type { SetClayInput, UpdateFormInput } from "@/lib/model/schemas"
-import { textResult, type ToolDescriptor, type ToolExecuteOptions, type ToolResult } from "./modelContext"
+import {
+  textResult,
+  type StructuredResult,
+  type ToolDescriptor,
+  type ToolExecuteOptions,
+  type ToolResult,
+} from "./modelContext"
 
 /**
  * The WebMCP tool surface. Design rules:
@@ -47,9 +53,75 @@ export const TOOL_SUMMARIES: { name: string; blurb: string }[] = [
 const PAIR_CODE_RE = /^[A-HJ-NP-Z2-9]{6}$/
 const prettyCode = (code: string) => `${code.slice(0, 3)}-${code.slice(3)}`
 
-function stateText(prefix?: string): string {
-  const state = describeState()
+type StateSnapshot = ReturnType<typeof describeState>
+
+function stateText(prefix?: string, state: StateSnapshot = describeState()): string {
   return (prefix ? `${prefix}\n` : "") + JSON.stringify(state, null, 2)
+}
+
+/**
+ * Structured results (hardening spec 9.3, contract tool-result/1) ride
+ * beside the unchanged text content: `ok` mirrors !isError, `message` is
+ * the sentence the text opens with, `state` is the same snapshot the text
+ * serializes, and `warnings` appears only when the design has any.
+ */
+function structured(
+  ok: boolean,
+  message: string,
+  state?: StateSnapshot,
+  extra?: Record<string, unknown>
+): StructuredResult {
+  const out: StructuredResult = { ok, message, ...extra }
+  if (state) {
+    out.state = state
+    if (state.warnings.length > 0) out.warnings = state.warnings
+  }
+  return out
+}
+
+/** the design snapshot for a structured failure — never lets reading it
+    turn one failure into another */
+function safeState(): StateSnapshot | undefined {
+  try {
+    return describeState()
+  } catch {
+    return undefined
+  }
+}
+
+/** a successful read or mutation — text is "<message>\n<json>", or the
+    bare json when `prefixText` is false (describe_project always was) */
+function stateResult(message: string, prefixText = true): ToolResult {
+  const state = describeState()
+  return textResult(
+    stateText(prefixText ? message : undefined, state),
+    false,
+    structured(true, message, state)
+  )
+}
+
+/** a failure that still reports the design — text is
+    "<message>\n\n<label>:\n<json>", the structured half carries the same state */
+function stateError(message: string, label: "Current state unchanged" | "Current state"): ToolResult {
+  const state = describeState()
+  return textResult(
+    `${message}\n\n${label}:\n${stateText(undefined, state)}`,
+    true,
+    structured(false, message, state)
+  )
+}
+
+/** a failure whose text carries no state; the structured half still does
+    when the design can be read */
+function plainError(message: string): ToolResult {
+  return textResult(message, true, structured(false, message, safeState()))
+}
+
+/** a failure that must carry NO link at all, not even the permanent one
+    inside a state snapshot — the fail-closed handoff contract
+    (docs/live-handoff-link-spec.md §7): a substitute URL is the incident */
+function linklessError(message: string): ToolResult {
+  return textResult(message, true, { ok: false, message })
 }
 
 /**
@@ -70,7 +142,8 @@ function toInputSchema(schema: z.ZodType): Record<string, unknown> {
 
 /** the one consistent shape for a host-cancelled call (spec 4.4) */
 function cancelledResult(): ToolResult {
-  return textResult("Cancelled by the host before completing — no changes were made.", true)
+  const message = "Cancelled by the host before completing — no changes were made."
+  return textResult(message, true, { ok: false, message })
 }
 
 /** agent-readable zod issues: path, message (zod v4 messages carry the
@@ -98,12 +171,10 @@ function run(
     return Promise.resolve(fn())
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return Promise.resolve(
-        textResult(`Invalid input:\n${formatIssues(error)}\n\nCurrent state unchanged:\n${stateText()}`, true)
-      )
+      return Promise.resolve(stateError(`Invalid input:\n${formatIssues(error)}`, "Current state unchanged"))
     }
     const message = error instanceof Error ? error.message : String(error)
-    return Promise.resolve(textResult(`Tool failed: ${message}`, true))
+    return Promise.resolve(plainError(`Tool failed: ${message}`))
   }
 }
 
@@ -116,7 +187,8 @@ export function buildTools(): ToolDescriptor[] {
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Describe current design",
       annotations: { title: "Describe current design", readOnlyHint: true },
-      execute: (_input, options) => run("describe_project", options, () => textResult(stateText())),
+      execute: (_input, options) =>
+        run("describe_project", options, () => stateResult("Current design.", false)),
     },
     {
       name: "open_model",
@@ -134,15 +206,14 @@ export function buildTools(): ToolDescriptor[] {
           const { url } = z.object({ url: z.string().min(1) }).parse(input ?? {})
           const patches = parseShareParams(url)
           if (!patches.form && !patches.clay && !patches.paperSize) {
-            return textResult(
+            return stateError(
               "No recognizable design parameters in that link. Expected query parameters " +
-                "like type, height, bottom, top, name, shrinkage, wall, paper.\n\n" +
-                `Current state unchanged:\n${stateText()}`,
-              true
+                "like type, height, bottom, top, name, shrinkage, wall, paper.",
+              "Current state unchanged"
             )
           }
           useProjectStore.getState().openModel(patches)
-          return textResult(stateText("Model opened from link."))
+          return stateResult("Model opened from link.")
         }),
     },
     {
@@ -156,7 +227,7 @@ export function buildTools(): ToolDescriptor[] {
         run("update_form", options, () => {
           // the store action validates with the same zod schema
           useProjectStore.getState().updateForm((input ?? {}) as UpdateFormInput)
-          return textResult(stateText("Form updated."))
+          return stateResult("Form updated.")
         }),
     },
     {
@@ -169,7 +240,7 @@ export function buildTools(): ToolDescriptor[] {
       execute: (input, options) =>
         run("set_clay", options, () => {
           useProjectStore.getState().setClay((input ?? {}) as SetClayInput)
-          return textResult(stateText("Clay settings updated."))
+          return stateResult("Clay settings updated.")
         }),
     },
     {
@@ -187,7 +258,7 @@ export function buildTools(): ToolDescriptor[] {
         run("set_units", options, () => {
           const { units } = z.object({ units: z.enum(["cm", "in"]) }).parse(input ?? {})
           useProjectStore.getState().setUnit(units)
-          return textResult(stateText(`Measurement units set to ${units === "in" ? "inches" : "centimeters"}.`))
+          return stateResult(`Measurement units set to ${units === "in" ? "inches" : "centimeters"}.`)
         }),
     },
     {
@@ -213,11 +284,10 @@ export function buildTools(): ToolDescriptor[] {
           const { form, clay } = useProjectStore.getState()
           const solved = heightForCapacityMl(form, clay, target)
           if (solved === null) {
-            return textResult(
+            return stateError(
               "The walls close this form's interior entirely — no height can hold anything. " +
-                "Thin the walls (set_clay) or widen the form (update_form) first.\n\n" +
-                `Current state:\n${stateText()}`,
-              true
+                "Thin the walls (set_clay) or widen the form (update_form) first.",
+              "Current state"
             )
           }
           const clamped = Math.round(Math.min(600, Math.max(20, solved)) * 10) / 10
@@ -227,7 +297,7 @@ export function buildTools(): ToolDescriptor[] {
             Math.abs(clamped - solved) > 0.05
               ? `Target ${target} ml needs a ${solved.toFixed(0)} mm height — clamped to ${clamped} mm, which holds ~${achieved} ml. Adjust the diameters to get closer.`
               : `Height set to ${clamped} mm — the vessel now holds ~${achieved} ml.`
-          return textResult(stateText(note))
+          return stateResult(note)
         }),
     },
     {
@@ -238,7 +308,14 @@ export function buildTools(): ToolDescriptor[] {
       title: "Template summary",
       annotations: { title: "Template summary", readOnlyHint: true },
       execute: (_input, options) =>
-        run("get_template_summary", options, () => textResult(JSON.stringify(describeTemplates(), null, 2))),
+        run("get_template_summary", options, () => {
+          const summary = describeTemplates()
+          return textResult(JSON.stringify(summary, null, 2), false, {
+            ok: true,
+            message: "Template summary.",
+            ...summary,
+          })
+        }),
     },
     {
       name: "get_preview_image",
@@ -257,15 +334,15 @@ export function buildTools(): ToolDescriptor[] {
             `holds ~${state.capacityMl} ml.`
           const image = capturePreviewImage()
           if (!image) {
-            return textResult(
-              `Preview image unavailable (the 3D canvas hasn't rendered in this environment). ${summary}`
-            )
+            const message = `Preview image unavailable (the 3D canvas hasn't rendered in this environment). ${summary}`
+            return textResult(message, false, { ok: true, message, summary })
           }
           return {
             content: [
               { type: "image", data: image.data, mimeType: image.mimeType },
               { type: "text", text: summary },
             ],
+            structuredContent: { ok: true, message: summary, summary },
           }
         }),
     },
@@ -291,14 +368,21 @@ export function buildTools(): ToolDescriptor[] {
           // last safe point: past here the PDF generates and downloads
           if (options?.signal?.aborted) return cancelledResult()
           const result = await useProjectStore.getState().exportPdf()
-          return textResult(
+          const message =
             `PDF downloaded in the potter's browser: ${result.pages} pages on ${result.paper} ` +
-              `(1 overview + ${result.pages - 1} template pages in a ${result.rows}x${result.cols} grid). ` +
-              `Remind the potter to print at 100% scale and verify the calibration ruler.`
-          )
+            `(1 overview + ${result.pages - 1} template pages in a ${result.rows}x${result.cols} grid). ` +
+            `Remind the potter to print at 100% scale and verify the calibration ruler.`
+          return textResult(message, false, {
+            ok: true,
+            message,
+            pages: result.pages,
+            paper: result.paper,
+            rows: result.rows,
+            cols: result.cols,
+          })
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          return textResult(`Export failed: ${message}`, true)
+          return plainError(`Export failed: ${message}`)
         }
       },
     },
@@ -318,7 +402,7 @@ export function buildTools(): ToolDescriptor[] {
             .object({ preset: z.enum(Object.keys(PRESETS) as [string, ...string[]]) })
             .parse(input ?? {})
           useProjectStore.getState().applyPreset(preset as keyof typeof PRESETS)
-          return textResult(stateText(`Preset '${preset}' applied.`))
+          return stateResult(`Preset '${preset}' applied.`)
         }),
     },
     {
@@ -337,16 +421,19 @@ export function buildTools(): ToolDescriptor[] {
           if (options?.signal?.aborted) return cancelledResult()
           if (!handoff) {
             // fail closed — no fallback URL of any kind (spec §7)
-            return textResult(
+            return linklessError(
               "A live handoff link could not be created because the pairing service is unavailable. " +
-                "No link was generated. Retry once, or use start_pairing to create a six-character code.",
-              true
+                "No link was generated. Retry once, or use start_pairing to create a six-character code."
             )
           }
-          return textResult(JSON.stringify(handoff, null, 2))
+          return textResult(JSON.stringify(handoff, null, 2), false, {
+            ok: true,
+            message: "Live handoff link created — return liveHandoffUrl verbatim.",
+            ...handoff,
+          })
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          return textResult(`A live handoff link could not be created (${message}). No link was generated. Retry once, or use start_pairing.`, true)
+          return linklessError(`A live handoff link could not be created (${message}). No link was generated. Retry once, or use start_pairing.`)
         }
       },
     },
@@ -371,39 +458,35 @@ export function buildTools(): ToolDescriptor[] {
           const { code: raw } = z.object({ code: z.string().min(1) }).parse(input ?? {})
           const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, "")
           if (!PAIR_CODE_RE.test(code)) {
-            return textResult(
+            return stateError(
               "That doesn't look like a pairing code — expected 6 characters like 'K7F-3QP' " +
-                "(codes never contain I, L, O, 0 or 1).\n\n" +
-                `Current state unchanged:\n${stateText()}`,
-              true
+                "(codes never contain I, L, O, 0 or 1).",
+              "Current state unchanged"
             )
           }
           // the signal reaches the claim fetch; a cancel aborts the network
           // call and joinWithCode commits nothing afterwards
           const joined = await liveSync.joinWithCode(code, options?.signal)
           if (!joined.ok) {
-            return textResult(
-              joined.retryable
-                ? "The pairing service is busy — wait a minute and try once more."
-                : "That code didn't work — codes expire after 15 minutes and can be used once. " +
-                    "Ask the potter to mint a fresh one.\n\n" +
-                    `Current state unchanged:\n${stateText()}`,
-              true
-            )
+            return joined.retryable
+              ? plainError("The pairing service is busy — wait a minute and try once more.")
+              : stateError(
+                  "That code didn't work — codes expire after 15 minutes and can be used once. " +
+                    "Ask the potter to mint a fresh one.",
+                  "Current state unchanged"
+                )
           }
           // the session's design arrives with the welcome — wait for it so
           // the returned state is the adopted one
           await liveSync.whenSyncing(8_000)
           const others = Math.max(0, liveSync.peers() - 1)
-          return textResult(
-            stateText(`Joined live session — now syncing with ${others} other device(s).`)
-          )
+          return stateResult(`Joined live session — now syncing with ${others} other device(s).`)
         } catch (error) {
           if (error instanceof z.ZodError) {
-            return textResult(`Invalid input: code is required.\n\nCurrent state unchanged:\n${stateText()}`, true)
+            return stateError("Invalid input: code is required.", "Current state unchanged")
           }
           const message = error instanceof Error ? error.message : String(error)
-          return textResult(`Joining failed: ${message}`, true)
+          return plainError(`Joining failed: ${message}`)
         }
       },
     },
@@ -423,23 +506,20 @@ export function buildTools(): ToolDescriptor[] {
           // and the never-peered session forgets itself (solo grace)
           if (options?.signal?.aborted) return cancelledResult()
           if (!minted) {
-            return textResult(
+            return stateError(
               "Couldn't reach the pairing service — it may not be available in this environment. " +
-                "The design is unaffected; try again in a moment.\n\n" +
-                `Current state:\n${stateText()}`,
-              true
+                "The design is unaffected; try again in a moment.",
+              "Current state"
             )
           }
-          return textResult(
-            stateText(
-              `Pairing code: ${prettyCode(minted.code)} — valid 15 minutes, one use. ` +
-                "On the other device: the connection button (two dots in the header) → Continue on another screen → enter this code. " +
-                "That device will adopt this design; afterwards edits sync both ways."
-            )
+          return stateResult(
+            `Pairing code: ${prettyCode(minted.code)} — valid 15 minutes, one use. ` +
+              "On the other device: the connection button (two dots in the header) → Continue on another screen → enter this code. " +
+              "That device will adopt this design; afterwards edits sync both ways."
           )
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          return textResult(`Pairing failed: ${message}`, true)
+          return plainError(`Pairing failed: ${message}`)
         }
       },
     },
@@ -453,9 +533,9 @@ export function buildTools(): ToolDescriptor[] {
       execute: (_input, options) =>
         run("undo_last_change", options, () => {
           if (!useProjectStore.getState().undo()) {
-            return textResult(`Nothing to undo.\n\nCurrent state:\n${stateText()}`, true)
+            return stateError("Nothing to undo.", "Current state")
           }
-          return textResult(stateText("Undid the last change."))
+          return stateResult("Undid the last change.")
         }),
     },
   ]

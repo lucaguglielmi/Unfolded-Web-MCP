@@ -5,9 +5,9 @@
  * both ways — asserted through the address bar, which live-tracks the
  * design. Run with `npm run e2e:pairing` after `npm run build`.
  */
-import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { chromium } from "playwright"
+import { startWrangler } from "./wranglerDev.mjs"
 
 const PORT = 8789
 const BASE = `http://localhost:${PORT}`
@@ -23,17 +23,24 @@ const executablePath = process.env.CHROMIUM_PATH
     ? "/opt/pw-browsers/chromium"
     : undefined
 
-const server = spawn("npx", ["wrangler", "dev", "--port", String(PORT), "--local"], {
-  stdio: "ignore",
-})
-for (let i = 0; i < 120; i++) {
-  try {
-    if ((await fetch(BASE)).ok) break
-  } catch {
-    /* not up yet */
-  }
-  await new Promise((r) => setTimeout(r, 500))
+if (!existsSync("dist/index.html")) {
+  console.log("FAIL  dist/ is missing — run `npm run build` first")
+  process.exit(1)
 }
+// Every context here shares one IP, and the suite's claims exhaust the
+// Worker's default budget of 10 per IP per minute (worker/pairingCore.ts) —
+// a throttled claim would read as "the link didn't pair". So this run, and
+// only this run, raises the limit through the dev-only var instead of
+// waiting the window out. Fails fast on a busy port or a wrangler that
+// never comes up.
+const server = await startWrangler({
+  port: PORT,
+  extraArgs: ["--var", "PAIR_CLAIMS_PER_IP_PER_MINUTE:1000"],
+  ready: (res) => res.ok,
+}).catch((e) => {
+  console.log(`FAIL  ${e.message}`)
+  process.exit(1)
+})
 
 // same simulated WebMCP host as e2e/run.mjs — gives us __unfoldedTools to
 // drive edits without reaching into React internals
@@ -60,19 +67,6 @@ const openContinue = async (page) => {
 }
 
 const browser = await chromium.launch({ executablePath })
-/**
- * The Worker allows 10 claims per IP per minute (worker/pairingCore.ts) and
- * every context here shares one address. The suite spends most of that
- * budget before the handoff scenario, so it waits the window out first —
- * a rate-limited claim would read as "the link didn't pair", which is the
- * one thing that scenario must prove.
- */
-const suiteStartedAt = Date.now()
-const CLAIM_WINDOW_MS = 62_000
-const waitForClaimWindow = async () => {
-  const remaining = suiteStartedAt + CLAIM_WINDOW_MS - Date.now()
-  if (remaining > 0) await new Promise((r) => setTimeout(r, remaining))
-}
 try {
   const ctxA = await browser.newContext()
   const ctxB = await browser.newContext()
@@ -309,7 +303,6 @@ try {
   // agent mints a single-use liveHandoffUrl ON DEMAND; state reads carry
   // only the permanent designUrl. Opening the handoff link makes the
   // visible tab a live follower of the hidden one — both ways.
-  await waitForClaimWindow()
   const ctxF = await browser.newContext()
   const f = await ctxF.newPage()
   await f.addInitScript(mcpHostInit)
@@ -379,9 +372,10 @@ try {
 } catch (e) {
   failures++
   console.log("FAIL  pairing e2e crashed —", e.message)
+  console.log(server.log().slice(-2000))
 } finally {
   await browser.close()
-  server.kill()
+  await server.stop()
 }
 console.log(failures === 0 ? "\nPAIRING E2E: all checks passed" : `\nPAIRING E2E: ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -141,7 +141,10 @@ rejects when >100 claims/s). A wrong code is a uniform miss — no oracle for
 "exists but expired"; comparison is constant-time. With ≤ ~100 codes live at
 any moment, one guess hits with p ≈ 10⁻⁷; a maxed-out attacker inside the
 limits expects centuries per hit, and a hit yields edit access to one
-stranger's mug dimensions for one session.
+stranger's mug dimensions for one session. The per-IP limit is configurable
+(`PAIR_CLAIMS_PER_IP_PER_MINUTE`, read by PairingDO) for local test runs
+only, where every browser context shares one address; production sets no
+vars and keeps the default.
 
 ## 5. User flows
 
@@ -650,3 +653,8 @@ link selection; this section only reconciles the wording above.
   times the exposure of a code that sits in a transcript, still centuries
   per hit inside the rate limits. The minting tab's solo grace moved to
   16 minutes with it. All numbers in this document were updated in place.
+  Considered and **declined** (owner's decision, 2026-09-02): carrying a
+  128-bit join token instead of a spoken code in the Open-in-ChatGPT
+  prompt, which would have let the spoken code stay short. One
+  invitation shape per surface stays: codes for the prompt and voice,
+  tokens for links.

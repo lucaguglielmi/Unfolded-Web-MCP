@@ -6,7 +6,7 @@
  * guards. Run with `npm run e2e:worker` (no build needed — wrangler
  * bundles the worker itself; the assets 404 is irrelevant here).
  */
-import { spawn } from "node:child_process"
+import { startWrangler } from "./wranglerDev.mjs"
 
 const PORT = 8788
 const BASE = `http://localhost:${PORT}`
@@ -16,16 +16,11 @@ const check = (name, ok, detail = "") => {
   if (!ok) failures++
 }
 
-const server = spawn("npx", ["wrangler", "dev", "--port", String(PORT), "--local"], {
-  stdio: ["ignore", "pipe", "pipe"],
+// fails fast on a busy port or a wrangler that never comes up (e2e/wranglerDev.mjs)
+const server = await startWrangler({ port: PORT }).catch((e) => {
+  console.log(`FAIL  ${e.message}`)
+  process.exit(1)
 })
-let serverLog = ""
-server.stdout.on("data", (d) => (serverLog += d))
-server.stderr.on("data", (d) => (serverLog += d))
-for (let i = 0; i < 120; i++) {
-  try { if ((await fetch(BASE)).status < 500) break } catch {}
-  await new Promise((r) => setTimeout(r, 500))
-}
 
 const openSocket = (sid) =>
   new Promise((resolve, reject) => {
@@ -117,9 +112,9 @@ try {
 } catch (e) {
   failures++
   console.log("FAIL  smoke crashed —", e.message)
-  console.log(serverLog.slice(-2000))
+  console.log(server.log().slice(-2000))
 } finally {
-  server.kill()
+  await server.stop()
 }
 console.log(failures === 0 ? "\nWORKER SMOKE: all checks passed" : `\nWORKER SMOKE: ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

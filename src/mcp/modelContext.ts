@@ -30,9 +30,44 @@ export interface ImageContent {
 
 export type ToolContent = TextContent | ImageContent
 
+/**
+ * Result contract version (hardening spec 9.3). Bump when the shape of
+ * `structuredContent` changes incompatibly; the contract is written up in
+ * docs/performance-report.md ("Structured results").
+ */
+export const TOOL_RESULT_CONTRACT = "tool-result/1"
+
+/**
+ * The machine-readable half of every tool result. `ok` mirrors
+ * `!isError`; `message` is the sentence the text content opens with;
+ * tools that report the design carry the describeState() snapshot under
+ * `state` (the unchanged state on failures) and its `warnings` when
+ * there are any. Other tools add their own fields beside ok/message
+ * (the handoff link, the template summary, the export page count).
+ */
+export interface StructuredResult {
+  ok: boolean
+  message: string
+  [field: string]: unknown
+}
+
+/**
+ * The result envelope. The draft's IDL is
+ * `callback ToolExecuteCallback = Promise<any> (object inputObject,
+ * ToolExecuteCallbackOptions options)` and its "tool execute steps" hand
+ * the host the fulfilled value after "serializing a JavaScript value to a
+ * JSON string" — any JSON-serializable value, with no result envelope of
+ * the draft's own (ModelContextTool `execute` member and the tool execute
+ * steps, https://webmachinelearning.github.io/webmcp/). Hosts in the wild
+ * (ChatGPT's agent browser, MCP-B) read the MCP call-result envelope, so
+ * `content` + `isError` stay exactly as they are and the structured object
+ * rides beside them under MCP's own name for it, `structuredContent`.
+ * Additive: a host that ignores the field loses nothing.
+ */
 export interface ToolResult {
   content: ToolContent[]
   isError?: boolean
+  structuredContent?: StructuredResult
 }
 
 /** options the host passes into a tool execution (current draft) */
@@ -103,6 +138,12 @@ export function getModelContextInfo(): ModelContextInfo | undefined {
   return undefined
 }
 
-export function textResult(text: string, isError = false): ToolResult {
-  return { content: [{ type: "text", text }], isError }
+export function textResult(
+  text: string,
+  isError = false,
+  structuredContent?: StructuredResult
+): ToolResult {
+  const result: ToolResult = { content: [{ type: "text", text }], isError }
+  if (structuredContent) result.structuredContent = structuredContent
+  return result
 }

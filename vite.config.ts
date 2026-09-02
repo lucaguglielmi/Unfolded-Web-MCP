@@ -1,6 +1,6 @@
 import fs from "node:fs"
 import path from "node:path"
-import { defineConfig } from "vite"
+import { configDefaults, defineConfig } from "vitest/config"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 
@@ -24,6 +24,11 @@ applyEnvExampleDefaults()
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  test: {
+    // agent worktrees live under .claude/ (git-ignored); their copies of
+    // the suites must not run against this tree's sources
+    exclude: [...configDefaults.exclude, ".claude/**"],
+  },
   resolve: {
     alias: {
       // the profiler lives in its own publishable workspace package; the

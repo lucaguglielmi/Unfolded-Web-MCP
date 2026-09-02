@@ -549,6 +549,27 @@ After submission:
 - migrate only with compatibility tests for ChatGPT and Chrome;
 - version or document the result contract if external users may rely on it.
 
+> **Done (additive, post-submission)** — contract `tool-result/1`. Every tool
+> keeps its `content` array and `isError` byte-for-byte and additionally
+> returns `structuredContent`: `{ ok, message, state?, warnings? }` for the
+> state-reporting tools (ok:false plus the unchanged state on validation
+> errors, failed joins, and the fail-closed handoff); the handoff object,
+> the template summary, and `{ pages, paper, rows, cols }` for the export,
+> each with ok/message; the preview keeps its image content and adds
+> `{ ok, message, summary }`. Additive rather than a migration because the
+> judged host (ChatGPT's agent browser) is verified only against the text
+> envelope — until structured results are confirmed there, removing the
+> text would risk the one path known to work, while the extra field costs a
+> host that ignores it nothing. The draft itself (`ToolExecuteCallback`
+> returns `Promise<any>`, serialized to a JSON string by the tool execute
+> steps) defines no envelope, so the MCP name `structuredContent` is used
+> beside `content`. Names, descriptions, schemas, and annotations are
+> untouched; the discovery-metadata budget test stays green. Guards:
+> `src/mcp/structuredResult.test.ts` (every tool: field present, `ok` mirrors
+> `!isError`, `state` deep-equals the text's JSON) and an e2e check on a read
+> and a mutation. Payload measurements and the contract write-up:
+> docs/performance-report.md §7.
+
 ---
 
 ## 10. Manual validation matrix
