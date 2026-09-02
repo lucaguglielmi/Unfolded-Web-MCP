@@ -47,9 +47,11 @@ The UX-designer pride point — name the problem explicitly, judges won't
 know it exists: *ChatGPT's browser is invisible, and Safari can't speak
 WebMCP. How do the two talk?*
 - In Safari: open **Continue on another screen** (the connection button —
-  the two status dots), show the 6-character code.
-- In ChatGPT: *"Join my design session, code K7F-3QP."* → `join_session`.
-  The agent's hidden browser adopts the Safari design.
+  the two status dots), tap **copy prompt**. The clipboard now holds a
+  ready-made agent prompt with the pairing code already inside it — the
+  user never reads or types a code.
+- Paste it into ChatGPT. The agent opens the app in its hidden browser and
+  `join_session` fires from the code in the prompt: paired, one paste.
 - Prove it immediately with something small: ask the agent to make it
   hexagonal → the Safari tab changes in about a second. Then the reverse:
   drag a slider **in Safari**, ask the agent *"what did I just change?"* —
@@ -57,6 +59,14 @@ WebMCP. How do the two talk?*
 - One line on the mechanics worth saying out loud: WebSockets to a
   per-session room, single-use short-lived codes, every edit is an undo
   step on both sides.
+
+> **Build gap to close before recording:** today `PairDialog` copies the
+> *bare* code or the invite link, and the kickstart prompt (with the tool
+> briefing) lives on `/webmcp` *without* a code. The one-paste flow above
+> needs a small **"Copy prompt for your agent"** button in the pairing
+> dialog that wraps the freshly minted code in a kickstart-style prompt
+> ("Open tryunfolded.com in your built-in browser … then call
+> `join_session` with code XXXXXX …"). Small change, big demo moment.
 
 ### 1:30–2:05 — Beat 2: from a photo to a template (Safari still visible)
 In ChatGPT: upload a photo of a favorite mug/vase. Prompt: *"Recreate this
@@ -110,10 +120,12 @@ real WebMCP host.
 >
 > Here's the part I'm proudest of as a UX designer. I'm designing in
 > Safari — which has no WebMCP at all. ChatGPT's browser does, but it's
-> hidden. I read one six-character code into the chat, and the two are
-> paired over WebSockets — both directions. Watch: every change the agent
-> makes lands in my Safari tab in about a second, and every slider I drag
-> here is visible to the agent on its next tool call.
+> hidden. I tap *copy prompt*, paste it into the chat, and that's the
+> whole handshake — the pairing code travels inside the prompt, and the
+> two browsers are connected over WebSockets, both directions. Watch:
+> every change the agent makes lands in my Safari tab in about a second,
+> and every slider I drag here is visible to the agent on its next tool
+> call.
 >
 > [photo beat] … [capacity beat] …
 >
@@ -131,6 +143,8 @@ real WebMCP host.
   session pairs.
 - **Mint the code in Safari, not in the agent** — the joining side adopts
   the other's design, and we want the agent to adopt the Safari design.
+  The copy-prompt button belongs in Safari's pairing dialog for the same
+  reason.
 - **Record beats as separate takes**; `open_model` on a share link
   restores any state between takes.
 
