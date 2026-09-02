@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { Collector, REPORT_FORMAT, type Span } from "./collector"
-import { instrumentMap, instrumentTool, type ToolLike } from "./interceptor"
+import { attachProfiler } from "./index"
+import { instrumentMap, instrumentTool, startInterception, type ToolLike } from "./interceptor"
 
 const baseSpan = (over: Partial<Span> = {}): Omit<Span, "seq" | "gapSincePrevCallMs"> => ({
   tool: "demo",
@@ -119,6 +120,27 @@ describe("instrumentTool", () => {
     expect(tool.execute).toBe(execute)
   })
 
+  it("forwards every argument — the host's options bag reaches the tool untouched", async () => {
+    const { collector, originals } = setup()
+    const seen: unknown[][] = []
+    const tool = {
+      name: "t",
+      execute: async (input: unknown, options?: { signal?: AbortSignal }) => {
+        seen.push([input, options])
+        return { content: [] }
+      },
+    }
+    instrumentTool(tool, collector, originals)
+
+    const options = { signal: new AbortController().signal }
+    await tool.execute({ a: 1 }, options)
+    expect(seen).toHaveLength(1)
+    expect(seen[0][0]).toEqual({ a: 1 })
+    expect(seen[0][1]).toBe(options)
+    // the span weighs the input alone, never the options bag
+    expect(collector.spans()[0].inputBytes).toBe(JSON.stringify({ a: 1 }).length)
+  })
+
   it("instrumentMap retrofits a {name: tool} registry", async () => {
     const { collector, originals } = setup()
     const registry: Record<string, ToolLike> = {
@@ -129,5 +151,76 @@ describe("instrumentTool", () => {
     await registry.a.execute({})
     await registry.b.execute({})
     expect(collector.spans().length).toBe(2)
+  })
+})
+
+/**
+ * The registry watcher reads document / navigator / window globals, so a
+ * fake host is stubbed onto globalThis for these (no DOM in the runner).
+ */
+describe("startInterception", () => {
+  const fakeHost = () => {
+    const calls: unknown[][] = []
+    const registry = {
+      registerTool: (...args: unknown[]) => {
+        calls.push(args)
+        return Promise.resolve()
+      },
+      provideContext: (...args: unknown[]) => {
+        calls.push(args)
+      },
+    }
+    vi.stubGlobal("window", { setInterval, clearInterval })
+    vi.stubGlobal("document", { modelContext: registry })
+    vi.stubGlobal("navigator", {})
+    return { registry, calls }
+  }
+
+  afterEach(() => vi.unstubAllGlobals())
+
+  it("patched registerTool / provideContext pass their options through to the host", async () => {
+    const { registry, calls } = fakeHost()
+    const interception = startInterception(new Collector())
+
+    const tool: ToolLike = { name: "t", execute: async () => ({ content: [] }) }
+    const opts = { signal: new AbortController().signal }
+    await registry.registerTool(tool, opts)
+    registry.provideContext({ tools: [tool] }, opts)
+
+    expect(calls).toHaveLength(2)
+    expect(calls[0][0]).toBe(tool)
+    expect(calls[0][1]).toBe(opts)
+    expect(calls[1][1]).toBe(opts)
+    interception.stop()
+  })
+
+  it("detach puts the registry's own methods back, and a re-attach instruments again", async () => {
+    const { registry, calls } = fakeHost()
+    const originalRegister = registry.registerTool
+    const originalProvide = registry.provideContext
+    const execute = async () => ({ content: [] })
+    const tool = { name: "t", execute }
+
+    const first = attachProfiler({ relay: false })
+    expect(registry.registerTool).not.toBe(originalRegister)
+    await registry.registerTool(tool)
+    expect(tool.execute).not.toBe(execute)
+
+    first.detach()
+    expect(registry.registerTool).toBe(originalRegister)
+    expect(registry.provideContext).toBe(originalProvide)
+    expect(tool.execute).toBe(execute)
+    expect(window.__webmcpPerf).toBeUndefined()
+
+    const second = attachProfiler({ relay: false })
+    expect(registry.registerTool).not.toBe(originalRegister)
+    await registry.registerTool(tool)
+    await tool.execute({})
+    expect(second.spans()).toHaveLength(1)
+    expect(calls).toHaveLength(2) // the host saw each registration once
+
+    second.detach()
+    expect(registry.registerTool).toBe(originalRegister)
+    expect(tool.execute).toBe(execute)
   })
 })

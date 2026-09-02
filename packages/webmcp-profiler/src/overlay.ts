@@ -119,6 +119,10 @@ export function createOverlay(collector: Collector): Overlay {
     },
     destroy: () => {
       unsubscribe()
+      if (renderTimer !== null) {
+        window.clearTimeout(renderTimer)
+        renderTimer = null
+      }
       channel?.close()
       host.remove()
     },
