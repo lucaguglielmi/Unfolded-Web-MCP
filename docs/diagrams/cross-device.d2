@@ -1,0 +1,64 @@
+direction: down
+
+source: Current Unfolded tab
+choice: Choose how to invite another screen {
+  shape: diamond
+}
+handoff-link: QR or live handoff link
+code: 6-character pairing code
+browser: Any modern browser
+valid: Is the link token valid and unused? {
+  shape: diamond
+}
+claim-link: Join once, then remove the token from the URL
+copy: Open the design as an independent copy
+minted: Where was the code created? {
+  shape: diamond
+}
+agent: ChatGPT calls join_session
+enter: Person enters the agent's code in Unfolded
+session: Durable Object keeps the canonical design state
+result: Edits flow both ways in about a second
+
+source -> choice
+choice -> handoff-link: Tap or scan
+choice -> code: Speak or paste
+handoff-link -> browser
+browser -> valid
+valid -> claim-link: Yes
+valid -> copy: No
+code -> minted
+minted -> agent: Unfolded tab
+minted -> enter: ChatGPT tab
+claim-link -> session
+agent -> session
+enter -> session
+session -> result
+
+*.style.border-radius: 12
+source.style.fill: "#dbeafe"
+source.style.stroke: "#2563eb"
+choice.style.fill: "#fef3c7"
+choice.style.stroke: "#d97706"
+handoff-link.style.fill: "#ffedd5"
+handoff-link.style.stroke: "#ea580c"
+code.style.fill: "#ffedd5"
+code.style.stroke: "#ea580c"
+browser.style.fill: "#f5f5f4"
+browser.style.stroke: "#78716c"
+valid.style.fill: "#fef3c7"
+valid.style.stroke: "#d97706"
+agent.style.fill: "#ede9fe"
+agent.style.stroke: "#7c3aed"
+claim-link.style.fill: "#ffedd5"
+claim-link.style.stroke: "#ea580c"
+copy.style.fill: "#f5f5f4"
+copy.style.stroke: "#78716c"
+minted.style.fill: "#fef3c7"
+minted.style.stroke: "#d97706"
+enter.style.fill: "#dbeafe"
+enter.style.stroke: "#2563eb"
+session.style.fill: "#e0f2fe"
+session.style.stroke: "#0284c7"
+result.style.fill: "#d1fae5"
+result.style.stroke: "#059669"
