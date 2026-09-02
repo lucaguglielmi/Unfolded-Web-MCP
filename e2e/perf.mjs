@@ -10,7 +10,7 @@
  * Durable Object round trip, not page compute, and the preview server
  * has no worker behind it.
  *
- * Baseline (2026-08-31, sandbox Chromium): every tool p50 ≤ 5 ms,
+ * Baseline (sandbox Chromium): every tool p50 ≤ 5 ms,
  * p95 ≤ 13 ms — tool execution is NOT where agent-perceived latency
  * comes from. See docs/webmcp-profiler-spec.md for the full picture.
  */

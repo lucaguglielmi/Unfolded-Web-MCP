@@ -39,7 +39,7 @@ export function cryptoGlyphIndices(count: number): number[] {
  * Join tokens: the URL-borne sibling of a code (docs/live-sync-spec.md v3).
  * 24 crypto-random bytes as base64url (~128 bits — guessing is void, so no
  * process protections needed beyond the shared rate limits), the same
- * 15-minute TTL as codes (both raised on 2026-09-02: codes from 5, tokens
+ * 15-minute TTL as codes (both raised: codes from 5 minutes, tokens
  * from 10), still single use and burned on claim. Never the sid.
  */
 export const TOKEN_TTL_MS = 15 * 60_000
