@@ -114,13 +114,15 @@ export class SessionDO extends DurableObject<Env> {
           return
         }
         // broadcast to ALL (sender included): the echo is how the sender
-        // learns the version its own edit landed at
+        // learns the version its own edit landed at — and, via patchId,
+        // which of its sends the server actually received
         const broadcast = {
           kind: "patch",
           version: result.version,
           patches: result.patches,
           clientId: attachment.clientId,
           actor: attachment.actor,
+          ...(typeof msg.patchId === "string" ? { patchId: msg.patchId } : {}),
         }
         for (const peer of this.ctx.getWebSockets()) this.send(peer, broadcast)
         await this.persist()

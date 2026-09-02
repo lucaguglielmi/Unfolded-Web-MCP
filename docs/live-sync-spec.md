@@ -255,10 +255,22 @@ same" step double-revert; convergence still holds.
 ### 7.5 Reconnection & offline
 
 Exponential backoff (1 s → 30 s, jittered); reconnect also on
-`visibilitychange`→visible, `online`, `focus` — mobile Chrome freezes
-background sockets, so every return to the phone tab is a resync. On
+`visibilitychange`→visible, `online`, `focus` — phones freeze background
+tabs wholesale, so every return to the tab is a convergence check
+(`wake()`). A frozen socket rarely announces itself: it may be torn down
+with no close event, or left open on paper with every broadcast since the
+freeze lost. So a wake with no socket reconnects at once (backoff reset);
+a socket that never opened is dropped and replaced; an open socket is
+probed with a `hello` — the server re-welcomes with a full snapshot, which
+is the catch-up — and 4 s of silence declares it dead and reconnects. On
 `welcome` after a gap: apply server state, then send surviving local edits
-as one diff (per-field local-wins for offline edits, documented LWW). A
+as one diff (per-field local-wins for offline edits, documented LWW).
+Sends the server never echoed (the `patch` echo carries the sender's
+`patchId`) count as local edits too: a frozen socket swallows them
+silently, so the next welcome re-applies and resends them. The solo grace
+is suspension-aware: a timer firing far past its due time ran while the
+tab was frozen, so it grants a short probation for the wake resync to
+report peers instead of forgetting the session on a stale verdict. A
 claimed-then-unreachable session (claim OK, WS fails) rolls back to
 unpaired with a toast.
 

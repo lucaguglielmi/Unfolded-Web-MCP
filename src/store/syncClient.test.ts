@@ -464,3 +464,154 @@ describe("pairing operations", () => {
     expect(seen).toEqual(["connecting:1", "syncing:1", "syncing:2", "syncing:3", "off:3", "off:1"])
   })
 })
+
+/* --------------------------------------------- waking a frozen tab */
+
+/** a paired client whose every socket is recorded — for reconnect assertions */
+const freshWithSockets = (records: Record<string, string> = { [SESSION_STORAGE_KEY]: JSON.stringify({ sid: "s".repeat(22) }) }) => {
+  const sockets: FakeSocket[] = []
+  let n = 0
+  const fresh = createSyncClient({
+    store,
+    storage: fakeStorage(records),
+    createSocket: () => {
+      const s = new FakeSocket()
+      sockets.push(s)
+      return s
+    },
+    randomId: () => `p${n++}`, // distinct patchIds, as in the app
+  })
+  return { fresh, sockets }
+}
+
+describe("wake()", () => {
+  it("probes an open socket with a hello and adopts the catch-up snapshot", () => {
+    const { fresh, sockets } = freshWithSockets()
+    fresh.start()
+    sockets[0].open()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+    // the phone froze the tab; a peer's edit was broadcast into the void
+    fresh.wake()
+    expect(sockets[0].sentOfKind("hello")).toHaveLength(2)
+    expect(fresh.status()).toBe("syncing") // open on paper stays optimistic
+    const caughtUp = { ...slice(store), form: { ...store.getState().form, heightMm: 177 } }
+    sockets[0].receive({ kind: "welcome", state: caughtUp, version: 4, peers: 2 })
+    expect(store.getState().form.heightMm).toBe(177)
+    vi.advanceTimersByTime(10_000)
+    expect(sockets).toHaveLength(1) // the answered probe closes nothing
+    expect(sockets[0].closed).toBe(false)
+    fresh.stop()
+  })
+
+  it("replaces a socket that stays silent after the probe", () => {
+    const { fresh, sockets } = freshWithSockets()
+    fresh.start()
+    sockets[0].open()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+    fresh.wake()
+    vi.advanceTimersByTime(4_500) // a zombie: never answers, never closes
+    expect(sockets[0].closed).toBe(true)
+    expect(sockets).toHaveLength(2)
+    expect(fresh.status()).toBe("connecting")
+    sockets[1].open()
+    sockets[1].receive({ kind: "welcome", state: slice(store), version: 7, peers: 2 })
+    expect(fresh.status()).toBe("syncing")
+    // the zombie's late close must not disturb the new socket
+    sockets[0].onclose?.()
+    expect(fresh.status()).toBe("syncing")
+    fresh.stop()
+  })
+
+  it("drops a socket that never opened and reconnects at once", () => {
+    const { fresh, sockets } = freshWithSockets()
+    fresh.start() // CONNECTING when the tab was frozen — it may hang forever
+    fresh.wake()
+    expect(sockets[0].closed).toBe(true)
+    expect(sockets).toHaveLength(2)
+    expect(fresh.status()).toBe("connecting")
+    fresh.stop()
+  })
+
+  it("resends an edit the frozen socket swallowed, on top of the catch-up state", () => {
+    const { fresh, sockets } = freshWithSockets()
+    fresh.start()
+    sockets[0].open()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+    store.getState().updateForm({ heightMm: 150 })
+    vi.advanceTimersByTime(300)
+    expect(sockets[0].sentOfKind("patch")).toHaveLength(1) // into a frozen socket — lost
+    fresh.wake()
+    // the server never saw it: its snapshot carries a peer's edit instead
+    const serverState = { ...slice(store), form: { ...store.getState().form, heightMm: 100, bottomDiameterMm: 90 } }
+    sockets[0].receive({ kind: "welcome", state: serverState, version: 3, peers: 2 })
+    // per-field local-wins: the swallowed edit survives, the peer's other field lands
+    expect(store.getState().form.heightMm).toBe(150)
+    expect(store.getState().form.bottomDiameterMm).toBe(90)
+    const resent = sockets[0].sentOfKind("patch")
+    expect(resent).toHaveLength(2)
+    expect(resent[1].patches).toEqual({ form: { heightMm: 150 } })
+    fresh.stop()
+  })
+
+  it("does not resend an edit the server already echoed", () => {
+    const { fresh, sockets } = freshWithSockets()
+    fresh.start()
+    sockets[0].open()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+    store.getState().updateForm({ heightMm: 150 })
+    vi.advanceTimersByTime(300)
+    const sent = sockets[0].sentOfKind("patch")[0]
+    sockets[0].receive({ kind: "patch", clientId: "p0", patchId: sent.patchId, version: 2, patches: sent.patches })
+    fresh.wake()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 2, peers: 2 })
+    expect(sockets[0].sentOfKind("patch")).toHaveLength(1)
+    fresh.stop()
+  })
+})
+
+describe("solo grace on a suspended tab", () => {
+  const paired = () => {
+    const records: Record<string, string> = {}
+    const { fresh, sockets } = freshWithSockets(records)
+    fresh.pair() // minted a code, then the potter switched to the ChatGPT app
+    sockets[0].open()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 1 })
+    // the OS froze the tab: no timer ran, no presence frame arrived; twenty
+    // minutes later the tab resumes and the overdue timer fires at once
+    vi.setSystemTime(Date.now() + 20 * 60_000)
+    vi.advanceTimersByTime(6 * 60_000 + 1_000)
+    return { fresh, sockets, records }
+  }
+
+  it("does not forget the session on an overdue verdict — the wake resync decides", () => {
+    const { fresh, sockets, records } = paired()
+    expect(fresh.isPaired()).toBe(true)
+    fresh.wake() // the app's visibility listener
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 2 })
+    expect(fresh.everPeered()).toBe(true)
+    vi.advanceTimersByTime(60 * 60_000)
+    expect(fresh.isPaired()).toBe(true)
+    expect(JSON.parse(records[SESSION_STORAGE_KEY]).everPeered).toBe(true)
+    fresh.stop()
+  })
+
+  it("still forgets a session that is genuinely alone — after a renewed full grace", () => {
+    const { fresh, sockets } = paired()
+    fresh.wake()
+    sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 1 })
+    vi.advanceTimersByTime(60_000)
+    expect(fresh.isPaired()).toBe(true) // the fresh welcome restarted the grace
+    vi.advanceTimersByTime(6 * 60_000)
+    expect(fresh.isPaired()).toBe(false)
+    expect(fresh.status()).toBe("off")
+  })
+
+  it("forgets a solo session whose probe goes unanswered, once the probation lapses", () => {
+    const { fresh, sockets } = paired()
+    fresh.wake()
+    vi.advanceTimersByTime(16_000) // no welcome ever came back
+    expect(sockets[0].closed).toBe(true) // the zombie was replaced meanwhile
+    expect(fresh.isPaired()).toBe(false)
+    expect(fresh.status()).toBe("off")
+  })
+})
