@@ -504,7 +504,7 @@ export function WhyPage() {
         {/* footer */}
         <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 pt-8">
           <p className="text-sm text-muted-foreground/80">
-            Free for everyone, forever · open source (MIT) · built for the WebMCP Challenge
+            Free for everyone, forever · open source (MIT)
           </p>
           <div className="flex items-center gap-3">
             <a

@@ -13,7 +13,7 @@ vitest suites plus a live `wrangler dev` smoke suite with real sockets
 (`npm run e2e:worker`, `npm run e2e:pairing`) — vitest-pool-workers does not
 support this repo's vitest major.
 
-Decisions taken 2026-08-31 (previously open):
+Decisions taken (previously open):
 - **Code TTL: 15 minutes.** Confirmed.
 - **Eager session creation.** Minting a code on a never-synced tab creates
   the session immediately, so the code keeps working even if the minting tab
@@ -472,8 +472,7 @@ risk and are reviewable with no infrastructure; item 2 ships value alone.
 
 ## 16. Design review
 
-Reviewed against the codebase on 2026-08-31 (updated same day for flows +
-decisions):
+Reviewed against the codebase (updated for flows + decisions):
 
 - **Flow B forced a real change:** claimer-adopts (§4.3) is the right single
   rule, but it makes direction load-bearing — the device holding the work
@@ -620,7 +619,7 @@ design; the Continue dialog QR pairs a second context.
 
 ---
 
-# Handoff amendment (2026-09-02) — two links, one tool
+# Handoff amendment — two links, one tool
 
 Implemented per `docs/live-handoff-link-spec.md`, which is normative for
 link selection; this section only reconciles the wording above.
@@ -650,14 +649,14 @@ link selection; this section only reconciles the wording above.
 - **Tool count** is fourteen; `/webmcp` derives it from `TOOL_SUMMARIES`
   and `src/mcp/docsGuard.test.ts` pins the README table to the same list.
 
-- **Lifetimes (2026-09-02).** Codes and tokens both live **15 minutes**
+- **Lifetimes.** Codes and tokens both live **15 minutes**
   (codes were 5, tokens 10; the hub's Open-in-ChatGPT flow — app switch,
   login, the agent's hidden browser, a slow first turn — could outrun 5).
   The §4.5 arithmetic scales linearly: three times the live codes, three
   times the exposure of a code that sits in a transcript, still centuries
   per hit inside the rate limits. The minting tab's solo grace moved to
   16 minutes with it. All numbers in this document were updated in place.
-  Considered and **declined** (owner's decision, 2026-09-02): carrying a
+  Considered and **declined** (owner's decision): carrying a
   128-bit join token instead of a spoken code in the Open-in-ChatGPT
   prompt, which would have let the spoken code stay short. One
   invitation shape per surface stays: codes for the prompt and voice,

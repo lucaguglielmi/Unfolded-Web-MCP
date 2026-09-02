@@ -1,9 +1,8 @@
 # Reliable ChatGPT Live Handoff Links
 
-Status: Implemented (2026-09-02) — see §15 "Implementation notes"  
+Status: Implemented — see §15 "Implementation notes"  
 Scope: Normative for link selection and the create_live_handoff contract  
-Repository: Unfolded WebMCP  
-Date: 2026-09-01 (spec), 2026-09-02 (implementation)
+Repository: Unfolded WebMCP
 
 ## 1. Summary
 
@@ -300,7 +299,7 @@ Give each surface one job:
 
 | Surface | Purpose |
 | --- | --- |
-| README.md | Fast judge-facing overview, evidence, demo prompts, and verification commands |
+| README.md | Fast reader-facing overview, evidence, example prompts, and verification commands |
 | /webmcp | Live user and evaluator guide: connection state, tool list, and prompts |
 | /why | Short product story: the pottery problem, why an agent helps, and physical output |
 | docs/live-handoff-link-spec.md | Normative link-selection and handoff contract |
@@ -319,7 +318,7 @@ Recommended order:
 1. One-sentence product pitch, live link, guide link, repository status badges.
 2. One screenshot.
 3. Why it matters: the manual pottery-template problem in no more than two short paragraphs.
-4. Judge in 60 seconds: three prompts and the visible result of each.
+4. Verify in 60 seconds: three prompts and the visible result of each.
 5. Under the hood: six or seven evidence-led bullets.
 6. Compact WebMCP tool table, including create_live_handoff.
 7. Local verification commands.
@@ -358,7 +357,7 @@ Avoid hardcoded test counts because they become stale. Use commands and suite na
 | "share link" without a qualifier | Ambiguous | Say design permalink or live handoff link every time |
 | Exact unit-test count | Drifts whenever tests change | Name the suites, or automate the count |
 
-### 10.4 Judge in 60 seconds
+### 10.4 Verify in 60 seconds
 
 The README demo should show the entire human-agent loop, not just individual tools:
 
@@ -519,7 +518,7 @@ The final wording must name the specific link type.
 7. Remove shareUrl and unused agentContinuity token-prefetch code.
 8. Reconcile docs/live-sync-spec.md with the implemented token model.
 
-If backward compatibility is unnecessary for the hackathon build, steps 6 and 7 may happen together.
+If backward compatibility is unnecessary for the current build, steps 6 and 7 may happen together.
 
 ## 13. Acceptance criteria
 

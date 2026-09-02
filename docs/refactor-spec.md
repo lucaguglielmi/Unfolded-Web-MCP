@@ -1,17 +1,14 @@
 # Refactoring Spec — Code Quality Pass
 
-> Status: working notes from the 2026-08-30 review. Several items have since
-> landed through other work (see git history, which is authoritative); the
-> ground rules below still describe the frozen public contracts correctly.
+> Status: working notes from an architecture/performance review. Several items
+> have since landed through other work (see git history, which is
+> authoritative); the ground rules below still describe the frozen public
+> contracts correctly.
 
 Goal: a codebase that reads as deliberately engineered end to end — clear module
 boundaries, no duplicated contracts, no test-only seams leaking into production
-code, and measured performance choices. This document turns the findings of the
-2026-08-30 architecture/performance review into ordered, verifiable work items.
-
-**Deadline context:** the WebMCP Challenge submission closes Sep 3. Features are
-frozen; only the items in this spec land before the deadline, in priority order.
-Anything not finished by then moves to "after".
+code, and measured performance choices. This document turns the findings of that
+architecture/performance review into ordered, verifiable work items.
 
 ## Ground rules (apply to every item)
 
@@ -26,9 +23,7 @@ Anything not finished by then moves to "after".
   every push. The deploy pipeline is the final gate.
 - **No behavior changes** unless the item explicitly says so. Items marked
   *(behavior)* change something observable and say exactly what.
-- Update this file as items land (move them to the Done section). Delete the
-  file in the final pre-submission commit — the codebase should speak for
-  itself by then.
+- Update this file as items land (move them to the Done section).
 
 ---
 
@@ -212,7 +207,7 @@ correctly so it's churn, not a leak, and currently smooth.
 
 ---
 
-## P3 — resilience polish (nice before the deadline, fine after)
+## P3 — resilience polish (nice before public launch, fine after)
 
 ### 17. Error boundary around the 3D preview
 A WebGL context loss or three.js exception currently unmounts the whole shell.
@@ -226,9 +221,8 @@ A WebGL context loss or three.js exception currently unmounts the whole shell.
 
 ## Sequencing
 
-The demo video and the Devpost submission share these same days — the refactor
-never outranks them. Work in tiers and stop at any tier boundary with a clean
-repo:
+The refactor never outranks release-critical work. Work in tiers and stop at
+any tier boundary with a clean repo:
 
 1. **Tier A (high value, low risk — do these):** all of P0, then items 5, 7,
    11, 12. These are what a code reviewer sees first: boundaries, no duplicated
@@ -238,8 +232,8 @@ repo:
 3. **Tier C (only if everything above is done and green):** item 9. It is the
    riskiest behavior change on the list with the least reviewer-visible payoff;
    the current 800 ms coalescing is defensible as-is.
-4. **Last day before submission:** final e2e + manual phone pass, delete this
-   file, tag the submission commit.
+4. **Before public launch:** final e2e + manual phone pass, tag the release
+   commit.
 
 ## Explicitly out of scope
 
@@ -251,8 +245,8 @@ repo:
 
 ## Done
 
-All 16 work items landed 2026-08-30, one commit each (6+14 combined by
-design), every one behind the full lint / test / build / e2e gate:
+All 16 work items landed, one commit each (6+14 combined by design), every
+one behind the full lint / test / build / e2e gate:
 
 | Item | Commit |
 |---|---|
@@ -272,5 +266,3 @@ design), every one behind the full lint / test / build / e2e gate:
 | 15 — heartbeat paused in hidden tabs | `b3437dd` |
 | 16 — geometry-rebuild tradeoff documented | `22fd374` |
 | 17 — error boundary around the 3D preview | `3f48501` |
-
-Remaining: the final pre-submission commit deletes this file.

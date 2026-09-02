@@ -1,10 +1,9 @@
-# Unfolded — WebMCP and Hackathon Hardening Specification
+# Unfolded — WebMCP Hardening Specification
 
-Status: **largely landed** — §4 (contract alignment), §6.1, §8.4, §9.1, and §9.3 are Done inline; still open: 5.1's shared fallback component with the 2D silhouette (and 5.2's routing through it), 8.2 security headers, 8.3 the live-session threat model, and the manual submission tasks 7.2–7.4  
+Status: **largely landed** — §4 (contract alignment), §6.1, §8.4, §9.1, and §9.3 are Done inline; still open: 5.1's shared fallback component with the 2D silhouette (and 5.2's routing through it), 8.2 security headers, 8.3 the live-session threat model, and the manual repository-presentation tasks in 7.2  
 Baseline: `main` at `bdf87d0` (`docs: remove stale project plan`)  
-Submission deadline: **2026-09-03 22:00 CEST**  
 
-> **Amendments (2026-09-01 review).** Verified against the code: 6.4's
+> **Amendments (first review).** Verified against the code: 6.4's
 > `cereal-bowl` bug, 7.1's dead PLAN.md link, and 8.1's `Math.random`
 > code path are all real (fixed where five-minute-sized). Corrections
 > recorded inline below: 4.3 dual-publishes titles, 4.5's premise is
@@ -14,14 +13,14 @@ Submission deadline: **2026-09-03 22:00 CEST**
 > committed `.env` holds only a public value. New: §5.3, the combined
 > connection button (WebMCP + pairing status in one control).
 >
-> **Amendments (2026-09-02).** Removed at the owner's request: 6.2
+> **Amendments (second review).** Removed at the owner's request: 6.2
 > (consecutive URL-changing mutations regression), 6.4 (test-quality gaps —
 > its three items had landed anyway: `cereal-bowl` replaced, the visible
 > tab's edit reaching the agent's next read is asserted in `e2e/pairing.mjs`,
 > `EXPECTED_TOOLS` stays independent), and 9.2 (3D bundle review — measured
 > healthy in docs/performance-report.md). Executed: 8.4 (see its Done note).
 >
-> **Amendments (2026-09-02, later).** Status line rewritten to match the
+> **Amendments (later).** Status line rewritten to match the
 > Done notes now inline (§4, §6.1, §8.4, §9.1, §9.3) and to list what is
 > still open. The tool surface grew from the 13 tools this review saw to
 > 14 with `create_live_handoff` (docs/live-handoff-link-spec.md); the
@@ -33,8 +32,8 @@ Submission deadline: **2026-09-03 22:00 CEST**
 
 ## 1. Purpose
 
-This specification turns the 2026-09-01 repository, live-product, WebMCP,
-testing, and hackathon-compliance review into ordered implementation work.
+This specification turns a full repository, live-product, WebMCP, and
+testing review into ordered implementation work.
 
 The product already works: ChatGPT discovered all 13 site tools then registered
 in production (the surface has since grown to 14 with `create_live_handoff`),
@@ -43,9 +42,9 @@ unit tests passed, and the latest deployment workflow was green. The goal is
 therefore not to redesign Unfolded. The goal is to:
 
 1. align registration and tool metadata with the current WebMCP contract;
-2. make failure states safe and legible in constrained judge browsers;
+2. make failure states safe and legible in constrained browsers;
 3. make the distinctive live-collaboration paths part of the release gate;
-4. remove judge-facing ambiguity from the repository and submission;
+4. remove reader-facing ambiguity from the repository;
 5. leave lower-risk security and performance work clearly sequenced.
 
 ## 2. Scope and non-goals
@@ -55,11 +54,11 @@ therefore not to redesign Unfolded. The goal is to:
 - `src/mcp/` registration lifecycle, types, metadata, cancellation, and errors;
 - WebGL-unavailable and preview-error behavior;
 - WebMCP, Worker, pairing, performance, and browser test coverage;
-- README, judge instructions, repository presentation, video, and Devpost tasks;
+- README, verification instructions, and repository presentation;
 - focused security and performance hardening that does not alter the product
   concept.
 
-### Explicitly out of scope before submission
+### Explicitly out of scope before public launch
 
 - new form families, curved-profile editing, gores, bands, handles, or boxes;
 - a general-purpose 3D editor;
@@ -73,8 +72,7 @@ therefore not to redesign Unfolded. The goal is to:
 
 ## 3. Delivery rules
 
-- Work in the priority order below. P0 must be green before the demo is
-  recorded. P1 must not delay the video or Devpost submission.
+- Work in the priority order below. P0 must be green before P1 starts.
 - Prefer one reviewable commit per numbered item. Closely coupled tests land in
   the same commit as their implementation.
 - Preserve current public tool names, input schemas, result shapes, share-link
@@ -96,16 +94,15 @@ therefore not to redesign Unfolded. The goal is to:
   npm run e2e:pairing
   ```
 
-- Do not record the final video against an uncommitted or untested build.
 - If a standards change creates uncertainty in ChatGPT, keep the production-
   proven behavior and document the compatibility decision rather than taking a
-  speculative rewrite into the submission.
+  speculative rewrite into the release.
 
 ---
 
 ## 4. P0 — current WebMCP contract alignment
 
-> **Status (2026-09-01): 4.1–4.5 implemented**, with 6.1's
+> **Status: 4.1–4.5 implemented**, with 6.1's
 > standards-realistic fakes landed in the same pass. Registration is
 > awaited/all-or-nothing/cancellable (`src/mcp/register.ts` +
 > `useWebMCP.ts`, unit-tested against delayed/rejecting/aborting fakes);
@@ -354,8 +351,8 @@ Required change (amended to resolve the contradiction with §12):
   does not stop deploys); promote it to a hard gate only after a streak of
   green runs proves determinism. Rationale: the pairing suite needs a local
   `wrangler dev` with Durable Objects and is the flakiest suite in the repo —
-  a hard gate that turns flaky the day before the deadline would block
-  emergency deploys, the worst failure mode near submission.
+  a hard gate that turns flaky would block emergency deploys, the worst
+  possible failure mode.
 - Keep failure logs and Playwright artifacts available from the workflow.
 - If pairing proves flaky, fix determinism; do not silently remove the check.
 
@@ -364,11 +361,11 @@ Acceptance criteria:
 - A broken Worker join-token path blocks deployment.
 - A broken two-client state propagation path is loudly visible in CI, and
   blocks deployment once the pairing gate is promoted.
-- The normal deployment remains within a reasonable hackathon feedback cycle.
+- The normal deployment remains within a reasonable feedback cycle.
 
 ---
 
-## 7. P0 — judge-facing repository and submission
+## 7. P0 — public-facing repository
 
 ### 7.1 Repair and strengthen the README
 
@@ -379,7 +376,7 @@ Required change:
 
 - Remove the broken `PLAN.md` link.
 - Put the production URL near the title: `https://tryunfolded.com`.
-- Add a **Judge in 60 seconds** section with:
+- Add a **Verify in 60 seconds** section with:
 
   ```bash
   npm ci
@@ -401,8 +398,8 @@ Acceptance criteria:
 
 - Every README link resolves.
 - A clean checkout can execute the documented commands without guessing.
-- A judge can find the live app, source, license, test instructions, WebMCP tool
-  list, and three demo prompts in under one minute.
+- A reader can find the live app, source, license, test instructions, WebMCP
+  tool list, and three example prompts in under one minute.
 
 ### 7.2 Improve repository presentation
 
@@ -415,50 +412,11 @@ These are manual GitHub metadata/content tasks, not application behavior:
   and printable output. Store only assets with clear ownership.
 - Confirm GitHub continues to detect the MIT license in the About panel.
 
-### 7.3 Complete the Devpost written submission
-
-The final entry must explicitly answer, in the first person because this is a
-solo project:
-
-1. Why WebMCP is a strong fit for structured parametric design.
-2. How it improves on manual UI manipulation or DOM guessing.
-3. What the potter and agent can accomplish together that was previously
-   difficult: conversational sizing plus visible, editable, printable geometry.
-4. How it was implemented: shared Zustand actions, validated tool schemas,
-   closed-form geometry, client-side PDF, and optional live-device pairing.
-
-Also verify:
-
-- public repository and MIT license;
-- working unrestricted live URL;
-- English materials;
-- project availability through the end of judging on 2026-09-21;
-- no unlicensed music, trademarks, or third-party assets in the submission.
-
-### 7.4 Record the final video only after P0 is green
-
-Target duration: **2:45–2:55**, public YouTube, with clear audio.
-
-Suggested sequence:
-
-1. `0:00–0:15` — cereal-box template problem and the two hidden calculations.
-2. `0:15–0:35` — app, live form, templates, and WebMCP-active state.
-3. `0:35–1:20` — ask for a tapered 350 ml form with a named clay shrinkage;
-   show one agent operation updating UI, geometry, and capacity.
-4. `1:20–1:40` — make one human edit and let the agent read it back, proving
-   that both actors share the same state.
-5. `1:40–2:05` — preview plus template summary.
-6. `2:05–2:30` — export and show the calibration ruler and page tiling.
-7. `2:30–2:50` — printed/taped plan or clay result and the closing WebMCP line.
-
-Pairing is optional in the video. Include it only if it rehearses reliably and
-does not obscure the primary design-to-physical-template story.
-
 ---
 
 ## 8. P1 — security and operational hardening
 
-P1 starts only after the final video and submission assets are safe.
+P1 starts only after all of P0 is green.
 
 ### 8.1 Use cryptographic randomness for spoken codes
 
@@ -469,7 +427,7 @@ P1 starts only after the final video and submission assets are safe.
 - Add collision and alphabet tests; do not claim a statistical security level
   that the short human-readable code cannot provide.
 
-> **Done (2026-09-02).** `PairingCore.mint` now draws glyphs from
+> **Done.** `PairingCore.mint` now draws glyphs from
 > `crypto.getRandomValues` via rejection sampling (`cryptoGlyphIndices`:
 > bytes ≥ 248 are discarded, since 31 does not divide 256 and a modulo would
 > favor the first eight glyphs); `PairingDO` no longer injects `Math.random`,
@@ -518,7 +476,7 @@ urgency; nothing secret is exposed today.)
   Vite-prefixed variables are client-visible.
 - Do not rewrite deployment configuration unless this can land without risk.
 
-**Done (2026-09-02).** `.env*` is git-ignored with `!.env.example` excepted;
+**Done.** `.env*` is git-ignored with `!.env.example` excepted;
 `.env` is removed from the repository and `VITE_SITE_URL` lives in the
 committed `.env.example`, whose header states that every `VITE_` value is
 inlined into the client bundle. To keep it the *single* place the origin is
@@ -550,7 +508,7 @@ drop in correct tool selection in the standard prompt suite.
 > the small prompt suite first; until it exists the 25% figure is advisory —
 > trim obvious repetition, keep every behavioral-contract sentence.
 >
-> **Done (2026-09-01), in that order**: `src/mcp/promptSuite.test.ts` — 13
+> **Done, in that order**: `src/mcp/promptSuite.test.ts` — 13
 > prompts mapped to expected tools with required routing phrases, plus a
 > 9,800-char metadata budget — landed first; the trim then cut 11,360 →
 > 9,128 chars (−19.6%, ~560 tokens per conversation), mostly by removing
@@ -559,13 +517,13 @@ drop in correct tool selection in the standard prompt suite.
 > work. The last ~5% to 25% would cut protected contract sentences —
 > stopped deliberately. Full numbers: docs/performance-report.md.
 
-### 9.3 Structured results — planned post-submission, landed additively
+### 9.3 Structured results — planned post-launch, landed additively
 
 The current MCP-style text/content envelope works in ChatGPT. Native structured
 WebMCP objects would be cleaner for many text tools, but changing result shapes
-immediately before submission adds compatibility risk.
+immediately before a release adds compatibility risk.
 
-After submission:
+After public launch:
 
 - prototype `{ ok, message, state, warnings }` results for text tools;
 - retain appropriate image content for preview results;
@@ -573,7 +531,7 @@ After submission:
 - migrate only with compatibility tests for ChatGPT and Chrome;
 - version or document the result contract if external users may rely on it.
 
-> **Done (additive, 2026-09-02, before submission)** — contract `tool-result/1`. Every tool
+> **Done (additive, before public launch)** — contract `tool-result/1`. Every tool
 > keeps its `content` array and `isError` byte-for-byte and additionally
 > returns `structuredContent`: `{ ok, message, state?, warnings? }` for the
 > state-reporting tools (ok:false plus the unchanged state on validation
@@ -581,10 +539,10 @@ After submission:
 > the template summary, and `{ pages, paper, rows, cols }` plus the full
 > `state` for the export (paper size is design state), each with ok/message; the preview keeps its image content and adds
 > `{ ok, message, summary }`. Additive rather than a migration because the
-> judged host (ChatGPT's agent browser) is verified only against the text
+> primary host (ChatGPT's agent browser) is verified only against the text
 > envelope — until structured results are confirmed there, removing the
 > text would risk the one path known to work, while the extra field costs a
-> host that ignores it nothing. The draft itself (`ToolExecuteCallback`
+> host that ignores it nothing. The current draft itself (`ToolExecuteCallback`
 > returns `Promise<any>`, serialized to a JSON string by the tool execute
 > steps) defines no envelope, so the MCP name `structuredContent` is used
 > beside `content`. Names, descriptions, schemas, and annotations are
@@ -608,7 +566,7 @@ After submission:
 | Real printer at 100% | calibration bar measured with a ruler, tiled pages align, one paper template assembled |
 
 Record the tested browser/app versions and the final production commit in the
-submission notes.
+release notes.
 
 ## 11. Implementation order and stop rules
 
@@ -616,17 +574,16 @@ submission notes.
 2. Section 6.1: tests that prove the new lifecycle.
 3. Section 5: truthful no-WebGL/error experience.
 4. Section 6.3: Worker/pairing gates.
-5. Section 7.1: README and judge quick start.
+5. Section 7.1: README and verification quick start.
 6. Run the complete automated and manual validation matrix.
-7. Record the video and complete Devpost.
-8. Only then consider P1 items.
+7. Only then consider P1 items.
 
 Stop and preserve the last green commit if:
 
 - ChatGPT tool discovery becomes unreliable;
 - PDF scale/output changes unexpectedly;
-- live pairing becomes flaky close to recording;
-- a P1 improvement threatens the submission timeline.
+- live pairing becomes flaky close to a release;
+- a P1 improvement threatens a planned release.
 
 ## 12. P0 definition of done
 
@@ -639,10 +596,10 @@ P0 is complete when all of the following are true:
 - no-WebGL browsers show a useful fallback instead of a blank preview;
 - the standard and Worker suites pass as deployment gates; the pairing suite
   runs in CI (non-blocking until promoted per amended 6.3);
-- the README contains no broken plan link and provides reproducible judge steps;
+- the README contains no broken plan link and provides reproducible
+  verification steps;
 - a real print calibration check has passed;
-- the final video, Devpost fields, public repository, license, and live URL have
-  been verified before the deadline.
+- the public repository, license, and live URL have been verified.
 
 ## 13. References
 
@@ -652,8 +609,4 @@ P0 is complete when all of the following are true:
   <https://webmachinelearning.github.io/webmcp/>
 - Chrome WebMCP imperative API guide:
   <https://developer.chrome.com/docs/ai/webmcp/imperative-api>
-- WebMCP Challenge rules:
-  <https://webmcp.devpost.com/rules>
-- WebMCP Challenge dates:
-  <https://webmcp.devpost.com/details/dates>
 

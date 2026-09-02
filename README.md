@@ -22,8 +22,7 @@ The whole app is **WebMCP-native**: it registers its editing tools on
 edit the same design you see on screen — *"make it a 350 ml tumbler and use my
 stoneware at 12% shrinkage"* — while the 3D preview and templates update live.
 
-Built for the [WebMCP Challenge](https://webmcp.devpost.com). The specs and design
-documents live in [docs/](./docs).
+The specs and design documents live in [docs/](./docs).
 
 ## Why this exists
 
@@ -94,7 +93,7 @@ committed e2e suite):
   last-write-wins. No URL ever carries a durable capability — invitations
   burn on first use.
 
-## Judge in 60 seconds
+## Verify in 60 seconds
 
 The live app is **<https://tryunfolded.com>** — no account, no setup; open it
 in ChatGPT's built-in browser and the agent has all 14 tools immediately.

@@ -1,4 +1,4 @@
-# Performance report — 2026-09-01
+# Performance report
 
 App-wide performance audit of tryunfolded.com at commit `364e8f2`+,
 covering both the WebMCP tool surface and everything that is *not*
@@ -52,7 +52,7 @@ aspiration would mean cutting contract sentences the suite protects;
 stopping at 19.6% is deliberate. Also stripped: the content-free
 `"$schema"` identifier zod emits per tool.
 
-*Update 2026-09-02:* the fourteenth tool, `create_live_handoff`, plus the
+*Update:* the fourteenth tool, `create_live_handoff`, plus the
 one-sentence link rule it adds to every editing tool
 (docs/live-handoff-link-spec.md), raised the metadata on purpose to
 **10,474 chars (~2,620 tokens)** — still 7.8% under the pre-trim 13-tool
@@ -106,7 +106,7 @@ so* — this is that measurement, with the qualifier that 30–45 fps during
 an active drag is degraded, not broken, and invisible on desktop.
 
 Recommended shape of a fix, when wanted (not shipped — it touches the
-feel of the main interaction near the deadline): throttle geometry
+feel of the main interaction): throttle geometry
 rebuilds to animation frames (`requestAnimationFrame`-coalesced) during
 drags, letting the final release value always render. Everything else in
 the interaction path is healthy.
@@ -139,14 +139,14 @@ memory behavior on mobile Safari.
    fourteenth tool — see §1).
 2. **Known, measured, deliberately deferred**: drag updates at 22 ms on
    throttled CPU (30–45 fps drags on mid-range phones). Fix shape
-   documented above; risk/benefit says post-submission.
+   documented above; risk/benefit says after public launch.
 3. **Healthy, no action**: boot, time-to-tools, undo, PDF export, memory,
    payload sizes, and the tool harness itself (0.2 ms floor).
 4. **Structural wins already in place**: PDF and 3D stacks are lazy
    chunks; no GPU work is preloaded on browsers that can't use it; the
    preview payload is 19× lighter than its first version.
 
-## 7 · Structured results — contract `tool-result/1` (2026-09-02)
+## 7 · Structured results — contract `tool-result/1`
 
 Hardening spec §9.3, done additively. Every tool result keeps its
 MCP-style `content` array and `isError` flag byte-for-byte — the envelope
