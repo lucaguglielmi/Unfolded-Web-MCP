@@ -4,7 +4,8 @@
 
 **Live: [tryunfolded.com](https://tryunfolded.com)** · guide at
 [/webmcp](https://tryunfolded.com/webmcp) · story at
-[/why](https://tryunfolded.com/why)
+[/why](https://tryunfolded.com/why) · browser flows at
+[/user-flow](https://tryunfolded.com/user-flow)
 
 [![Deploy](https://github.com/lucaguglielmi/Unfolded-Web-MCP/actions/workflows/deploy.yml/badge.svg)](https://github.com/lucaguglielmi/Unfolded-Web-MCP/actions/workflows/deploy.yml)
 [![npm: webmcp-profiler](https://img.shields.io/npm/v/webmcp-profiler?label=webmcp-profiler)](https://www.npmjs.com/package/webmcp-profiler)
@@ -211,6 +212,8 @@ value is inlined into the client bundle, so no `.env` here may hold a secret.
 - [`docs/live-handoff-link-spec.md`](./docs/live-handoff-link-spec.md): the
   two-link contract and `create_live_handoff`
 - [`docs/performance-report.md`](./docs/performance-report.md): the app-wide audit
+- [`docs/webmcp-tool-performance-spec.md`](./docs/webmcp-tool-performance-spec.md):
+  proposed — fewer round trips per request, lighter results, no discovery gap
 - [`docs/webmcp-profiler-spec.md`](./docs/webmcp-profiler-spec.md) and
   [`docs/webmcp-profiler-0.2-spec.md`](./docs/webmcp-profiler-0.2-spec.md): the
   profiler's design and its next release

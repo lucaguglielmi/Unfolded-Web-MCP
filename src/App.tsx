@@ -22,6 +22,9 @@ const WebMCPPage = lazy(() =>
   import("@/pages/WebMCPPage").then((m) => ({ default: m.WebMCPPage }))
 )
 const WhyPage = lazy(() => import("@/pages/WhyPage").then((m) => ({ default: m.WhyPage })))
+const UserFlowPage = lazy(() =>
+  import("@/pages/UserFlowPage").then((m) => ({ default: m.UserFlowPage }))
+)
 
 /** mobile preview chip: collapsed past 48px of settings scroll, with
     hysteresis so the card doesn't flicker around the threshold */
@@ -66,10 +69,16 @@ export default function App() {
   // register on these pages too (useWebMCP above), so /webmcp can show the
   // live connection status.
   const path = window.location.pathname.replace(/\/+$/, "")
-  if (path === "/webmcp" || path === "/why") {
+  if (path === "/webmcp" || path === "/why" || path === "/user-flow") {
     return (
       <Suspense fallback={<div className="bg-background min-h-dvh" />}>
-        {path === "/webmcp" ? <WebMCPPage /> : <WhyPage />}
+        {path === "/webmcp" ? (
+          <WebMCPPage />
+        ) : path === "/why" ? (
+          <WhyPage />
+        ) : (
+          <UserFlowPage />
+        )}
       </Suspense>
     )
   }

@@ -1,0 +1,50 @@
+direction: down
+
+open: Open Unfolded in any browser
+support: Does this tab expose WebMCP? {
+  shape: diamond
+}
+register: Register all 14 tools
+ready: Agent can work directly in this exact tab
+manual: Use the complete visual editor
+solo: Keep designing without an agent
+invite: Open in ChatGPT or copy the prompt
+code: Mint a single-use 6-character code
+agent: ChatGPT opens its internal WebMCP tab
+join: Agent calls join_session
+live: Human and agent edit one live design
+
+open -> support
+support -> register: Yes
+register -> ready
+support -> manual: No
+manual -> solo: Work alone
+manual -> invite: Ask for agent help
+invite -> code
+code -> agent
+agent -> join
+join -> live
+
+*.style.border-radius: 12
+open.style.fill: "#dbeafe"
+open.style.stroke: "#2563eb"
+support.style.fill: "#fef3c7"
+support.style.stroke: "#d97706"
+register.style.fill: "#ede9fe"
+register.style.stroke: "#7c3aed"
+ready.style.fill: "#d1fae5"
+ready.style.stroke: "#059669"
+manual.style.fill: "#f5f5f4"
+manual.style.stroke: "#78716c"
+solo.style.fill: "#d1fae5"
+solo.style.stroke: "#059669"
+invite.style.fill: "#dbeafe"
+invite.style.stroke: "#2563eb"
+code.style.fill: "#ffedd5"
+code.style.stroke: "#ea580c"
+agent.style.fill: "#ede9fe"
+agent.style.stroke: "#7c3aed"
+join.style.fill: "#ede9fe"
+join.style.stroke: "#7c3aed"
+live.style.fill: "#d1fae5"
+live.style.stroke: "#059669"
