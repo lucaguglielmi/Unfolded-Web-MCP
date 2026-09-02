@@ -149,7 +149,7 @@ export function ConnectionHub() {
   // and on phones the universal link hands off into the ChatGPT app — which
   // only works reliably from a genuine anchor tap, not a scripted open
   // after an async mint). Codes are single-use and cheap, same as the
-  // Continue dialog's eager QR tokens; a panel outliving the 5-minute TTL
+  // Continue dialog's eager QR tokens; a panel outliving the 15-minute TTL
   // re-mints just before expiry.
   useEffect(() => {
     if (!open || agentStatus !== "unavailable") return

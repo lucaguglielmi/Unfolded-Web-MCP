@@ -324,7 +324,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "create_live_handoff",
       description:
-        "Create a fresh, single-use link that lets the potter continue this exact design in the same live session on another screen — edits then flow both ways, and their changes show in your next read. This is the DEFAULT link tool: call it immediately before returning any Unfolded link — after creating, editing, previewing, or opening a design, and for 'send me the link', 'show me', 'open it', or 'continue in the browser'. Return liveHandoffUrl verbatim: never the current page or address-bar URL, a previously returned link, or a reconstructed one. Skip it only when the potter explicitly asks for a permanent, bookmarkable, printable, or independent-copy link (that is designUrl). The invitation expires after 10 minutes and works once. On failure no link exists: retry once, then offer start_pairing.",
+        "Create a fresh, single-use link that lets the potter continue this exact design in the same live session on another screen — edits then flow both ways, and their changes show in your next read. This is the DEFAULT link tool: call it immediately before returning any Unfolded link — after creating, editing, previewing, or opening a design, and for 'send me the link', 'show me', 'open it', or 'continue in the browser'. Return liveHandoffUrl verbatim: never the current page or address-bar URL, a previously returned link, or a reconstructed one. Skip it only when the potter explicitly asks for a permanent, bookmarkable, printable, or independent-copy link (that is designUrl). The invitation expires after 15 minutes and works once. On failure no link exists: retry once, then offer start_pairing.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Create live handoff link",
       annotations: { title: "Create live handoff link" },
@@ -353,7 +353,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "join_session",
       description:
-        "Pair this tab into a live cross-device session using the 6-character code from the potter's OTHER device, e.g. 'K7F-3QP'. This tab adopts that session's design (one undo step brings the previous one back); afterwards every edit on any device syncs live within about a second. Codes expire in 5 minutes and work once — on failure ask for a fresh one. Returns the full state after joining.",
+        "Pair this tab into a live cross-device session using the 6-character code from the potter's OTHER device, e.g. 'K7F-3QP'. This tab adopts that session's design (one undo step brings the previous one back); afterwards every edit on any device syncs live within about a second. Codes expire in 15 minutes and work once — on failure ask for a fresh one. Returns the full state after joining.",
       inputSchema: toInputSchema(
         z.object({
           code: z
@@ -385,7 +385,7 @@ export function buildTools(): ToolDescriptor[] {
             return textResult(
               joined.retryable
                 ? "The pairing service is busy — wait a minute and try once more."
-                : "That code didn't work — codes expire after 5 minutes and can be used once. " +
+                : "That code didn't work — codes expire after 15 minutes and can be used once. " +
                     "Ask the potter to mint a fresh one.\n\n" +
                     `Current state unchanged:\n${stateText()}`,
               true
@@ -410,7 +410,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "start_pairing",
       description:
-        "Mint a 6-character pairing code for THIS tab's live session and tell it to the potter. Entered on their other device (connection button → Continue on another screen), that device then FOLLOWS this design — use this when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop'. Valid 5 minutes, one use; both devices stay live peers afterwards. Returns the full state.",
+        "Mint a 6-character pairing code for THIS tab's live session and tell it to the potter. Entered on their other device (connection button → Continue on another screen), that device then FOLLOWS this design — use this when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop'. Valid 15 minutes, one use; both devices stay live peers afterwards. Returns the full state.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Start device pairing",
       annotations: { title: "Start device pairing" },
@@ -432,7 +432,7 @@ export function buildTools(): ToolDescriptor[] {
           }
           return textResult(
             stateText(
-              `Pairing code: ${prettyCode(minted.code)} — valid 5 minutes, one use. ` +
+              `Pairing code: ${prettyCode(minted.code)} — valid 15 minutes, one use. ` +
                 "On the other device: the connection button (two dots in the header) → Continue on another screen → enter this code. " +
                 "That device will adopt this design; afterwards edits sync both ways."
             )

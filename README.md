@@ -157,7 +157,7 @@ registration (or any actual tool call) always upgrades the state to active.
 
 **Launch in ChatGPT, one tap.** When no agent is connected, the panel offers two
 actions that both carry a ready-made instruction plus a fresh single-use pairing code
-(5-minute TTL): **Open in ChatGPT** injects it straight into a new chat via
+(15-minute TTL): **Open in ChatGPT** injects it straight into a new chat via
 `chatgpt.com/?q=` (on phones the link hands off into the ChatGPT app), and **Copy
 prompt** puts the same text on the clipboard for any other assistant. Sending it makes
 the agent open the site, call `join_session` with the code, and become a live peer of
@@ -242,7 +242,7 @@ return to the tab reconnects and converges, and edits made offline are kept
 and sent.
 
 Invitations are honest capabilities: **single-use and short-lived** (a
-link's token dies on first open or within 10 minutes; a code within 5), and
+link's token dies on first open or within 15 minutes; a code likewise), and
 whoever uses one can edit that design live — nothing else. Privacy stays
 simple: the design parameters are the only thing that ever leaves the
 device, sessions are unlisted and expire after 30 idle days, and **no URL

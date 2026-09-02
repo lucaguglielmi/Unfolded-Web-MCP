@@ -1,6 +1,6 @@
 /**
  * Pairing codes — the pure table behind the PairingDO, with no Workers
- * APIs so plain vitest can pin it down. A code is a 5-minute, single-use
+ * APIs so plain vitest can pin it down. A code is a 15-minute, single-use
  * ticket that resolves to a session id (docs/live-sync-spec.md §4). The
  * 30-bit space is protected by process, not entropy: TTL, burn-on-claim,
  * and the rate limits enforced here; misses are uniform (no oracle for
@@ -10,16 +10,16 @@
 /** 31 glyphs, nothing ambiguous to read aloud or retype (no I L O 0 1) */
 export const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 export const CODE_LENGTH = 6
-export const CODE_TTL_MS = 5 * 60_000
+export const CODE_TTL_MS = 15 * 60_000
 
 /**
  * Join tokens: the URL-borne sibling of a code (docs/live-sync-spec.md v3).
  * 24 crypto-random bytes as base64url (~128 bits — guessing is void, so no
- * process protections needed beyond the shared rate limits), longer TTL
- * (links sit in a chat a little longer than spoken codes), still single
- * use and burned on claim. Never the sid.
+ * process protections needed beyond the shared rate limits), the same
+ * 15-minute TTL as codes (both raised on 2026-09-02: codes from 5, tokens
+ * from 10), still single use and burned on claim. Never the sid.
  */
-export const TOKEN_TTL_MS = 10 * 60_000
+export const TOKEN_TTL_MS = 15 * 60_000
 const TOKEN_BYTES = 24
 const TOKEN_RE = /^[A-Za-z0-9_-]{20,64}$/
 

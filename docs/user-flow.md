@@ -19,11 +19,11 @@ user's side, one scenario at a time.
   - **Join token** — minted on demand by the agent's `create_live_handoff`
     tool (its default link after any edit) or by the Continue dialog: the
     `liveHandoffUrl` carries `?join=<token>`, single-use, expires in
-    10 minutes, dead after its first open. The tab that opens it silently
+    15 minutes, dead after its first open. The tab that opens it silently
     joins the agent's session and strips the parameter from the address
     bar. The permanent `designUrl` in every tool result never carries one.
   - **Pairing code** — 6 characters, read-aloud friendly (no I/L/O/0/1),
-    single-use, expires in 5 minutes. Humans mint one from the **Continue
+    single-use, expires in 15 minutes. Humans mint one from the **Continue
     on another screen** dialog (behind the header's connection button — the
     two status dots); agents mint one
     with `start_pairing` or enter one with `join_session`.
@@ -136,7 +136,7 @@ else:
    A new ChatGPT chat opens (the app itself, on phones) with a
    ready-made prompt already injected: it tells the agent to open
    tryunfolded.com in its built-in browser and join your session with a
-   fresh single-use code (valid 5 minutes). Just send it. The **Copy
+   fresh single-use code (valid 15 minutes). Just send it. The **Copy
    prompt** button beside it is the same text for pasting into any
    other assistant.
 2. Or by voice: **Continue on another screen** → **or use a code** →
@@ -196,11 +196,11 @@ dialog on desktop, scan with the phone camera, done.
 ## When something looks off
 
 - **The link opened the design but the badge shows nothing live** — the
-  token was already used or older than 10 minutes. Ask the agent for its
+  token was already used or older than 15 minutes. Ask the agent for its
   latest link (agent flows), or mint a fresh invite from the dialog
   (human flows). You still got the right parameters either way.
 - **The code is rejected** — codes are single-use and expire after
-  5 minutes; unknown, expired, and used codes are deliberately
+  15 minutes; unknown, expired, and used codes are deliberately
   indistinguishable. Mint a new one.
 - **You adopted the wrong side's design** — it landed as one undo step.
   Undo, then redo the pairing minting from the side you want to keep.

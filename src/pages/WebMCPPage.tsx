@@ -331,7 +331,7 @@ function FiveMinutes() {
           <li>
             <span className="font-semibold text-foreground">Honest terms:</span> an
             invitation is single-use and short-lived — a link's token works once and dies
-            (10 minutes at most), a spoken code once within 5. Whoever uses one can edit
+            (15 minutes at most), a spoken code once within 15. Whoever uses one can edit
             the design live. No URL ever carries a <em>durable</em> capability: a used link
             degrades to a plain design link, and the printed PDF QR never carries a session
             at all.

@@ -31,12 +31,12 @@ const RECONNECT_MIN_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 /**
  * A session that has NEVER seen a second device forgets itself after this
- * long connected alone — comfortably past a pairing code's 5-minute TTL.
+ * long connected alone — comfortably past a pairing code's 15-minute TTL.
  * Minting a code creates the session eagerly (so the code outlives the
  * minting tab), but an expired, never-claimed code must not leave the tab
  * claiming "paired" forever.
  */
-const SOLO_GRACE_MS = 6 * 60_000
+const SOLO_GRACE_MS = 16 * 60_000
 /**
  * A wake (focus/visibility/online) with a socket that is open ON PAPER
  * probes it with a `hello`: the server answers with a full snapshot, so

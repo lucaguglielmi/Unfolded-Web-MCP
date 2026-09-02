@@ -14,7 +14,7 @@ vitest suites plus a live `wrangler dev` smoke suite with real sockets
 support this repo's vitest major.
 
 Decisions taken 2026-08-31 (previously open):
-- **Code TTL: 5 minutes.** Confirmed.
+- **Code TTL: 15 minutes.** Confirmed.
 - **Eager session creation.** Minting a code on a never-synced tab creates
   the session immediately, so the code keeps working even if the minting tab
   closes before it is claimed.
@@ -88,7 +88,7 @@ phone tab ──ws──▶ ┌────────────────�
   read aloud or retype). 31⁶ ≈ 8.9×10⁸.
 - Displayed grouped for reading: `K7F-3QP`. Input normalized: uppercase,
   separators/whitespace stripped.
-- **TTL 5 minutes** (decided), **single use** (burned on successful claim),
+- **TTL 15 minutes** (decided), **single use** (burned on successful claim),
   minted fresh on every request. A code is *only* a pairing ticket — it
   never identifies the session afterwards.
 
@@ -98,9 +98,9 @@ Both exist in v1; they share the one rule in §4.3.
 
 - **Screen mints, chat joins** (flow A): desktop header → **"Pair a
   device"** → the tab requests a code from its `SessionDO` (created eagerly
-  if the tab has none — decided) and shows `K7F-3QP` with a 5-minute
+  if the tab has none — decided) and shows `K7F-3QP` with a 15-minute
   countdown and the copy *"tell your assistant: join my session, code
-  K7F-3QP — anyone who enters this code within 5 minutes can edit this
+  K7F-3QP — anyone who enters this code within 15 minutes can edit this
   design live."* The potter tells the agent on the phone, the agent calls
   **`join_session`** (§8), the phone joins.
 - **Chat mints, screen joins** (flow B): the potter tells the agent *"give
@@ -135,7 +135,7 @@ mint/claim asymmetry exists only at pairing time.
 
 ### 4.5 Abuse resistance (why 6 characters is enough)
 
-30 bits is protected by process, not entropy: 5-minute TTL, single use,
+30 bits is protected by process, not entropy: 15-minute TTL, single use,
 claim rate limits (per-IP: 10 claims/min at the worker; global: PairingDO
 rejects when >100 claims/s). A wrong code is a uniform miss — no oracle for
 "exists but expired"; comparison is constant-time. With ≤ ~100 codes live at
@@ -298,7 +298,7 @@ after the freeze lifts.
     the full new state prefixed
     `"Joined live session — now syncing with N other device(s)."`; failure
     returns `isError` with unchanged state and the uniform
-    `"That code didn't work — codes expire after 5 minutes and can be used
+    `"That code didn't work — codes expire after 15 minutes and can be used
     once. Ask for a fresh one."` Client-side backoff after 3 failures; the
     server rate limit is the real guarantee.
 - **`start_pairing`** — *"Mint a 6-character code so the potter's other
@@ -306,7 +306,7 @@ after the freeze lifts.
   - input: `{}` — annotations: `{title: "Start device pairing"}`
   - behavior: eager-create session if the tab has none (decided), mint via
     PairingDO, return
-    `"Pairing code: K7F-3QP — valid 5 minutes, one use. On the other
+    `"Pairing code: K7F-3QP — valid 15 minutes, one use. On the other
     device: menu → Pair a device → enter this code. That device will adopt
     this design."` plus the full state. The phone tab shows the same code +
     countdown so the potter can read it off either surface.
@@ -324,7 +324,7 @@ copy lands with the feature (work item 8), not before.
     section: the code-pairing model in potter's terms (mint on one screen,
     speak it to the chat, both stay live), the §4.3 adopt rule ("the device
     that enters the code follows the other one"), and the honesty note in
-    the house style: *a code is a 5-minute, one-use key; the app never puts
+    the house style: *a code is a 15-minute, one-use key; the app never puts
     a live session in a link.*
   - The tool table extends automatically via `TOOL_SUMMARIES` (count
     updates from eleven to thirteen — check any hardcoded "eleven" in copy
@@ -410,7 +410,7 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
   stretch); brute force (§4.5); malicious peer garbage (schemas + clamps);
   valid-but-unwanted edits (inherent to pairing — undo works, sessions
   abandonable, idle-expire).
-- **`start_pairing` in a transcript** shows a code that is dead within 5
+- **`start_pairing` in a transcript** shows a code that is dead within 15
   minutes; showing it in chat is the feature and the risk window is the
   TTL.
 
@@ -499,7 +499,7 @@ decisions):
 - **Copy is specced as a work item (§9), not an afterthought** — the app's
   differentiator is that its pages tell the truth about connection state;
   pairing gets the same treatment (the indicator only states what the
-  socket confirms, the dialog names the 5-minute/one-use terms).
+  socket confirms, the dialog names the 15-minute/one-use terms).
 - **Verdict:** sound to build; sequencing unchanged — nothing before the
   Sep 3 freeze lifts; then items 1–3 (pure TS, no infrastructure), with
   item 2 shippable value on its own.
@@ -517,7 +517,7 @@ item order (§14).
 
 Status: **implemented** (owner said go, all three recommendations taken:
 tokens on all agent shareUrls, QR-first dialog with the code collapsed,
-10-minute token TTL). One addition the e2e forced: the Continue dialog
+15-minute token TTL). One addition the e2e forced: the Continue dialog
 never reuses an invite across opens — the tab may have joined a different
 session in between, and a cached link would point at the one it left. Reframes pairing around the realization
 that codes are the fallback, not the flow, and solves the ChatGPT
@@ -538,7 +538,7 @@ current.
 
 A **join token** is a claim ticket that can ride a URL: ≥96-bit URL-safe
 random (guessing is void, unlike spoken codes), minted by the tab's
-SessionDO into the same PairingDO registry as codes, TTL ~10 minutes,
+SessionDO into the same PairingDO registry as codes, TTL ~15 minutes,
 **single use, burned on claim**, and never the `sid`. A tab opening a link
 with `&join=<token>` silently claims it, joins the session (adopt-on-join
 unchanged, everPeered=true — a token, like a code, is proof), and strips
@@ -581,7 +581,7 @@ token. The printed PDF QR stays parameter-only, unchanged.
   pairs itself lazily (first shareUrl build) and prefetches one token at a
   time — shareUrl stays synchronous by attaching the prefetched token and
   requesting the next. If no person ever taps a link, the existing
-  6-minute solo grace forgets the session; a claim makes it real
+  16-minute solo grace forgets the session; a claim makes it real
   (everPeered).
 - **Claim on open**: applyShareLinkFromLocation detects `join`, claims it
   after applying the design params, joins on success, strips the param
@@ -607,7 +607,7 @@ design; the Continue dialog QR pairs a second context.
    the transcript exposure a non-issue.
 2. Does the QR become the Continue dialog's primary surface with the code
    collapsed? **Recommend: yes.**
-3. Token TTL: **recommend 10 minutes** (links sit in chat a little longer
+3. Token TTL: **recommend 15 minutes** (links sit in chat a little longer
    than spoken codes).
 
 
@@ -622,7 +622,7 @@ link selection; this section only reconciles the wording above.
   snapshot) is the permanent permalink: parameters only, no token, no
   session — the address bar, the Share dialog, the printed QR. It reopens
   an independent copy. `liveHandoffUrl` is the same parameters plus
-  `?via=chatgpt` and a **single-use, 10-minute join token**; it exists
+  `?via=chatgpt` and a **single-use, 15-minute join token**; it exists
   only as the output of the `create_live_handoff` tool, minted on demand
   (`mint_token` on the session socket) and fail-closed: no token, no link.
 - **State reads are pure.** `describe_project` and every mutation return
@@ -642,3 +642,11 @@ link selection; this section only reconciles the wording above.
   short-lived claim ticket; no URL ever carries a session id.
 - **Tool count** is fourteen; `/webmcp` derives it from `TOOL_SUMMARIES`
   and `src/mcp/docsGuard.test.ts` pins the README table to the same list.
+
+- **Lifetimes (2026-09-02).** Codes and tokens both live **15 minutes**
+  (codes were 5, tokens 10; the hub's Open-in-ChatGPT flow — app switch,
+  login, the agent's hidden browser, a slow first turn — could outrun 5).
+  The §4.5 arithmetic scales linearly: three times the live codes, three
+  times the exposure of a code that sits in a transcript, still centuries
+  per hit inside the rate limits. The minting tab's solo grace moved to
+  16 minutes with it. All numbers in this document were updated in place.

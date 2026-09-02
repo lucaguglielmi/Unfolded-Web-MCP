@@ -404,7 +404,7 @@ describe("pairing operations", () => {
     socket.receive({ kind: "welcome", state: slice(store), version: 1, peers: 1 })
     expect(fresh.isPaired()).toBe(true)
     expect(fresh.everPeered()).toBe(false)
-    vi.advanceTimersByTime(6 * 60_000 + 1_000) // nobody ever entered the code
+    vi.advanceTimersByTime(16 * 60_000 + 1_000) // nobody ever entered the code
     expect(fresh.isPaired()).toBe(false)
     expect(fresh.status()).toBe("off")
     expect(records[SESSION_STORAGE_KEY]).toBeUndefined()
@@ -594,8 +594,8 @@ describe("solo grace on a suspended tab", () => {
     sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 1 })
     // the OS froze the tab: no timer ran, no presence frame arrived; twenty
     // minutes later the tab resumes and the overdue timer fires at once
-    vi.setSystemTime(Date.now() + 20 * 60_000)
-    vi.advanceTimersByTime(6 * 60_000 + 1_000)
+    vi.setSystemTime(Date.now() + 40 * 60_000)
+    vi.advanceTimersByTime(16 * 60_000 + 1_000)
     return { fresh, sockets, records }
   }
 
@@ -617,7 +617,7 @@ describe("solo grace on a suspended tab", () => {
     sockets[0].receive({ kind: "welcome", state: slice(store), version: 1, peers: 1 })
     vi.advanceTimersByTime(60_000)
     expect(fresh.isPaired()).toBe(true) // the fresh welcome restarted the grace
-    vi.advanceTimersByTime(6 * 60_000)
+    vi.advanceTimersByTime(16 * 60_000)
     expect(fresh.isPaired()).toBe(false)
     expect(fresh.status()).toBe("off")
   })
