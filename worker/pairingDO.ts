@@ -23,10 +23,11 @@ export class PairingDO extends DurableObject<Env> {
   private async loadCore(): Promise<PairingCore> {
     if (!this.core) {
       const stored = await this.ctx.storage.get<PairingSnapshot>(STORAGE_KEY)
-      // the per-IP claim limit is overridable for local test runs only
-      // (`wrangler dev --var PAIR_CLAIMS_PER_IP_PER_MINUTE:…`); unset or
-      // malformed means the production default
-      this.core = new PairingCore(stored ?? undefined, Math.random, {
+      // no rng injected: codes come from crypto.getRandomValues. The per-IP
+      // claim limit is overridable for local test runs only (`wrangler dev
+      // --var PAIR_CLAIMS_PER_IP_PER_MINUTE:…`); unset or malformed means
+      // the production default
+      this.core = new PairingCore(stored ?? undefined, undefined, {
         perIpPerMinute: parseClaimLimit(
           this.env.PAIR_CLAIMS_PER_IP_PER_MINUTE,
           DEFAULT_PER_IP_PER_MINUTE

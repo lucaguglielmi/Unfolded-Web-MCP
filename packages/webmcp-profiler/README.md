@@ -92,8 +92,9 @@ measured. Loaded after tools were already registered? Retrofit any
 __webmcpPerf.instrument(window.__myTools)
 ```
 
-`__webmcpPerf.detach()` restores every original `execute` and stops all
-observers.
+`__webmcpPerf.detach()` restores every original `execute`, puts the
+host's own `registerTool` / `provideContext` back, and stops all
+observers — a later `attachProfiler()` instruments the same host afresh.
 
 ## What a span records
 

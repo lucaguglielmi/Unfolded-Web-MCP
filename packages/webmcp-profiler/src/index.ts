@@ -68,13 +68,20 @@ export function attachProfiler(config: ProfilerConfig = {}): Profiler {
   }
 
   let overlayInstance: Overlay | null = null
+  let overlayLoading: Promise<void> | null = null
+  let detached = false
   const toggleOverlay = (): void => {
     if (overlayInstance) {
       overlayInstance.toggle()
       return
     }
-    void import("./overlay").then(({ createOverlay }) => {
-      overlayInstance = createOverlay(collector)
+    // the panel is a lazy chunk: a second call while it is still loading
+    // must not build a second panel, and a detach in the meantime wins
+    if (overlayLoading) return
+    overlayLoading = import("./overlay").then(({ createOverlay }) => {
+      const instance = createOverlay(collector)
+      if (detached) instance.destroy()
+      else overlayInstance = instance
     })
   }
 
@@ -97,8 +104,10 @@ export function attachProfiler(config: ProfilerConfig = {}): Profiler {
     instrument: (tools) => instrumentMap(tools, collector, interception.originals),
     reset: () => collector.reset(),
     detach: () => {
+      detached = true
       interception.stop()
       interception.unwrapAll()
+      interception.unpatchAll()
       collector.dispose()
       channel?.close()
       overlayInstance?.destroy()

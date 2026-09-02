@@ -3,6 +3,7 @@ import { ArrowUpRight, Check, Copy, X } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
 import { useProjectStore } from "@/store/useProjectStore"
 import { useDesignHref } from "@/lib/useStudioHref"
+import { useTimeout } from "@/lib/useTimeout"
 
 /**
  * A one-time, dismissible nudge for Chrome users: Chrome ships WebMCP
@@ -47,6 +48,7 @@ export function ChromeFlagNudge() {
   const agentStatus = useProjectStore((s) => s.agentStatus)
   const [visible, setVisible] = useState(false)
   const [copied, setCopied] = useState(false)
+  const later = useTimeout()
 
   useEffect(() => {
     if (!isRealChrome()) return
@@ -77,7 +79,7 @@ export function ChromeFlagNudge() {
     try {
       await navigator.clipboard.writeText(FLAG_URL)
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
+      later(() => setCopied(false), 1500)
     } catch {
       window.prompt("Copy this address into a new tab:", FLAG_URL)
     }

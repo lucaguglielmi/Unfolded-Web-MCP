@@ -56,11 +56,10 @@ export function ExportPdfDialog({ trigger }: { trigger: ReactNode }) {
     const trimmed = name.trim().slice(0, 60) || form.name
     if (trimmed !== form.name) updateForm({ name: trimmed })
     setExportError(null)
-    // success plays on the click itself — the export usually finishes in
-    // well under a second, and one confident sound beats two
-    feedback("success")
     try {
       await exportPdf()
+      // one confident sound, and only once the PDF is really on its way
+      feedback("success")
       setOpen(false)
     } catch (error) {
       // keep the dialog open to retry

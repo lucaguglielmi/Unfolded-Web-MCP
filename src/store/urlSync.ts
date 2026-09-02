@@ -36,6 +36,11 @@ export function applyShareLinkFromLocation(): void {
  * Keep the address bar in sync with the design (debounced replaceState),
  * so the URL is always a live share link. A clean URL stays clean until
  * the first actual edit — visitors aren't surprised by a growing URL.
+ *
+ * The rewrite carries exactly the design parameters plus one passenger:
+ * the agent-minted ?via=chatgpt marker (read above at boot), which has to
+ * survive edits so a reload still knows the tab was opened from ChatGPT.
+ * ?join= never rides along — it is single-use and was stripped at boot.
  */
 export function startShareLinkSync(): void {
   if (typeof window === "undefined") return
@@ -43,6 +48,8 @@ export function startShareLinkSync(): void {
     const { form, clay, paperSize, unit } = useProjectStore.getState()
     return buildShareParams(form, clay, paperSize, unit).toString()
   }
+  const withProvenance = (qs: string) =>
+    new URLSearchParams(window.location.search).get("via") === "chatgpt" ? `${qs}&via=chatgpt` : qs
   let last = currentQs()
   let timer: number | undefined
   // only the design slice can change the link — agent-status churn is ignored
@@ -54,7 +61,7 @@ export function startShareLinkSync(): void {
         const qs = currentQs()
         if (qs === last) return
         last = qs
-        window.history.replaceState(null, "", `${window.location.pathname}?${qs}`)
+        window.history.replaceState(null, "", `${window.location.pathname}?${withProvenance(qs)}`)
       }, 350)
     },
     { equalityFn: shallow }

@@ -204,6 +204,13 @@ export interface ShareUrlOptions {
   viaChatGpt?: boolean
 }
 
+/**
+ * Where the studio lives. Share links always open here: a link minted
+ * while the /webmcp or /why explainer is open (an agent's tools register
+ * there too) must not send its recipient to the explainer.
+ */
+export const STUDIO_PATH = "/"
+
 /** Absolute share URL on the current origin (relative when there is no window, e.g. tests). */
 export function shareUrl(
   form: FormParams,
@@ -217,7 +224,7 @@ export function shareUrl(
   const qs = params.toString()
   // via globalThis so this module also compiles for the sync Worker,
   // which has no DOM lib (and no window — it takes the relative branch)
-  const loc = (globalThis as { location?: { origin: string; pathname: string } }).location
+  const loc = (globalThis as { location?: { origin: string } }).location
   if (!loc) return `?${qs}`
-  return `${loc.origin}${loc.pathname}?${qs}`
+  return `${loc.origin}${STUDIO_PATH}?${qs}`
 }

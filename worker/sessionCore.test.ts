@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { DEFAULT_CLAY, PRESETS } from "../src/lib/model/schemas"
-import { SessionCore } from "./sessionCore"
+import { oversizedFrame, SessionCore } from "./sessionCore"
 
 const fullSlice = (form = PRESETS["tumbler"]) => ({
   form,
@@ -80,5 +80,25 @@ describe("SessionCore apply", () => {
     expect(core.apply({ nonsense: 1 }).ok).toBe(false)
     expect(core.apply("garbage").ok).toBe(false)
     expect(core.version).toBe(0)
+  })
+})
+
+describe("oversizedFrame (byte cap, not UTF-16 units)", () => {
+  it("measures ASCII one byte per unit", () => {
+    expect(oversizedFrame("a".repeat(8), 8)).toBe(false)
+    expect(oversizedFrame("a".repeat(9), 8)).toBe(true)
+  })
+
+  it("counts multi-byte glyphs by their encoded size", () => {
+    expect(oversizedFrame("é", 2)).toBe(false) // 2 bytes
+    expect(oversizedFrame("é", 1)).toBe(true)
+    expect(oversizedFrame("€", 3)).toBe(false) // 3 bytes
+    expect(oversizedFrame("€", 2)).toBe(true)
+    expect(oversizedFrame("😀", 4)).toBe(false) // 4 bytes, 2 UTF-16 units
+    expect(oversizedFrame("😀", 3)).toBe(true)
+  })
+
+  it("rejects by unit count alone when even that exceeds the cap", () => {
+    expect(oversizedFrame("x".repeat(9_000), 8_192)).toBe(true)
   })
 })

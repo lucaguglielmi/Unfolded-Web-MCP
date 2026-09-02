@@ -37,6 +37,20 @@ export type ApplyResult =
   | { ok: true; patches: SharePatches; version: number }
   | { ok: false; error: string }
 
+const utf8 = new TextEncoder()
+
+/**
+ * Whether a text frame exceeds `maxBytes` on the wire. `string.length`
+ * counts UTF-16 units, which undercounts anything outside ASCII (up to 3
+ * bytes per unit); since no unit encodes to fewer than one byte, a unit
+ * count over the cap is already over, and only frames under it pay for the
+ * exact encode — so the work is bounded by the cap, not by the frame.
+ */
+export function oversizedFrame(message: string, maxBytes: number): boolean {
+  if (message.length > maxBytes) return true
+  return utf8.encode(message).byteLength > maxBytes
+}
+
 const DEFAULT_STATE: SessionState = {
   form: PRESETS["classic-mug"],
   clay: DEFAULT_CLAY,

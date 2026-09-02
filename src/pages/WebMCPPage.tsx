@@ -6,6 +6,7 @@ import { useDesignHref } from "@/lib/useStudioHref"
 import { StudioCtaBar } from "@/components/StudioCtaBar"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 import { feedback } from "@/lib/feedback"
+import { useTimeout } from "@/lib/useTimeout"
 import { cn } from "@/lib/utils"
 // the tool list renders from its single source next to the registrations
 import { TOOL_RESULT_CONTRACT } from "@/mcp/modelContext"
@@ -116,7 +117,7 @@ const DIGEST: { title: string; body: string }[] = [
   },
   {
     title: "What lights up",
-    body: "The connection button in the app header — two dots: the agent dot (pulsing green = agent connected to this tab; solid green = opened from your ChatGPT conversation; grey = not connected) and the sync dot (green = other devices live in your session).",
+    body: "The connection button in the app header — two dots: the agent dot (pulsing green = agent connected to this tab; solid green = opened from your ChatGPT conversation; grey = not connected) and the sync dot (green = other devices live in your session). Whatever the agent dot says, the panel always offers Open in ChatGPT and Copy prompt to bring an agent into this exact session.",
   },
   {
     title: "What the agent can do",
@@ -460,13 +461,14 @@ const KICKSTART_PROMPT = `Open https://tryunfolded.com in your built-in browser.
 
 function HumanEasterEgg() {
   const [copied, setCopied] = useState(false)
+  const later = useTimeout()
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(KICKSTART_PROMPT)
       feedback("success")
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 1800)
+      later(() => setCopied(false), 1800)
     } catch {
       // clipboard can be unavailable (permissions, older webviews)
       window.prompt("Copy this prompt for your agent:", KICKSTART_PROMPT)

@@ -19,7 +19,12 @@
 
 import type { Collector, Span } from "./collector"
 
-/** structural minimum — the profiler must not depend on any app's types */
+/**
+ * structural minimum — the profiler must not depend on any app's types.
+ * `execute` is typed by its first argument only; whatever else a host
+ * passes (the draft's options bag carrying its abort signal) is forwarded
+ * by the wrapper untouched.
+ */
 export interface ToolLike {
   name: string
   execute: (input: unknown) => unknown | Promise<unknown>
@@ -72,16 +77,19 @@ export function instrumentTool(
   originals: Map<ToolLike, ToolLike["execute"]>
 ): void {
   if (!tool || typeof tool.execute !== "function") return
-  const execute = tool.execute as ToolLike["execute"] & { [WRAPPED]?: true }
+  const execute = tool.execute as ((...args: unknown[]) => unknown) & { [WRAPPED]?: true }
   if (execute[WRAPPED]) return
 
   originals.set(tool, execute)
   collector.toolRegistered(tool.name)
 
-  const wrapped = async (input: unknown) => {
+  // every argument goes through — the host's options bag (its abort
+  // signal) must reach the tool; only the input is weighed for the span
+  const wrapped = async (...args: unknown[]) => {
+    const [input] = args
     const invokedAt = performance.now()
     try {
-      const result = await execute.call(tool, input)
+      const result = await execute.apply(tool, args)
       const settledAt = performance.now()
       collector.record({
         tool: tool.name,
@@ -135,38 +143,44 @@ export function instrumentMap(
 }
 
 interface RegistryLike {
-  registerTool?: (tool: ToolLike) => unknown
-  provideContext?: (context: { tools: ToolLike[] }) => void
+  registerTool?: (tool: ToolLike, ...rest: unknown[]) => unknown
+  provideContext?: (context: { tools: ToolLike[] }, ...rest: unknown[]) => unknown
 }
 
 export interface Interception {
   stop: () => void
   /** restore every wrapped execute — used by profiler.detach() */
   unwrapAll: () => void
+  /** put every registry's own registerTool / provideContext back */
+  unpatchAll: () => void
   originals: Map<ToolLike, ToolLike["execute"]>
 }
 
 export function startInterception(collector: Collector): Interception {
   const originals = new Map<ToolLike, ToolLike["execute"]>()
-  const patched = new WeakSet<object>()
+  // the registries patched so far, each with the methods it had before —
+  // detach puts them back, and clearing the map is what lets a later
+  // attach patch the same host again instead of wrapping a stale wrapper
+  const patched = new Map<RegistryLike, Pick<RegistryLike, "registerTool" | "provideContext">>()
 
   const patchRegistry = (registry: RegistryLike, where: string): void => {
     if (!registry || typeof registry !== "object" || patched.has(registry)) return
-    patched.add(registry)
+    const { registerTool, provideContext } = registry
+    patched.set(registry, { registerTool, provideContext })
     collector.hostFound(where)
 
-    const originalRegister = registry.registerTool?.bind(registry)
-    if (originalRegister) {
-      registry.registerTool = (tool: ToolLike) => {
+    // extra arguments pass straight through: the site's `{ signal }` is
+    // how it unregisters (and re-registers) its tools on a draft host
+    if (registerTool) {
+      registry.registerTool = (tool, ...rest) => {
         instrumentTool(tool, collector, originals)
-        return originalRegister(tool)
+        return registerTool.call(registry, tool, ...rest)
       }
     }
-    const originalProvide = registry.provideContext?.bind(registry)
-    if (originalProvide) {
-      registry.provideContext = (context: { tools: ToolLike[] }) => {
+    if (provideContext) {
+      registry.provideContext = (context, ...rest) => {
         for (const tool of context?.tools ?? []) instrumentTool(tool, collector, originals)
-        return originalProvide(context)
+        return provideContext.call(registry, context, ...rest)
       }
     }
   }
@@ -190,6 +204,13 @@ export function startInterception(collector: Collector): Interception {
     unwrapAll: () => {
       for (const [tool, execute] of originals) tool.execute = execute
       originals.clear()
+    },
+    unpatchAll: () => {
+      for (const [registry, { registerTool, provideContext }] of patched) {
+        if (registerTool) registry.registerTool = registerTool
+        if (provideContext) registry.provideContext = provideContext
+      }
+      patched.clear()
     },
     originals,
   }

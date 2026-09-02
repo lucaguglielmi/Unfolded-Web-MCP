@@ -6,8 +6,20 @@ performance of its `document.modelContext` tools — across hosts (Chrome
 flag, ChatGPT's hidden browser, polyfills), across devices, and without
 needing an agent in the loop.
 
-Status: spec. A v0 of the benchmark mode already lives in this repo as
-`npm run perf` (`e2e/perf.mjs`).
+Status: **design spec, partly built.** This document describes the whole
+analyser as designed; the published package (`packages/webmcp-profiler`,
+`webmcp-profiler` on npm) ships a subset of it. What exists today: the
+interceptor, the in-memory ring-buffer collector with Long-Task blocking
+attribution and DevTools `performance.measure` marks, the host-gap
+ledger with percentiles, the console API (`table`, `report`, `export`,
+`instrument`, `reset`, `detach`), the overlay, the BroadcastChannel relay,
+and the ESM + IIFE builds; the config surface is `{ buffer, relay,
+overlay }`. Not yet built: IndexedDB persistence, the WebSocket relay,
+the beacon, the OTel exporter, budgets/grades, the anti-pattern
+detectors, `captureBodies`, and the in-page synthetic bench (`.bench()`);
+a hand-rolled v0 of the bench lives outside the package as `npm run perf`
+(`e2e/perf.mjs`). Section headings below carry a *(shipped)* / *(not yet
+built)* marker, and §12 is the single source of truth for what has landed.
 
 ## 1 · Why — where the time actually goes
 
@@ -59,7 +71,7 @@ Non-goals:
 - Never a data exfiltration path: payload *contents* stay in the page by
   default; only shapes, sizes, and timings leave it (§10).
 
-## 3 · Architecture
+## 3 · Architecture *(interceptor and collector shipped; the persistence, WebSocket, budgets, detectors, beacon and OTel boxes are not yet built)*
 
 Four layers, separable so a project can load only what it needs:
 
@@ -79,7 +91,7 @@ Four layers, separable so a project can load only what it needs:
 └────────────────────────────────────────────────────────┘
 ```
 
-### Interceptor
+### Interceptor *(shipped)*
 
 The only mandatory layer. On load it patches the registration surface —
 `document.modelContext.registerTool` / `provideContext`, and the
@@ -99,14 +111,15 @@ The wrapper adds one `try/finally` and two `performance.now()` calls of
 overhead per invocation — budgeted at < 0.1 ms so the profiler never
 becomes the thing it measures (§11).
 
-### Collector
+### Collector *(shipped, in-memory only)*
 
 A ring buffer of spans (default 500, configurable) in memory, with
 opt-in persistence to IndexedDB keyed by origin + session id, so a
-report can span reloads. Everything else consumes the collector; nothing
+report can span reloads (the IndexedDB persistence is not yet built —
+today a reload starts an empty buffer). Everything else consumes the collector; nothing
 below it knows whether an overlay or a beacon exists.
 
-## 4 · The span — what one tool call records
+## 4 · The span — what one tool call records *(shipped in part)*
 
 ```jsonc
 {
@@ -130,6 +143,13 @@ below it knows whether an overlay or a beacon exists.
 }
 ```
 
+Shipped fields: `seq`, `tool`, the `performance.now()` bracket
+(`invokedAt`/`settledAt`), `wallMs`, `blockingMs`, input/result bytes,
+`contentTypes`, `imageBytes`, `estTokens`, `isError`, `error`,
+`gapSincePrevCallMs`, and a `synthetic` flag. Not yet built:
+`queueDelayMs`, `schemaValid`, `memoryDeltaBytes`, `frameDrops`, and the
+`spanId`/`sessionId` identifiers.
+
 Sources: `performance.now()` bracketing; a `PerformanceObserver` on
 `longtask` whose entries are attributed to any overlapping span
 (`blockingMs`); a low-frequency `requestAnimationFrame` heartbeat for
@@ -144,7 +164,7 @@ Every span also emits `performance.mark`/`measure` pairs
 Performance panel alongside layout, GC, and network — free correlation
 with everything Chrome already records.
 
-## 5 · Host-gap analysis — the differentiator
+## 5 · Host-gap analysis — the differentiator *(shipped)*
 
 A single page can't see inside the host, but it can *bracket* it. The
 profiler maintains a session ledger:
@@ -165,7 +185,7 @@ this conversation took, tools executed for 0.31 s, payloads totalled
 site-owned levers hiding in that split: payload weight (§8's detectors)
 and registration lag.
 
-## 6 · Synthetic benchmark mode — no agent required
+## 6 · Synthetic benchmark mode — no agent required *(not yet built in the package; `e2e/perf.mjs` is the v0)*
 
 Every WebMCP tool declares a JSON Schema. The bench runner uses it:
 
@@ -186,7 +206,7 @@ Every WebMCP tool declares a JSON Schema. The bench runner uses it:
   tool 10× slower or a payload 10× fatter fails before deploy.
   `e2e/perf.mjs` is the hand-rolled v0 of exactly this.
 
-## 7 · Surfaces
+## 7 · Surfaces *(overlay and console API shipped; beacon and OTel exporter not yet built)*
 
 - **Overlay** (optional, lazy chunk): a shadow-DOM floating panel — no
   style bleed, framework-free — showing a live per-tool table (calls,
@@ -195,16 +215,17 @@ Every WebMCP tool declares a JSON Schema. The bench runner uses it:
   literally visible), and budget violations as badges. Toggle with a
   keyboard chord; hidden by default in production.
 - **Console API**: `__webmcpPerf.table()`, `.report()`, `.export()`
-  (downloads the JSON), `.bench(opts)`, `.reset()` — everything works
-  headless from DevTools.
-- **Beacon** (opt-in): batched `navigator.sendBeacon` of span
+  (downloads the JSON), `.bench(opts)` (not yet built), `.reset()` —
+  everything works headless from DevTools. Shipped alongside: `.instrument()`
+  for the late-load path and `.detach()`.
+- **Beacon** (opt-in, not yet built): batched `navigator.sendBeacon` of span
   summaries to any URL, with sampling (`sample: 0.1`) — enough to build
   fleet dashboards of real-user tool performance without an APM vendor.
-- **OTel exporter** (opt-in): spans as OpenTelemetry JSON with W3C
+- **OTel exporter** (opt-in, not yet built): spans as OpenTelemetry JSON with W3C
   trace context, so a backend (this app: the session Durable Object)
   can join page-side spans to server-side ones in one trace view.
 
-### Hidden-browser relay
+### Hidden-browser relay *(BroadcastChannel shipped; WebSocket not yet built)*
 
 The ChatGPT case: the tab being profiled has no visible screen. The
 collector can therefore mirror spans out:
@@ -217,7 +238,7 @@ collector can therefore mirror spans out:
   short code, watch a phone's hidden browser from a desktop overlay.
   Spans only, never payload contents (§10).
 
-## 8 · Budgets, grades, and anti-pattern detectors
+## 8 · Budgets, grades, and anti-pattern detectors *(not yet built)*
 
 Configurable budgets with defaults chosen from field data:
 
@@ -249,7 +270,7 @@ the number:
   thrash inside execute).
 - **Registration lag** — host injection → tools ready above budget.
 
-## 9 · Distribution and integration
+## 9 · Distribution and integration *(package shipped; the config below is the designed surface)*
 
 - **Package**: `webmcp-profiler` — zero dependencies, three artifacts:
   ESM (`import { attachProfiler } from "webmcp-profiler"`), a single
@@ -257,6 +278,10 @@ the number:
   of the same IIFE for profiling pages you don't own.
 - **Size budget**: core interceptor + collector ≤ 6 KB gzipped; overlay
   and exporters are lazy chunks loaded on first use.
+
+The full config as designed — today's `attachProfiler` accepts only
+`buffer`, `relay`, and `overlay`; the other keys arrive with the features
+they configure:
 
 ```js
 const profiler = attachProfiler({
@@ -278,7 +303,7 @@ config. For this repo it would slot into `src/main.tsx` ahead of
 `registerTools`, gated behind `?perf=1` or a localStorage flag so it
 costs nothing for ordinary visitors.
 
-## 10 · Privacy and the profiler's own overhead
+## 10 · Privacy and the profiler's own overhead *(shipped, except `captureBodies` and the self-bench)*
 
 - Payload **contents** never leave the page by default — spans carry
   sizes, shapes, hashes, and timings. Turning content capture on
@@ -292,7 +317,7 @@ costs nothing for ordinary visitors.
 - Everything is removable at runtime: `profiler.detach()` restores the
   original `registerTool`/`execute` references.
 
-## 11 · Report format
+## 11 · Report format *(shipped as `webmcp-perf-report/1`, without grades or detector findings yet)*
 
 One versioned JSON document (`webmcp-perf-report/1`): session metadata
 (origin, UA, host flavor, timestamps), the tool table (per-tool
@@ -302,6 +327,9 @@ dashboard can ingest a stream of them; the console `.table()` and the
 overlay are both views over this same document.
 
 ## 12 · Roadmap through this repo
+
+The single source of truth for what has landed; the section markers
+above derive from this list.
 
 1. `npm run perf` (shipped) — Playwright bench of every tool, the
    numbers in §1.
@@ -324,3 +352,20 @@ Shipped alongside step 2: the first finding acted on —
 `get_preview_image` went from a 480 px PNG (~130 KB ≈ 32 K tokens per
 call) to a 320 px JPEG (~7 KB ≈ 1.7 K tokens), a 19× cut in the single
 largest site-owned cost in the agent loop.
+
+Not yet built (in the order they would likely land), each described in
+full above so the design is ready when the work is:
+
+5. Budgets, grades, and the anti-pattern detectors (§8), leading the
+   report with violations — the first step because it turns the numbers
+   the profiler already collects into named fixes.
+6. In-page synthetic bench (§6) — `__webmcpPerf.bench(opts)` with the
+   `readOnlyHint` safety default and the state-guard for mutating tools;
+   `e2e/perf.mjs` retires into it.
+7. IndexedDB persistence (§3) so a report can span reloads, and the
+   remaining span fields (§4: `queueDelayMs`, `frameDrops`,
+   `memoryDeltaBytes`, `schemaValid`).
+8. Export paths beyond the JSON download: the beacon and the OTel
+   exporter (§7), and `captureBodies` as a local-only debug mode (§10).
+9. The WebSocket relay (§7) for cross-device profiling of a hidden
+   browser.

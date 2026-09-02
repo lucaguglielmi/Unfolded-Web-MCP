@@ -185,9 +185,14 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
     expect(structured!.summary as string).toMatch(/^3D preview of/)
   })
 
-  it("export_templates: ok, message, pages, paper, rows, cols", async () => {
+  it("export_templates: ok, message, pages, paper, rows, cols, and the full state", async () => {
     const { text, structured } = await call("export_templates", { paperSize: "A4" })
-    expect(structured).toEqual({ ok: true, message: text, pages: 3, paper: "A4", rows: 1, cols: 2 })
+    const state = describeState()
+    expect(structured!.message).toMatch(/^PDF downloaded/)
+    expect(structured).toMatchObject({ ok: true, pages: 3, paper: "A4", rows: 1, cols: 2, state })
+    // paperSize is design state: the text is message + snapshot like any mutation
+    expect(text).toBe(`${structured!.message}\n${JSON.stringify(state, null, 2)}`)
+    expect(state.paperSize).toBe("A4")
   })
 
   it("undo with an empty history: ok:false with the current state", async () => {

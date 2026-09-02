@@ -391,7 +391,7 @@ function ForAgents() {
               ["Live", "https://tryunfolded.com (origin-independent; links carry the whole model)"],
               ["Source", "github.com/lucaguglielmi/Unfolded-Web-MCP · MIT"],
               ["Stack", "React 19, TypeScript, zustand, zod, react-three-fiber, jsPDF + svg2pdf, Cloudflare Workers"],
-              ["Verification", "107 unit tests + 26-check Playwright e2e suite gate every deploy in CI"],
+              ["Verification", "282 unit tests + 32-check Playwright e2e suite gate every deploy in CI"],
             ] as [string, string][]
           ).map(([k, v]) => (
             <div key={k} className="flex items-baseline gap-3">

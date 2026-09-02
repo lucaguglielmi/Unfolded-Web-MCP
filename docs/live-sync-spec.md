@@ -137,14 +137,17 @@ mint/claim asymmetry exists only at pairing time.
 
 30 bits is protected by process, not entropy: 15-minute TTL, single use,
 claim rate limits (per-IP: 10 claims/min at the worker; global: PairingDO
-rejects when >100 claims/s). A wrong code is a uniform miss — no oracle for
-"exists but expired"; comparison is constant-time. With ≤ ~100 codes live at
-any moment, one guess hits with p ≈ 10⁻⁷; a maxed-out attacker inside the
-limits expects centuries per hit, and a hit yields edit access to one
-stranger's mug dimensions for one session. The per-IP limit is configurable
-(`PAIR_CLAIMS_PER_IP_PER_MINUTE`, read by PairingDO) for local test runs
-only, where every browser context shares one address; production sets no
-vars and keeps the default.
+rejects when >100 claims/s). A wrong code is a uniform miss: unknown,
+expired, already-used, and malformed all answer the same 404, so there is no
+oracle for "exists but expired". Resolution is a hash-map lookup on the
+normalized code, not a byte-wise string compare, so there is no comparison
+to make timing-safe; what bounds probing is the throttle, not comparison
+timing. With ≤ ~100 codes live at any moment, one guess hits with p ≈ 10⁻⁷;
+a maxed-out attacker inside the limits expects centuries per hit, and a hit
+yields edit access to one stranger's mug dimensions for one session. The
+per-IP limit is configurable (`PAIR_CLAIMS_PER_IP_PER_MINUTE`, read by
+PairingDO) for local test runs only, where every browser context shares one
+address; production sets no vars and keeps the default.
 
 ## 5. User flows
 
@@ -329,9 +332,7 @@ copy lands with the feature (work item 8), not before.
     that enters the code follows the other one"), and the honesty note in
     the house style: *a code is a 15-minute, one-use key; the app never puts
     a live session in a link.*
-  - The tool table extends automatically via `TOOL_SUMMARIES` (count
-    updates from eleven to thirteen — check any hardcoded "eleven" in copy
-    here and in the README).
+  - The tool table extends automatically via `TOOL_SUMMARIES`.
   - "Things to try" gains: *"join my desktop session, code K7F-3QP"* and
     *"give me a pairing code for my desktop."*
   - The live connection-status block additionally shows this tab's pairing
@@ -394,7 +395,8 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
   alarm deletes storage after 30 idle days; `mint_code` registers with
   `PairingDO`.
 - `PairingDO`: in-storage code table, TTL sweep by alarm, global claim
-  throttle, constant-time compare, uniform misses.
+  throttle, uniform misses (resolution is a map lookup — nothing to compare
+  timing-safely).
 - Limits: frame ≤ 8 KB, ≤ 16 sockets/session, ≤ 20 msg/s/socket → `error` +
   close. All input zod-validated; unknown ignored.
 

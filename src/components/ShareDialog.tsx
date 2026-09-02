@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { feedback } from "@/lib/feedback"
 import { shareUrl } from "@/lib/model/shareLink"
+import { useTimeout } from "@/lib/useTimeout"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -37,6 +38,7 @@ export function ShareDialog({
     isControlled ? onOpenChange?.(next) : setUncontrolledOpen(next)
   const [copied, setCopied] = useState(false)
   const [qr, setQr] = useState<string | null>(null)
+  const later = useTimeout()
 
   const form = useProjectStore((s) => s.form)
   const clay = useProjectStore((s) => s.clay)
@@ -73,7 +75,7 @@ export function ShareDialog({
       await navigator.clipboard.writeText(url)
       feedback("success")
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 1500)
+      later(() => setCopied(false), 1500)
     } catch {
       // clipboard can be unavailable (permissions, older webviews)
       window.prompt("Copy this link to share the design:", url)
