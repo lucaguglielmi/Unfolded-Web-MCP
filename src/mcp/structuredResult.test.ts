@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 /**
- * Structured results (hardening spec 9.3, contract tool-result/1): every
+ * Structured results (contract tool-result/1): every
  * tool keeps its text `content` exactly as before and ADDITIONALLY returns
  * `structuredContent` — `{ ok, message, state?, warnings? }` for the
  * state-reporting tools, the tool's own object (plus ok/message) for the

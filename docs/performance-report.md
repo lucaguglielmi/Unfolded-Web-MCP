@@ -148,7 +148,7 @@ memory behavior on mobile Safari.
 
 ## 7 · Structured results — contract `tool-result/1`
 
-Hardening spec §9.3, done additively. Every tool result keeps its
+Done additively. Every tool result keeps its
 MCP-style `content` array and `isError` flag byte-for-byte — the envelope
 ChatGPT's agent browser is verified against — and gains a
 `structuredContent` object beside it. The WebMCP draft itself defines no

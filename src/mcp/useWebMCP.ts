@@ -36,7 +36,7 @@ let attemptInFlight = false
  * identity aborts the old registration set and registers cleanly against
  * the new context.
  *
- * Registration follows the current draft (spec 4.1): every registerTool
+ * Registration follows the current draft: every registerTool
  * call is awaited, the whole set is all-or-nothing under one
  * AbortController, and the connection is reported active only after the
  * final registration resolves. Legacy hosts (navigator/window locations,

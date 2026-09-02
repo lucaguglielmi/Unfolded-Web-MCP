@@ -3,6 +3,7 @@ import { ArrowUpRight, Check, Copy, MonitorSmartphone } from "lucide-react"
 import { PairDialog } from "@/components/PairDialog"
 import { Button } from "@/components/ui/button"
 import { feedback } from "@/lib/feedback"
+import { SITE_URL } from "@/lib/siteUrl"
 import { cn } from "@/lib/utils"
 import { useDesignHref } from "@/lib/useStudioHref"
 import { useTimeout } from "@/lib/useTimeout"
@@ -98,7 +99,7 @@ const SYNC: Record<SyncState, { title: string; dot: string; description: string 
 function agentPrompt(code: string, minutes: number): string {
   const pretty = `${code.slice(0, 3)}-${code.slice(3)}`
   return (
-    `Open https://tryunfolded.com in your built-in browser — it's a parametric ` +
+    `Open ${SITE_URL} in your built-in browser — it's a parametric ` +
     `slab-pottery template designer that exposes WebMCP tools. Once it loads, call ` +
     `its join_session tool with code ${pretty} so you're editing the same live ` +
     `design I have open here. Join right away: the code itself is single-use and ` +

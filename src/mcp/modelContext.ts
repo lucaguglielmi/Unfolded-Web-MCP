@@ -31,7 +31,7 @@ export interface ImageContent {
 export type ToolContent = TextContent | ImageContent
 
 /**
- * Result contract version (hardening spec 9.3). Bump when the shape of
+ * Result contract version. Bump when the shape of
  * `structuredContent` changes incompatibly; the contract is written up in
  * docs/performance-report.md ("Structured results").
  */

@@ -64,7 +64,7 @@ const serverReady = async () => {
 
 const mcpHostInit = () => {
   window.__mcpTools = {}
-  // standards-realistic fake (spec 6.1): registration is ASYNC — each tool
+  // standards-realistic fake: registration is ASYNC — each tool
   // resolves on a later tick — and the registration signal removes the tool
   // again on abort, like a current-draft host
   document.modelContext = {
@@ -89,7 +89,7 @@ const callTool = (page, name, input = {}) =>
         types: result.content.map((c) => c.type),
         text: result.content.find((c) => c.type === "text")?.text ?? "",
         imageBytes: result.content.find((c) => c.type === "image")?.data?.length ?? 0,
-        // hardening 9.3: the additive structured half (tool-result/1)
+        // the additive structured half (tool-result/1)
         structured: result.structuredContent ?? null,
       }
     },
@@ -129,7 +129,7 @@ try {
   )
   check("every tool has a real description and an object inputSchema", schemasOk)
 
-  // 4.3: titles at the top level, only current annotation fields
+  // titles at the top level, only current annotation fields
   const descriptorsOk = await page.evaluate(() =>
     Object.values(window.__mcpTools).every(
       (t) =>
@@ -140,7 +140,7 @@ try {
   )
   check("titles are top-level and annotations carry only current fields", descriptorsOk)
 
-  // 4.1: the host replacing its registry causes one clean re-registration
+  // the host replacing its registry causes one clean re-registration
   await page.evaluate(() => {
     window.__mcpToolsReplaced = {}
     document.modelContext = {
@@ -337,6 +337,61 @@ try {
   )
   check("__unfoldedTools console hook is exposed for manual testing", consoleHook)
   await latePage.close()
+
+  // ------------------------------------ visibility transitions
+  // A hidden tab must not poll for a host; the visibilitychange recheck
+  // must catch up the moment the tab is visible again. document.hidden is
+  // faked via a configurable getter so the transition is deterministic.
+  const hiddenPage = await ctx.newPage()
+  await hiddenPage.addInitScript(() => {
+    window.__fakeHidden = true
+    Object.defineProperty(document, "hidden", { get: () => window.__fakeHidden === true })
+    Object.defineProperty(document, "visibilityState", {
+      get: () => (window.__fakeHidden ? "hidden" : "visible"),
+    })
+  })
+  await hiddenPage.goto(BASE, { waitUntil: "networkidle" })
+  await hiddenPage.waitForTimeout(1500) // past the mount attempt (which found no host)
+  await hiddenPage.evaluate(() => {
+    window.__mcpToolsHidden = {}
+    document.modelContext = {
+      registerTool: (t, opts) =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            if (opts?.signal?.aborted) return resolve()
+            window.__mcpToolsHidden[t.name] = t
+            opts?.signal?.addEventListener("abort", () => delete window.__mcpToolsHidden[t.name])
+            resolve()
+          }, 2)
+        }),
+    }
+  })
+  // several fast-poll ticks pass while "hidden" — the host must stay undiscovered
+  await hiddenPage.waitForTimeout(2500)
+  const registeredWhileHidden = await hiddenPage.evaluate(
+    () => Object.keys(window.__mcpToolsHidden).length
+  )
+  check("a hidden tab does not poll for a WebMCP host", registeredWhileHidden === 0)
+  await hiddenPage.evaluate(() => {
+    window.__fakeHidden = false
+    document.dispatchEvent(new Event("visibilitychange"))
+  })
+  await hiddenPage
+    .waitForFunction(
+      (count) => Object.keys(window.__mcpToolsHidden).length === count,
+      EXPECTED_TOOLS.length,
+      { timeout: 15_000 }
+    )
+    .catch(() => {})
+  const afterVisible = await hiddenPage.evaluate(
+    () => Object.keys(window.__mcpToolsHidden).length
+  )
+  check(
+    "the visibilitychange recheck registers the full set once visible",
+    afterVisible === EXPECTED_TOOLS.length,
+    `tools after visible: ${afterVisible}`
+  )
+  await hiddenPage.close()
 
   // ----------------------------------------------- three badge states
   // 1. no API, no signal -> grey pill just says "WebMCP"

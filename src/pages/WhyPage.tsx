@@ -2,6 +2,7 @@ import { useState } from "react"
 import { ArrowUpRight } from "lucide-react"
 import { ExplainerHeader } from "@/components/ExplainerHeader"
 import { useDesignHref } from "@/lib/useStudioHref"
+import { SITE_URL } from "@/lib/siteUrl"
 import { StudioCtaBar } from "@/components/StudioCtaBar"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 // the tool list renders from its single source next to the registrations
@@ -388,7 +389,7 @@ function ForAgents() {
           {(
             [
               ["App", "Unfolded — slab pottery templates (free for everyone, forever)"],
-              ["Live", "https://tryunfolded.com (origin-independent; links carry the whole model)"],
+              ["Live", `${SITE_URL} (origin-independent; links carry the whole model)`],
               ["Source", "github.com/lucaguglielmi/Unfolded-Web-MCP · MIT"],
               ["Stack", "React 19, TypeScript, zustand, zod, react-three-fiber, jsPDF + svg2pdf, Cloudflare Workers"],
               ["Verification", "282 unit tests + 32-check Playwright e2e suite gate every deploy in CI"],

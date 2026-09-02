@@ -107,6 +107,32 @@ try {
   const badCode = await fetch(`${BASE}/api/pair/claim`, { method: "POST", body: JSON.stringify({ code: "000000" }) })
   check("claim: garbage code is a uniform 404", badCode.status === 404)
 
+  // a cross-site browser origin is rejected before any DO work
+  const crossSite = await fetch(`${BASE}/api/pair/claim`, {
+    method: "POST",
+    headers: { Origin: "https://evil.example" },
+    body: JSON.stringify({ code: code.code }),
+  })
+  check("origin guard: cross-site claim is 403", crossSite.status === 403)
+  const sameSite = await fetch(`${BASE}/api/pair/claim`, {
+    method: "POST",
+    headers: { Origin: `http://localhost:${PORT}` },
+    body: JSON.stringify({ code: "000000" }),
+  })
+  check("origin guard: same-host origin passes through (uniform 404)", sameSite.status === 404)
+
+  // security headers ride on every non-WebSocket response
+  const page = await fetch(`${BASE}/`)
+  check(
+    "headers: CSP present with script-src 'self'",
+    (page.headers.get("content-security-policy") ?? "").includes("script-src 'self'")
+  )
+  check("headers: nosniff present", page.headers.get("x-content-type-options") === "nosniff")
+  check(
+    "headers: referrer policy present",
+    page.headers.get("referrer-policy") === "strict-origin-when-cross-origin"
+  )
+
   a.ws.close()
   b.ws.close()
 } catch (e) {

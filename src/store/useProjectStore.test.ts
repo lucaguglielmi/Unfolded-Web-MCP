@@ -339,6 +339,24 @@ describe("export concurrency", () => {
     await expect(store.getState().exportPdf()).rejects.toThrow("printer on fire")
     expect(store.getState().exportsInFlight).toBe(0)
   })
+
+  it("the printed QR url is parameter-only — never a join token or provenance tag", async () => {
+    // paper outlives any chat session: a found template must grant a copy
+    // of the design, not entry to a live session (live-sync spec §6)
+    let qrUrl: string | undefined
+    store = createProjectStore({
+      loadPdfModule: async () => ({
+        exportTemplatesPdf: async (opts: { shareUrl?: string }) => {
+          qrUrl = opts.shareUrl
+          return { pages: 2, cols: 1, rows: 1, paper: "A4" as const }
+        },
+      }),
+    })
+    await store.getState().exportPdf()
+    expect(qrUrl).toContain("?")
+    expect(qrUrl).not.toContain("join=")
+    expect(qrUrl).not.toContain("via=")
+  })
 })
 
 describe("design-slice subscriptions (persistence / URL sync)", () => {

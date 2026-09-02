@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { buildTools } from "./tools"
 
 /**
- * The standard prompt suite (hardening spec 9.1): representative things a
+ * The standard prompt suite: representative things a
  * potter says to an agent, each mapped to the tool that should handle it
  * and the discriminating phrases that make an agent PICK that tool. The
  * phrases are the load-bearing contract sentences of the discovery
