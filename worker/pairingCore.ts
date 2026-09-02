@@ -23,10 +23,32 @@ export const TOKEN_TTL_MS = 15 * 60_000
 const TOKEN_BYTES = 24
 const TOKEN_RE = /^[A-Za-z0-9_-]{20,64}$/
 
-/** claims allowed per IP per minute */
-const PER_IP_PER_MINUTE = 10
-/** claims allowed globally per second */
-const GLOBAL_PER_SECOND = 100
+/** claims allowed per IP per minute (production value) */
+export const DEFAULT_PER_IP_PER_MINUTE = 10
+/** claims allowed globally per second (production value) */
+export const DEFAULT_GLOBAL_PER_SECOND = 100
+
+/**
+ * Both limits are constructor options so a local test run — where every
+ * Playwright context shares one IP — can raise the per-IP one via the
+ * PAIR_CLAIMS_PER_IP_PER_MINUTE var (e2e/pairing.mjs). Production sets
+ * no vars (wrangler.jsonc) and keeps the defaults.
+ */
+export interface PairingLimits {
+  perIpPerMinute?: number
+  globalPerSecond?: number
+}
+
+/**
+ * A limit read from an env var: a positive integer string, else the
+ * default — so an unset, empty, or malformed value can only ever leave
+ * the production limit in place.
+ */
+export function parseClaimLimit(raw: unknown, fallback: number): number {
+  if (typeof raw !== "string" || !/^\d+$/.test(raw.trim())) return fallback
+  const n = Number(raw.trim())
+  return Number.isSafeInteger(n) && n > 0 ? n : fallback
+}
 
 const CODE_RE = new RegExp(`^[${CODE_ALPHABET}]{${CODE_LENGTH}}$`)
 
@@ -70,9 +92,17 @@ export class PairingCore {
   private globalClaims: number[] = []
   private ipClaims = new Map<string, number[]>()
   private readonly random: () => number
+  private readonly perIpPerMinute: number
+  private readonly globalPerSecond: number
 
-  constructor(restored?: PairingSnapshot, random: () => number = Math.random) {
+  constructor(
+    restored?: PairingSnapshot,
+    random: () => number = Math.random,
+    limits: PairingLimits = {}
+  ) {
     this.random = random
+    this.perIpPerMinute = limits.perIpPerMinute ?? DEFAULT_PER_IP_PER_MINUTE
+    this.globalPerSecond = limits.globalPerSecond ?? DEFAULT_GLOBAL_PER_SECOND
     if (restored) this.codes = new Map(restored.codes)
   }
 
@@ -106,10 +136,10 @@ export class PairingCore {
     // throttle before touching the table, so probing is bounded whatever
     // is probed
     this.globalClaims = this.globalClaims.filter((t) => now - t < 1_000)
-    if (this.globalClaims.length >= GLOBAL_PER_SECOND) return { ok: false, reason: "rate_limited" }
+    if (this.globalClaims.length >= this.globalPerSecond) return { ok: false, reason: "rate_limited" }
     this.globalClaims.push(now)
     const perIp = (this.ipClaims.get(ip) ?? []).filter((t) => now - t < 60_000)
-    if (perIp.length >= PER_IP_PER_MINUTE) return { ok: false, reason: "rate_limited" }
+    if (perIp.length >= this.perIpPerMinute) return { ok: false, reason: "rate_limited" }
     perIp.push(now)
     this.ipClaims.set(ip, perIp)
 

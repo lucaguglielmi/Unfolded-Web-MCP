@@ -5,7 +5,10 @@ import {
   CODE_ALPHABET,
   CODE_TTL_MS,
   TOKEN_TTL_MS,
+  DEFAULT_GLOBAL_PER_SECOND,
+  DEFAULT_PER_IP_PER_MINUTE,
   PairingCore,
+  parseClaimLimit,
 } from "./pairingCore"
 
 const SID = "s".repeat(22)
@@ -73,6 +76,31 @@ describe("PairingCore", () => {
     expect(core.claim("AAAAAA", "fresh-ip", 500)).toEqual({ ok: false, reason: "rate_limited" })
     expect(core.claim("AAAAAA", "fresh-ip", 1_600).ok).toBe(false) // window slid; miss, not throttle
     expect(core.claim("AAAAAA", "fresh-ip", 1_600)).toEqual({ ok: false, reason: "invalid" })
+  })
+
+  it("takes both claim limits as constructor options, defaults unchanged", () => {
+    expect(DEFAULT_PER_IP_PER_MINUTE).toBe(10)
+    expect(DEFAULT_GLOBAL_PER_SECOND).toBe(100)
+    const core = new PairingCore(undefined, Math.random, { perIpPerMinute: 2, globalPerSecond: 3 })
+    expect(core.claim("AAAAAA", "ip1", 0)).toEqual({ ok: false, reason: "invalid" })
+    expect(core.claim("AAAAAA", "ip1", 1)).toEqual({ ok: false, reason: "invalid" })
+    expect(core.claim("AAAAAA", "ip1", 2)).toEqual({ ok: false, reason: "rate_limited" })
+    // the global cap counts every claim, throttled or not
+    expect(core.claim("AAAAAA", "ip2", 3)).toEqual({ ok: false, reason: "rate_limited" })
+    // a raised per-IP limit lets one address claim well past the default
+    const roomy = new PairingCore(undefined, Math.random, { perIpPerMinute: 1000 })
+    for (let i = 0; i < 50; i++) {
+      expect(core.claim("AAAAAA", "ip", 10_000 + i).ok).toBe(false)
+      expect(roomy.claim("AAAAAA", "ip", 10_000 + i)).toEqual({ ok: false, reason: "invalid" })
+    }
+  })
+
+  it("parseClaimLimit: only a positive integer string overrides the default", () => {
+    expect(parseClaimLimit("1000", 10)).toBe(1000)
+    expect(parseClaimLimit(" 25 ", 10)).toBe(25)
+    for (const bad of [undefined, null, "", "abc", "0", "-5", "12.5", "1e3", 1000, true]) {
+      expect(parseClaimLimit(bad, 10)).toBe(10)
+    }
   })
 
   it("sweeps expired codes and reports the next expiry for the alarm", () => {
