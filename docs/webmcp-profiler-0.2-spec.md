@@ -5,25 +5,11 @@ Governing rule: **the profiler and the Unfolded site change together** — every
 Baseline: `main` at `85e31b9` (`Merge pull request #7`), package `webmcp-profiler@0.1.1` as published on npm  
 Companion: [`webmcp-profiler-spec.md`](./webmcp-profiler-spec.md) is the long-range design; this document is the work between 0.1.1 and 0.2.0 only.
 
-> **Amendments (2026-09-02, security and performance review).** §15
-> (security) and §16 (performance) were added after a second pass over
-> the sections above; §17 answers how Vite consumers use the package.
-> They amend earlier sections in place where a rule changes (§4.3 gains
-> `sample` and `errorPolicy`; §5 gains the `allow` predicate and
-> `maybeAttachProfilerLazy`; §9.1 gains relay message validation; §10.1
-> gains a privacy statement, an SRI snippet, and a Vite recipe; §11 and
-> §13 gain their tests and app-side work; §2.1's inventory gains
-> `e2e/perf.mjs` and the publish workflow). The traceability table in
-> §14 is unchanged: these sections add requirements, they do not close
-> review findings.
->
-> **Amendments (2026-09-02, reusability review).** §18 adds the
-> reusability work: the package describes itself from one typed source
-> (§18.1), ships the one fake host every harness uses (§18.2), reports
-> its own state (§18.4), answers agents through a tool (§18.5), and
-> teaches contributors its rules (§18.10). §14.1 traces each
-> reusability finding to its section. §2.1, §10.1, §11, and §13 are
-> amended in place.
+Changes since first draft (history in git): §15 security, §16
+performance, §17 Vite consumers, §18 reusability, §19 documentation were
+added by later review passes; §2.1, §4.3, §5, §9.1, §10.1, §11, §13, and
+§14 were amended in place to carry their config keys, tests, app-side
+work, and traceability.
 
 ## 1. Purpose
 
@@ -725,6 +711,14 @@ environment with hand-stubbed globals. Additions:
     allow-list; the harness is exercised end to end by `e2e/perf.mjs`.
 28. `help.test.ts` (§18.9): `help()` lists every `Profiler` method with
     its `METHOD_DOCS` line and nothing else.
+29. `readme-snippets.test.ts` (§19.10): every fenced `ts` block in the
+    package README compiles against the package's own declarations.
+30. `claims.test.ts` (§19.10): the retired phrases stay out of the
+    package README, the root README's profiler section, the WebMCP page,
+    and `agentManifest.ts`; the package README's section order matches
+    §10.1; `docs/README.md` lists every file in `docs/`.
+31. `jsdoc.test.ts` (§19.5): every exported declaration in
+    `dist/*.d.ts` is preceded by a doc comment.
 
 `e2e/run.mjs`'s profiler check additionally asserts `schemaBytes > 0`
 for every registered tool and `report.session.id` is 8 hex chars. It
@@ -792,9 +786,16 @@ carrying its own app-side changes:
    `CLAUDE.md` pointing at it, the PR template, the package
    `CONTRIBUTING.md`. Docs only; may land at any point, earliest is
    best.
-8. Docs (§10, §17) including the root README's profiler section, then
-   the version bump to 0.2.0 in `package.json`, which is what triggers
-   the publish workflow.
+8. Docs (§10, §17, §19): the docs index, the canonical framing, the
+   four corrections, the glossary, troubleshooting, upgrading notes,
+   SECURITY and the moved "Files" section, the snippet and claims
+   guards, and the root README's profiler section. Then the version
+   bump to 0.2.0 in `package.json`, which is what triggers the publish
+   workflow.
+
+Two of §19's items are corrections of statements that are false today
+(§19.3) and one is the docs index (§19.1). They are not release-bound
+and land first, before PR 1.
 
 Validation before the bump: root `npm run lint && npm test && npm run
 build && npm run e2e` green; `npm pack --dry-run` shows `LICENSE`,
@@ -847,6 +848,25 @@ tarball (import, `/attach`, script tag) and produce a report with
 | R11 | No root guidance file for coding agents | §18.10 |
 | R12 | No pull-request checklist for the co-evolution rule | §18.10 |
 | R13 | No contributor guide naming the fast loop and the full gate | §18.10 |
+
+### 14.2 Documentation review → section
+
+| # | Finding | Closed by |
+| --- | --- | --- |
+| D1 | The three-segment framing is written four times in four wordings | §19.2 |
+| D2 | Seven documents, no map | §19.1 |
+| D3 | Four statements the code does not keep (relay rendering, "stays in your tab", "then read the report", the spec's shipped markers and publish flow) | §19.3, §18.5 |
+| D4 | Timing numbers differ across three documents | §19.4 |
+| D5 | No API reference; the best one is in Unfolded's manifest | §18.1, §19.5 |
+| D6 | Six terms, two names for one thing, no glossary | §19.6 |
+| D7 | No troubleshooting for "I see nothing" | §19.7, §18.4 |
+| D8 | No CHANGELOG, no upgrade notes | §3.4, §19.8 |
+| D9 | Nothing runnable; every snippet is untested prose | §18.3, §19.10 |
+| D10 | No CONTRIBUTING, no SECURITY; "Files" on the npm page | §19.9, §18.10 |
+| D11 | Snippets can silently rot | §19.10 |
+| D12 | Claims can silently rot | §19.10 |
+| D13 | Amendment blocks make the specs hard to read cold | §19.11 |
+| D14 | Public members without doc comments | §19.5 |
 
 Requirements beyond the review: the co-evolution contract (§2.1) and
 its two app-side tests (§11.10, §11.11), which exist so that no row above
@@ -1481,3 +1501,180 @@ must also live where they look:
   regenerate docs, how a release happens (version bump triggers
   publish), and the rule that the package never imports from the app.
   The README's "Files" section moves here.
+
+## 19. Documentation
+
+### 19.0 The root cause, and the shape of the fix
+
+The documentation findings share the reusability root cause and add one
+of their own. Prose about the profiler is written separately for each
+surface (npm README, root README, two spec documents, the WebMCP page,
+the agent manifest, the performance report), and nothing checks any of
+it against the code. So the same idea is restated in different words,
+numbers drift, and four sentences describe behaviour that does not
+exist. Guarding prose after the fact is the weak fix. The strong fix
+has three parts:
+
+1. **Generate what can be data.** API, config, span, and ledger
+   descriptions are projections of §18.1's typed source. They cannot be
+   wrong in one place and right in another because they are written in
+   no place.
+2. **Verify what must stay prose.** Code snippets compile. Retired
+   claims are tested for absence. Public declarations are tested for
+   doc comments. A document that cannot be verified is linked, not
+   restated.
+3. **Say each thing once.** One index, one canonical framing paragraph,
+   one source of numbers, one glossary. Every other mention is a link.
+
+### 19.1 The index: `docs/README.md`
+
+One table, one row per document in `docs/`, three columns: what it is,
+who it is for, status (design / partly built / landed / snapshot dated
+YYYY-MM-DD). The profiler rows read, in this order: the package README
+(the user manual and the npm page), this spec (the next release), the
+long-range spec (the design beyond it), the performance report (the
+only numbers; a dated snapshot), `AGENTS.md` (how to work here). The
+root README's profiler section and the package README's "Home" line
+both link to the index. §11.30 asserts every file in `docs/` has a row.
+
+### 19.2 The framing, written once
+
+The three-segment paragraph ("page compute, payload weight, host and
+model wait; a stopwatch around `execute()` sees only the innocent one")
+lives in the package README's "Why" section and nowhere else in full.
+The long-range spec §1 keeps its measured table and opens with a link
+to the paragraph; the WebMCP page keeps one sentence and links; the
+root README keeps its one-sentence version. The paragraph carries no
+numbers, so it never goes stale; numbers are §19.4's job.
+
+### 19.3 Four corrections, landed before anything else
+
+These are false today and cost trust with every reader. They are
+docs-only, take an hour, and do not wait for 0.2:
+
+1. Package README, overlay and relay: "renders spans recorded in a
+   hidden agent tab live" becomes "shows how many spans another tab has
+   relayed; rendering them is §9.1 of the 0.2 spec". Rewritten again to
+   the true claim when §9.1 lands.
+2. WebMCP page, "Off unless you ask": "everything stays in your tab"
+   becomes "nothing leaves your browser: spans are visible to other
+   tabs on this origin and to you through export, and to no one else".
+3. Agent manifest, `profiler.summary`: "then read the report" becomes
+   "then call `get_perf_report`" once §18.5 lands; until then, "then
+   read it from DevTools with `__webmcpPerf.report()` (a WebMCP host
+   cannot call that; a tool is coming)". §2.1 item 5 makes the second
+   edit part of the §18.5 PR.
+4. Long-range spec §3: the interceptor bullets "late load re-registers
+   wrapped copies" and "no host present installs a recording stub" are
+   marked *(not yet built)* individually, and §12 item 4 describes
+   trusted publishing on a `package.json` change, as the workflow does.
+
+### 19.4 One source of numbers
+
+`docs/performance-report.md` is the only document that states measured
+timings, sizes, and token counts, with its commit hash and date. Every
+other document that wants a number links to the report's section
+instead; the two allowed exceptions are the README's one-line "first
+finding" (130 KB to 7 KB, because it is the story) and the overhead
+numbers of §16.1, which the README quotes from the test output with the
+package version they were measured at. When the bench (§18.7)
+regenerates the report, nothing else needs editing.
+
+### 19.5 The declaration file is the reference
+
+Every exported declaration in the package carries a doc comment: what
+it does, its default if it is a config key, the unit if it is a number.
+The comment is the same line as the §18.1 tables where one exists, so
+hover help, `help()`, the README, and `llms.txt` say the same words.
+§11.31 walks `dist/*.d.ts` and fails on an undocumented export. The
+README's API blocks are generated (§18.1), so the README cannot say
+more or less than the declarations.
+
+### 19.6 Glossary
+
+A "Terms" section at the end of the package README, one line each, in
+this order: span, call, ledger, host gap (and its synonyms "think time"
+and "host and model wait", which the docs stop using), relay, gate,
+synthetic, internal (§18.5), session. One line explains the naming:
+the package is `webmcp-profiler`; its runtime names use the shorter
+`webmcp-perf` prefix (`__webmcpPerf`, the storage key, the channel, the
+report format) and will keep doing so, because renaming a global is a
+breaking change with no benefit. The glossary is prose and is the one
+README section a hand may edit freely.
+
+### 19.7 Troubleshooting
+
+A README section with one entry per `status()` phase, in the same
+words as the phase's `hints` (§18.4), plus the environment cases that
+have no phase: Firefox and Safari (no Long Tasks, `blockingMs` stays
+0), ChatGPT's hidden versus in-app browsing contexts (the relay cannot
+bridge them; use `profilerTool`), a strict CSP (§15.5), a site that
+registered tools before the profiler loaded (`instrument()`), and an
+SSR framework (§6.1). Each entry ends with the one command or link that
+resolves it. The `hints` table in `docs.ts` is the source; the README
+section is generated from it inside `<!-- gen:troubleshooting -->`
+markers.
+
+### 19.8 Upgrading from 0.1
+
+A README section and the top of the 0.2.0 CHANGELOG entry, the same
+text: what changed in meaning (bytes are UTF-8; `estTokens` is now a
+sum of three parts; `gapSincePrevCallMs` can be null), what was added
+(the fields, the methods, the subpaths), what is unchanged (every
+0.1.1 call site; the global; the storage key; the query parameter),
+and the one action a consumer of `report()` must take (accept format
+`/2`, or run `compare()` across the boundary knowing byte columns
+shift for non-ASCII payloads).
+
+### 19.9 The standard files
+
+`CHANGELOG.md` (§3.4), `CONTRIBUTING.md` (§18.10), and
+`SECURITY.md`, which is §15.6's privacy statement plus how to report a
+vulnerability (a GitHub security advisory on the repo, and the
+maintainer's npm-listed email) and the supported-versions line. All
+three are in `files`. The README's "Files" section moves to
+`CONTRIBUTING.md`, and the README's last section becomes "Terms" then
+"Home".
+
+### 19.10 Docs that are tested
+
+- **Snippets compile.** `scripts/extract-snippets.mjs` pulls every
+  fenced `ts` block from the package README into
+  `src/__snippets__/*.ts` under a `// @ts-check`-style harness that
+  imports from the package's public subpaths, and `tsc --noEmit` runs
+  over them in §11.29. A snippet that uses a removed option or a
+  renamed method fails the build, which is the moment the README should
+  change.
+- **Claims are guarded.** §11.30 extends the pattern of the existing
+  docs guard to the package README, the WebMCP page's two profiler
+  sections, and `agentManifest.ts`, with a retired-phrases list seeded
+  by §19.3 ("renders spans recorded in a hidden agent tab live",
+  "everything stays in your tab", "then read the report" without the
+  tool name) and grown whenever a claim is corrected.
+- **Structure is guarded.** The same test asserts the package README's
+  section order is §10.1's, so a well-meant reorganization that buries
+  the install step is caught.
+- **Generated blocks are guarded** by §11.21: a hand edit inside
+  markers fails with a diff and the instruction to run `npm run docs`.
+
+### 19.11 Spec conventions, applied to this document
+
+For the two profiler specs and the ones that follow:
+
+- The status line says one of: design / partly built / landed, and
+  names the baseline commit.
+- Amendments go into git history. A document carries one "Changes
+  since first draft" paragraph naming the sections added or changed,
+  not dated blockquotes. This spec applied the rule to itself in the
+  same commit that added this section.
+- Every section that changes behaviour has, in order: the problem as
+  verified, the change, the acceptance criterion, and the app-side
+  work if any. A section without an acceptance criterion is a note,
+  and says so.
+- A spec that comes from a review carries a traceability table (§14)
+  so a finding without a section is visible.
+- "Shipped" markers are per bullet, never per section (§19.3 item 4
+  is the lesson).
+- The long-range spec's §12 stays the single source of truth for what
+  has landed; when a 0.2 section lands, §12 gains a line and this
+  document's status line moves. Nothing else is edited twice.
