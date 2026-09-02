@@ -158,7 +158,7 @@ The contract, versioned `tool-result/1` (`TOOL_RESULT_CONTRACT` in
 | create_live_handoff | the handoff object (`liveHandoffUrl`, `designUrl`, `expiresAt`, `expiresInSeconds`, `singleUse`, `instruction`) plus `ok`/`message`; fail-closed: `{ ok: false, message, state }` with no URL field |
 | get_template_summary | the template summary object plus `ok`/`message` |
 | get_preview_image | image content unchanged; `{ ok, message, summary }` |
-| export_templates | `{ ok, message, pages, paper, rows, cols }` |
+| export_templates | `{ ok, message, pages, paper, rows, cols, state, warnings? }` — the export's own numbers plus the same `state` snapshot as the mutations (paper size is design state, and the text carries the same pretty-printed JSON after the message) |
 | host cancellation (any tool) | `{ ok: false, message }` |
 
 Invariants a host can rely on, pinned by `src/mcp/structuredResult.test.ts`

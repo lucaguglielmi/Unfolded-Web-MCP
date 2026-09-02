@@ -136,10 +136,12 @@ describe("prompt suite — tool selection signals survive metadata trims", () =>
     expect(byName.get("update_form")!.description).toContain("prefer set_capacity")
   })
 
-  it("every mutating tool promises the full new state", () => {
-    const readOnly = new Set(["describe_project", "get_template_summary", "get_preview_image"])
+  it("every tool that changes the design promises the full new state", () => {
+    // reads carry no promise; create_live_handoff mints a link and changes
+    // nothing, so it returns the handoff object instead
+    const exempt = new Set(["describe_project", "get_template_summary", "get_preview_image", "create_live_handoff"])
     for (const tool of buildTools()) {
-      if (readOnly.has(tool.name) || tool.name === "export_templates" || tool.name === "create_live_handoff") continue
+      if (exempt.has(tool.name)) continue
       expect(
         /full (new )?state/i.test(tool.description),
         `${tool.name} must promise the full state`
