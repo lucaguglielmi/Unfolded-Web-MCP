@@ -559,7 +559,7 @@ drop in correct tool selection in the standard prompt suite.
 > work. The last ~5% to 25% would cut protected contract sentences —
 > stopped deliberately. Full numbers: docs/performance-report.md.
 
-### 9.3 Keep structured-result migration post-submission
+### 9.3 Structured results — planned post-submission, landed additively
 
 The current MCP-style text/content envelope works in ChatGPT. Native structured
 WebMCP objects would be cleaner for many text tools, but changing result shapes
@@ -573,7 +573,7 @@ After submission:
 - migrate only with compatibility tests for ChatGPT and Chrome;
 - version or document the result contract if external users may rely on it.
 
-> **Done (additive, post-submission)** — contract `tool-result/1`. Every tool
+> **Done (additive, 2026-09-02, before submission)** — contract `tool-result/1`. Every tool
 > keeps its `content` array and `isError` byte-for-byte and additionally
 > returns `structuredContent`: `{ ok, message, state?, warnings? }` for the
 > state-reporting tools (ok:false plus the unchanged state on validation

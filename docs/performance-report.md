@@ -6,7 +6,8 @@ agent-facing: boot, rendering, interaction, PDF export, and memory.
 
 ## Methodology
 
-Two instruments, both in this repo:
+Two instruments — the first lives in this repo, the second was a
+one-off script:
 
 - **[webmcp-profiler](../packages/webmcp-profiler)** — the performance
   analyser born *inside this project*: when agent interactions felt slow
@@ -20,7 +21,9 @@ Two instruments, both in this repo:
 - **Playwright + CDP** against the production bundle (`vite preview`),
   run twice: desktop viewport at native speed, and a 390 px viewport at
   **4× CPU throttling** to stand in for a mid-range phone. Paint metrics
-  come from the browser's own `PerformanceObserver`.
+  come from the browser's own `PerformanceObserver`. That audit script
+  is not committed — the numbers in §2–§5 are a snapshot taken at
+  `364e8f2`, not a bench that re-runs in CI.
 
 Caveat: pages load from localhost, so network transfer time is excluded —
 bundle sizes are reported separately so network cost can be estimated per
@@ -35,7 +38,7 @@ connection.
 | worst single observation | 46 ms once (`update_form` round↔faceted flip: three.js material recompile) |
 | preview image payload | ~7 KB JPEG (~1.7 K tokens) — was 130 KB PNG before the profiler flagged it |
 | text result payload | ~800 B (~200 tokens) |
-| **discovery metadata** | **9,128 chars (~2,280 tokens) — trimmed 19.6% from 11,360 this pass** |
+| **discovery metadata** | **9,128 chars (~2,280 tokens) — trimmed 19.6% from 11,360 this pass** (13 tools at the time; 14-tool figure below) |
 
 The metadata trim is the spec §9.1 pair, done in the safe order: the
 **standard prompt suite** landed first (`src/mcp/promptSuite.test.ts` —
@@ -48,6 +51,13 @@ promise) — both restored. The remaining distance to the spec's 25%
 aspiration would mean cutting contract sentences the suite protects;
 stopping at 19.6% is deliberate. Also stripped: the content-free
 `"$schema"` identifier zod emits per tool.
+
+*Update 2026-09-02:* the fourteenth tool, `create_live_handoff`, plus the
+one-sentence link rule it adds to every editing tool
+(docs/live-handoff-link-spec.md), raised the metadata on purpose to
+**10,474 chars (~2,620 tokens)** — still 7.8% under the pre-trim 13-tool
+baseline. The budget test moved with it, from 9,800 to 11,000 chars, so
+it keeps catching quiet regrowth without failing the deliberate one.
 
 **Verdict: the tool harness is not slow.** Every page-side number is two
 to three orders of magnitude below one model round trip. The recurring
@@ -73,7 +83,8 @@ paints and registers tools long before the 3D chunk arrives; a browser
 with no GPU never downloads GPU code.
 
 Reading: the app shell is fast even throttled — an agent in a fresh
-ChatGPT tab has all 13 tools well under half a second of CPU time. The
+ChatGPT tab has all 14 tools well under half a second of CPU time (the
+run measured 13; the fourteenth adds ~1 KB of metadata, no code path). The
 2 s LCP on the throttled run is the pot itself appearing, which is the
 inherent price of a real-time 3D preview arriving lazily; the page is
 interactive (sliders, templates, tools) long before.
@@ -123,8 +134,9 @@ memory behavior on mobile Safari.
 ## 6 · Findings ranked
 
 1. **Fixed this pass**: discovery metadata −19.6% (11,360 → 9,128 chars),
-   guarded by the new prompt suite + a 9,800-char budget test that fails
-   any future quiet regrowth.
+   guarded by the new prompt suite + a metadata budget test that fails
+   any future quiet regrowth (9,800 chars then; 11,000 since the
+   fourteenth tool — see §1).
 2. **Known, measured, deliberately deferred**: drag updates at 22 ms on
    throttled CPU (30–45 fps drags on mid-range phones). Fix shape
    documented above; risk/benefit says post-submission.
