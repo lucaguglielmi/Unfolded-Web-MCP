@@ -339,9 +339,9 @@ function FiveMinutes() {
             at all.
           </li>
           <li>
-            <span className="font-semibold text-foreground">The code is the fallback:</span>{" "}
-            behind &ldquo;or use a code&rdquo; in the same dialog, for when you can't scan
-            or tap — read it aloud, or tell your agent{" "}
+            <span className="font-semibold text-foreground">The code is always in view:</span>{" "}
+            shown beside the QR in the same dialog, for when you can't scan or tap — read
+            it aloud, or type it into ChatGPT{" "}
             <em>&ldquo;join my desktop session, code K7F&#8209;3QP&rdquo;</em>.
           </li>
           <li>
