@@ -571,10 +571,12 @@ token. The printed PDF QR stays parameter-only, unchanged.
    visible tab shows up in the agent's next read. Every fresh link the
    agent hands over carries a fresh token, so it keeps working even if the
    in-app browser wipes storage between opens.
-3. **Read a code (fallback).** The 6-character code stays for the spoken
-   path — telling an agent "join my desktop session, code …" — collapsed
-   behind "or use a code instead" in the dialog. join_session and
-   start_pairing keep their names and behavior.
+3. **Read a code.** The 6-character code stays for the spoken and typed
+   path — telling an agent "join my desktop session, code …" — and is
+   minted with the QR and shown beside it (it was collapsed behind "or use
+   a code" until on-device use showed the typed-into-ChatGPT path is
+   common). Entering a code from another screen stays behind a toggle.
+   join_session and start_pairing keep their names and behavior.
 
 ## 4. Mechanics
 

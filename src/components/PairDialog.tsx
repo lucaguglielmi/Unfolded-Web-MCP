@@ -22,9 +22,11 @@ import { useProjectStore } from "@/store/useProjectStore"
  * live, on your other device — which needs no WebMCP, only a browser.
  * Primary path: a QR carrying the share link plus a single-use join
  * token — scanning it pairs instantly (so does the copyable link). The
- * spoken 6-character code stays as the fallback, collapsed below. The
- * device that opens the link (or enters the code) follows THIS design;
- * afterwards both are live peers.
+ * spoken 6-character code is minted with it and always shown beside it:
+ * read aloud to the other screen, or typed into a chat so the agent
+ * joins with join_session. Entering a code FROM another screen sits
+ * behind a toggle. The device that opens the link (or enters the code)
+ * follows THIS design; afterwards both are live peers.
  */
 
 const pretty = (code: string) => `${code.slice(0, 3)}-${code.slice(3)}`
@@ -60,11 +62,12 @@ export function PairDialog({
   const [linkCopied, setLinkCopied] = useState(false)
   const unflashLink = useTimeout()
 
-  // ---- code (fallback path) ----
-  const [showCode, setShowCode] = useState(false)
+  // ---- spoken code (always shown beside the QR) ----
   const [code, setCode] = useState<{ code: string; expiresAt: number } | null>(null)
-  const [minting, setMinting] = useState(false)
+  const [codeError, setCodeError] = useState(false)
   const [copied, setCopied] = useState(false)
+  // ---- entering a code from another screen ----
+  const [showEntry, setShowEntry] = useState(false)
   const unflashCode = useTimeout()
   const [entry, setEntry] = useState("")
   const [joining, setJoining] = useState(false)
@@ -145,8 +148,32 @@ export function PairDialog({
     }
   }, [live, open])
 
-  // one ticking clock drives both countdowns
+  // The spoken code is minted right alongside the invitation — it is the
+  // path for typing into a chat ("join my session, code …") and has to
+  // simply be there when the dialog opens, never behind a button. Same
+  // lifecycle as the QR: re-minted when it expires while open, cleared
+  // once the other screen joins, none while a failure is being shown
+  // (the retry button clears the failure and this effect mints again).
   const codeExpired = code !== null && code.expiresAt <= now
+  useEffect(() => {
+    if (!open || (live && !addingAnother) || (code && !codeExpired) || codeError) return
+    let cancelled = false
+    void (async () => {
+      const minted = await liveSync.mintCode()
+      if (cancelled) return
+      if (minted) {
+        setCode(minted)
+        setNow(Date.now())
+      } else {
+        setCodeError(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open, codeExpired, live, addingAnother, codeError]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // one ticking clock drives both countdowns
   const activeCode = code && !codeExpired ? code : null
   useEffect(() => {
     if (!open) return
@@ -166,21 +193,9 @@ export function PairDialog({
     }
   }
 
-  const mint = async () => {
+  const retryCode = () => {
     setNotice(null)
-    setMinting(true)
-    try {
-      const minted = await liveSync.mintCode()
-      if (minted) {
-        setCode(minted)
-        setNow(Date.now())
-        feedback("success")
-      } else {
-        setNotice({ tone: "error", text: "Couldn't reach the pairing service — try again in a moment." })
-      }
-    } finally {
-      setMinting(false)
-    }
+    setCodeError(false)
   }
 
   const copyCode = async () => {
@@ -240,12 +255,14 @@ export function PairDialog({
         setOpen(next)
         if (!next) {
           setNotice(null)
-          setShowCode(false)
+          setShowEntry(false)
           setAddingAnother(false)
-          // never reuse an invite across opens: the tab may have joined a
-          // DIFFERENT session since (a cached link would point at the one
-          // it left) — tokens are cheap, mint fresh next time
+          // never reuse an invitation across opens: the tab may have joined
+          // a DIFFERENT session since (a cached link or code would point at
+          // the one it left) — both are cheap, mint fresh next time
           setInvite(null)
+          setCode(null)
+          setCodeError(false)
         }
       }}
     >
@@ -310,97 +327,114 @@ export function PairDialog({
               </Button>
             </div>
           ) : (
-          <div className="flex flex-col items-center gap-3">
-            {invite?.qr ? (
-              <div className="rise-in relative">
-                <img
-                  src={invite.qr}
-                  alt="Scan to continue this design, live, on another device"
-                  className="size-44 rounded-lg border p-2"
-                />
-                <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-white px-1.5 py-1">
-                  <LogoMark className="h-5 w-auto" />
-                </span>
+            <>
+              <div className="flex flex-col items-center gap-3">
+                {invite?.qr ? (
+                  <div className="rise-in relative">
+                    <img
+                      src={invite.qr}
+                      alt="Scan to continue this design, live, on another device"
+                      className="size-44 rounded-lg border p-2"
+                    />
+                    <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-md bg-white px-1.5 py-1">
+                      <LogoMark className="h-5 w-auto" />
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground flex size-44 items-center justify-center rounded-lg border text-xs">
+                    preparing…
+                  </div>
+                )}
+                <Button
+                  onClick={copyLink}
+                  variant="secondary"
+                  className="w-full"
+                  disabled={!invite}
+                  data-continue-url={invite?.url ?? ""}
+                >
+                  {linkCopied ? (
+                    <>
+                      <Check className="size-4" /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <LinkIcon className="size-4" /> Copy link
+                    </>
+                  )}
+                </Button>
+                <p className="text-muted-foreground text-center text-xs leading-relaxed">
+                  Scan or open on {otherScreen} — it needs no WebMCP, just a browser — and it
+                  follows this design live, both ways. The invitation works once
+                  {invite ? ` and expires in ${mmss(invite.expiresAt - now)}` : ""}; anyone who
+                  uses it can edit this design.
+                </p>
               </div>
-            ) : (
-              <div className="text-muted-foreground flex size-44 items-center justify-center rounded-lg border text-xs">
-                preparing…
+
+              <div className="text-muted-foreground flex items-center gap-3 text-[11px] uppercase">
+                <span className="bg-border h-px flex-1" />
+                <span>or by code</span>
+                <span className="bg-border h-px flex-1" />
               </div>
-            )}
-            <Button
-              onClick={copyLink}
-              variant="secondary"
-              className="w-full"
-              disabled={!invite}
-              data-continue-url={invite?.url ?? ""}
-            >
-              {linkCopied ? (
-                <>
-                  <Check className="size-4" /> Copied
-                </>
-              ) : (
-                <>
-                  <LinkIcon className="size-4" /> Copy link
-                </>
-              )}
-            </Button>
-            <p className="text-muted-foreground text-center text-xs leading-relaxed">
-              Scan or open on {otherScreen} — it needs no WebMCP, just a browser — and it
-              follows this design live, both ways. The invitation works once
-              {invite ? ` and expires in ${mmss(invite.expiresAt - now)}` : ""}; anyone who
-              uses it can edit this design.
-            </p>
-          </div>
+
+              {/* the spoken code, always in view: read it aloud, or type it
+                  into a chat so the agent joins with join_session */}
+              <div className="flex flex-col items-center gap-1.5">
+                {activeCode ? (
+                  <>
+                    {/* the code IS the copy button — one tap grabs it */}
+                    <button
+                      type="button"
+                      onClick={copyCode}
+                      aria-label="Copy pairing code"
+                      title="Tap to copy"
+                      className="hover:bg-accent group inline-flex items-center gap-3 rounded-lg border px-4 py-2 transition-colors"
+                    >
+                      <code data-pairing-code className="font-mono text-3xl tracking-widest">
+                        {pretty(activeCode.code)}
+                      </code>
+                      {copied ? (
+                        <Check className="size-4 text-emerald-600" />
+                      ) : (
+                        <Copy className="text-muted-foreground size-4 opacity-60 group-hover:opacity-100" />
+                      )}
+                    </button>
+                    <p className="text-muted-foreground text-xs">
+                      {copied
+                        ? "copied — paste it on the other device"
+                        : `tap to copy · expires in ${mmss(activeCode.expiresAt - now)}`}
+                    </p>
+                  </>
+                ) : codeError ? (
+                  <Button onClick={retryCode} variant="outline" className="w-full">
+                    Couldn't reach the pairing service — retry
+                  </Button>
+                ) : (
+                  <div className="text-muted-foreground inline-flex items-center rounded-lg border px-4 py-2">
+                    <span className="font-mono text-3xl tracking-widest">···-···</span>
+                  </div>
+                )}
+                <p className="text-muted-foreground text-center text-xs leading-relaxed">
+                  Read it to {otherScreen}, or type it into ChatGPT:{" "}
+                  <em>&ldquo;join my Unfolded session, code {activeCode ? pretty(activeCode.code) : "K7F-3QP"}&rdquo;</em>
+                  {" "}— the agent joins with <span className="font-mono">join_session</span>. Works once, valid 15 minutes.
+                </p>
+              </div>
+            </>
           )}
 
-          <div className="text-muted-foreground flex items-center gap-3 text-[11px] uppercase">
-            <span className="bg-border h-px flex-1" />
-            <button
-              type="button"
-              onClick={() => setShowCode((v) => !v)}
-              className="hover:text-foreground uppercase transition-colors"
-            >
-              or use a code
-            </button>
-            <span className="bg-border h-px flex-1" />
-          </div>
+          {/* the other direction: THIS device follows a session whose code
+              came from another screen (or an agent's start_pairing) */}
+          <button
+            type="button"
+            onClick={() => setShowEntry((v) => !v)}
+            aria-expanded={showEntry}
+            className="text-muted-foreground hover:text-foreground self-center text-xs underline-offset-4 transition-colors hover:underline"
+          >
+            Enter a code from another screen
+          </button>
 
-          {showCode && (
-            <div className="rise-in flex flex-col gap-4">
-              {activeCode ? (
-                <div className="flex flex-col items-center gap-1.5">
-                  {/* the code IS the copy button — one tap grabs it */}
-                  <button
-                    type="button"
-                    onClick={copyCode}
-                    aria-label="Copy pairing code"
-                    title="Tap to copy"
-                    className="hover:bg-accent group inline-flex items-center gap-3 rounded-lg border px-4 py-2 transition-colors"
-                  >
-                    <code className="font-mono text-3xl tracking-widest">
-                      {pretty(activeCode.code)}
-                    </code>
-                    {copied ? (
-                      <Check className="size-4 text-emerald-600" />
-                    ) : (
-                      <Copy className="text-muted-foreground size-4 opacity-60 group-hover:opacity-100" />
-                    )}
-                  </button>
-                  <p className="text-muted-foreground text-xs">
-                    {copied
-                      ? "copied — paste it on the other device"
-                      : `tap to copy · expires in ${mmss(activeCode.expiresAt - now)}`}
-                  </p>
-                </div>
-              ) : (
-                <Button onClick={mint} disabled={minting} variant="outline" className="w-full">
-                  {minting ? "Creating…" : "Create a code to read aloud"}
-                </Button>
-              )}
-              <p className="text-muted-foreground text-center text-xs leading-relaxed">
-                For when you can't scan or tap — read it to the other device, or tell your
-                assistant <em>"join my session, code …"</em>.
-              </p>
+          {showEntry && (
+            <div className="rise-in flex flex-col gap-3">
               <div className="flex gap-2">
                 <Input
                   value={entry}

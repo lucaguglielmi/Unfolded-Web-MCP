@@ -235,10 +235,10 @@ whoever made the edit. In ChatGPT it's automatic: **the agent's default
 link after any edit is a live handoff** (`create_live_handoff`) — tap it and
 the tab you're looking at stays current with the agent's hidden browser (and
 your edits there appear in the agent's next read). Ask for a permanent link
-only when you want an independent copy. The spoken **6-character code** remains the fallback,
-collapsed behind "or use a code": read it aloud, or tell your agent *"join
-my desktop session, code K7F-3QP"* (`join_session`); the reverse direction
-is `start_pairing`. Phones freezing background tabs is expected: every
+only when you want an independent copy. The spoken **6-character code** sits
+right beside the QR: read it aloud, or type it into ChatGPT *"join my desktop
+session, code K7F-3QP"* (`join_session`); the reverse direction is
+`start_pairing`. Phones freezing background tabs is expected: every
 return to the tab reconnects and converges, and edits made offline are kept
 and sent.
 
