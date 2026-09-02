@@ -31,3 +31,6 @@ dist-ssr
 # committed example (also the build's default) belongs in the repo
 .env*
 !.env.example
+
+# agent worktrees created by the Claude Code harness — scratch, never project files
+.claude/worktrees/
