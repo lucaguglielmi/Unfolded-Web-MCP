@@ -1,0 +1,921 @@
+[
+  {
+    "name": "describe_project",
+    "tool": "describe_project"
+  },
+  {
+    "name": "get_template_summary",
+    "tool": "get_template_summary"
+  },
+  {
+    "name": "update_form",
+    "tool": "update_form",
+    "inputs": [
+      {
+        "heightMm": 80
+      },
+      {
+        "heightMm": 85
+      },
+      {
+        "heightMm": 90
+      },
+      {
+        "heightMm": 95
+      },
+      {
+        "heightMm": 100
+      },
+      {
+        "heightMm": 105
+      },
+      {
+        "heightMm": 110
+      },
+      {
+        "heightMm": 115
+      },
+      {
+        "heightMm": 120
+      },
+      {
+        "heightMm": 125
+      },
+      {
+        "heightMm": 130
+      },
+      {
+        "heightMm": 135
+      },
+      {
+        "heightMm": 140
+      },
+      {
+        "heightMm": 145
+      },
+      {
+        "heightMm": 150
+      },
+      {
+        "heightMm": 155
+      },
+      {
+        "heightMm": 160
+      },
+      {
+        "heightMm": 165
+      },
+      {
+        "heightMm": 170
+      },
+      {
+        "heightMm": 175
+      },
+      {
+        "heightMm": 180
+      },
+      {
+        "heightMm": 185
+      },
+      {
+        "heightMm": 190
+      },
+      {
+        "heightMm": 195
+      },
+      {
+        "heightMm": 200
+      },
+      {
+        "heightMm": 205
+      },
+      {
+        "heightMm": 210
+      },
+      {
+        "heightMm": 215
+      },
+      {
+        "heightMm": 220
+      },
+      {
+        "heightMm": 225
+      },
+      {
+        "heightMm": 230
+      },
+      {
+        "heightMm": 235
+      },
+      {
+        "heightMm": 240
+      },
+      {
+        "heightMm": 245
+      },
+      {
+        "heightMm": 250
+      },
+      {
+        "heightMm": 255
+      },
+      {
+        "heightMm": 260
+      },
+      {
+        "heightMm": 265
+      },
+      {
+        "heightMm": 270
+      },
+      {
+        "heightMm": 275
+      }
+    ]
+  },
+  {
+    "name": "update_form (type flip)",
+    "tool": "update_form",
+    "inputs": [
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      },
+      {
+        "type": "round"
+      },
+      {
+        "type": "faceted",
+        "facets": 6
+      }
+    ]
+  },
+  {
+    "name": "set_clay",
+    "tool": "set_clay",
+    "inputs": [
+      {
+        "shrinkagePct": 8
+      },
+      {
+        "shrinkagePct": 9
+      },
+      {
+        "shrinkagePct": 10
+      },
+      {
+        "shrinkagePct": 11
+      },
+      {
+        "shrinkagePct": 12
+      },
+      {
+        "shrinkagePct": 13
+      },
+      {
+        "shrinkagePct": 14
+      },
+      {
+        "shrinkagePct": 15
+      },
+      {
+        "shrinkagePct": 16
+      },
+      {
+        "shrinkagePct": 17
+      },
+      {
+        "shrinkagePct": 8
+      },
+      {
+        "shrinkagePct": 9
+      },
+      {
+        "shrinkagePct": 10
+      },
+      {
+        "shrinkagePct": 11
+      },
+      {
+        "shrinkagePct": 12
+      },
+      {
+        "shrinkagePct": 13
+      },
+      {
+        "shrinkagePct": 14
+      },
+      {
+        "shrinkagePct": 15
+      },
+      {
+        "shrinkagePct": 16
+      },
+      {
+        "shrinkagePct": 17
+      },
+      {
+        "shrinkagePct": 8
+      },
+      {
+        "shrinkagePct": 9
+      },
+      {
+        "shrinkagePct": 10
+      },
+      {
+        "shrinkagePct": 11
+      },
+      {
+        "shrinkagePct": 12
+      },
+      {
+        "shrinkagePct": 13
+      },
+      {
+        "shrinkagePct": 14
+      },
+      {
+        "shrinkagePct": 15
+      },
+      {
+        "shrinkagePct": 16
+      },
+      {
+        "shrinkagePct": 17
+      },
+      {
+        "shrinkagePct": 8
+      },
+      {
+        "shrinkagePct": 9
+      },
+      {
+        "shrinkagePct": 10
+      },
+      {
+        "shrinkagePct": 11
+      },
+      {
+        "shrinkagePct": 12
+      },
+      {
+        "shrinkagePct": 13
+      },
+      {
+        "shrinkagePct": 14
+      },
+      {
+        "shrinkagePct": 15
+      },
+      {
+        "shrinkagePct": 16
+      },
+      {
+        "shrinkagePct": 17
+      }
+    ]
+  },
+  {
+    "name": "set_capacity",
+    "tool": "set_capacity",
+    "inputs": [
+      {
+        "capacityMl": 300
+      },
+      {
+        "capacityMl": 310
+      },
+      {
+        "capacityMl": 320
+      },
+      {
+        "capacityMl": 330
+      },
+      {
+        "capacityMl": 340
+      },
+      {
+        "capacityMl": 350
+      },
+      {
+        "capacityMl": 360
+      },
+      {
+        "capacityMl": 370
+      },
+      {
+        "capacityMl": 380
+      },
+      {
+        "capacityMl": 390
+      },
+      {
+        "capacityMl": 400
+      },
+      {
+        "capacityMl": 410
+      },
+      {
+        "capacityMl": 420
+      },
+      {
+        "capacityMl": 430
+      },
+      {
+        "capacityMl": 440
+      },
+      {
+        "capacityMl": 450
+      },
+      {
+        "capacityMl": 460
+      },
+      {
+        "capacityMl": 470
+      },
+      {
+        "capacityMl": 480
+      },
+      {
+        "capacityMl": 490
+      },
+      {
+        "capacityMl": 300
+      },
+      {
+        "capacityMl": 310
+      },
+      {
+        "capacityMl": 320
+      },
+      {
+        "capacityMl": 330
+      },
+      {
+        "capacityMl": 340
+      },
+      {
+        "capacityMl": 350
+      },
+      {
+        "capacityMl": 360
+      },
+      {
+        "capacityMl": 370
+      },
+      {
+        "capacityMl": 380
+      },
+      {
+        "capacityMl": 390
+      },
+      {
+        "capacityMl": 400
+      },
+      {
+        "capacityMl": 410
+      },
+      {
+        "capacityMl": 420
+      },
+      {
+        "capacityMl": 430
+      },
+      {
+        "capacityMl": 440
+      },
+      {
+        "capacityMl": 450
+      },
+      {
+        "capacityMl": 460
+      },
+      {
+        "capacityMl": 470
+      },
+      {
+        "capacityMl": 480
+      },
+      {
+        "capacityMl": 490
+      }
+    ]
+  },
+  {
+    "name": "set_units",
+    "tool": "set_units",
+    "inputs": [
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      },
+      {
+        "units": "cm"
+      },
+      {
+        "units": "in"
+      }
+    ]
+  },
+  {
+    "name": "apply_preset",
+    "tool": "apply_preset",
+    "inputs": [
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      },
+      {
+        "preset": "hex-planter"
+      },
+      {
+        "preset": "classic-mug"
+      }
+    ]
+  },
+  {
+    "name": "undo_last_change",
+    "tool": "undo_last_change"
+  },
+  {
+    "name": "open_model",
+    "tool": "open_model",
+    "inputs": [
+      {
+        "url": "http://localhost:4199/?type=round&height=100"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=101"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=102"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=103"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=104"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=105"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=106"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=107"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=108"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=109"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=110"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=111"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=112"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=113"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=114"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=115"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=116"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=117"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=118"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=119"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=120"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=121"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=122"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=123"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=124"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=125"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=126"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=127"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=128"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=129"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=100"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=101"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=102"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=103"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=104"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=105"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=106"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=107"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=108"
+      },
+      {
+        "url": "http://localhost:4199/?type=round&height=109"
+      }
+    ]
+  },
+  {
+    "name": "get_preview_image",
+    "tool": "get_preview_image",
+    "runs": 15
+  }
+]

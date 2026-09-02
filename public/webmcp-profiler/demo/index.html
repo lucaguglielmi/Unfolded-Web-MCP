@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>webmcp-profiler · demo</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; max-width: 42rem; margin: 3rem auto; padding: 0 1rem; color: #1c1917; }
+    code { background: #f5f5f4; padding: .1em .3em; border-radius: 4px; }
+    pre { background: #f5f5f4; padding: .75rem; border-radius: 6px; overflow: auto; }
+    button { font: inherit; padding: .4rem .8rem; }
+    #log { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>webmcp-profiler demo</h1>
+  <p>
+    This page has no agent host. It installs the package's fake host, registers two
+    tools (a fast text tool and a slow one returning an image), fires ten calls with
+    random pauses, and opens the panel. What you should see, bottom left: a row per
+    tool with calls, p50, p95, and the last result size, and under it the split:
+    <em>schemas</em> (descriptor bytes the host ships every conversation), <em>tools</em>
+    (execute time), <em>payloads</em> (result bytes and estimated tokens), and
+    <em>host gaps</em> (the pauses, standing in for model think time).
+  </p>
+  <p>
+    <button id="run">Fire ten calls</button>
+    <button id="summary">Print summary</button>
+    <button id="report">Log report()</button>
+    <a id="bookmarklet" href="#">Bookmarklet: drag me to your bookmarks bar</a>
+  </p>
+  <p>Then in DevTools: <code>__webmcpPerf.help()</code>.</p>
+  <div id="log"></div>
+
+  <script src="./webmcp-profiler.iife.js"></script>
+  <script type="module">
+    import { createFakeHost } from "./testing.js"
+
+    const log = (line) => (document.getElementById("log").textContent += line + "\n")
+    const host = createFakeHost({ async: false })
+    const profiler = WebMCPProfiler.attach({ overlay: true, relay: false })
+
+    const png = "iVBORw0KGgo" + "A".repeat(4000)
+    await document.modelContext.registerTool({
+      name: "describe_thing",
+      description: "A fast read-only tool returning a sentence.",
+      inputSchema: { type: "object", properties: { id: { type: "integer", minimum: 1, maximum: 9 } } },
+      annotations: { readOnlyHint: true },
+      execute: async ({ id }) => ({ content: [{ type: "text", text: `Thing ${id} is a mug, 95 mm tall, 350 ml.` }] }),
+    })
+    await document.modelContext.registerTool({
+      name: "get_preview_image",
+      description: "A slower tool returning a small image.",
+      inputSchema: { type: "object" },
+      annotations: { readOnlyHint: true },
+      execute: async () => {
+        const t0 = performance.now()
+        while (performance.now() - t0 < 12) {} // simulate 12 ms of rendering work
+        return { content: [{ type: "text", text: "preview" }, { type: "image", data: png, mimeType: "image/png" }] }
+      },
+    })
+    await document.modelContext.registerTool(WebMCPProfiler.profilerTool(profiler))
+    log(profiler.status().message)
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+    document.getElementById("run").onclick = async () => {
+      for (let i = 0; i < 10; i++) {
+        const tool = i % 3 === 2 ? "get_preview_image" : "describe_thing"
+        await host.call(tool, { id: 1 + (i % 9) })
+        await sleep(100 + Math.random() * 600) // the "model thinking" gap
+      }
+      log(profiler.summary())
+    }
+    document.getElementById("summary").onclick = () => log(profiler.summary())
+    document.getElementById("report").onclick = () => console.log(profiler.report())
+    document.getElementById("bookmarklet").href =
+      "javascript:" + encodeURIComponent(
+        "(function(){var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/webmcp-profiler@0.2/dist/webmcp-profiler.iife.js';s.onload=function(){WebMCPProfiler.attach({overlay:true})};document.head.appendChild(s)})()"
+      )
+    document.getElementById("run").click()
+  </script>
+</body>
+</html>

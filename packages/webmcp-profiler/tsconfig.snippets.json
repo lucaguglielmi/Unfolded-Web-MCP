@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": false,
+    "types": [
+      "vite/client"
+    ],
+    "paths": {
+      "webmcp-profiler": [
+        "./src/index.ts"
+      ],
+      "webmcp-profiler/attach": [
+        "./src/attach.ts"
+      ],
+      "webmcp-profiler/attach-lazy": [
+        "./src/attach-lazy.ts"
+      ],
+      "webmcp-profiler/tool": [
+        "./src/tool.ts"
+      ],
+      "webmcp-profiler/testing": [
+        "./src/testing.ts"
+      ],
+      "webmcp-profiler/bench": [
+        "./src/bench/run.ts"
+      ]
+    }
+  },
+  "include": [
+    "src/__snippets__"
+  ]
+}

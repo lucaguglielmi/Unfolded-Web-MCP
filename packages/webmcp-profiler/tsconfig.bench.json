@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "declaration": true,
+    "rootDir": "src/bench",
+    "outDir": "dist/bench",
+    "types": ["node"]
+  },
+  "include": ["src/bench"],
+  "exclude": ["src/bench/**/*.test.ts"]
+}

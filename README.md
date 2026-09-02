@@ -133,6 +133,7 @@ Registered on `document.modelContext` per the current WebMCP draft (legacy
 | `join_session` | Pair this tab into a live cross-device session using the 6-character code from the potter's other device |
 | `start_pairing` | Mint a 6-character code so the potter's other device can join this design's live session |
 | `undo_last_change` | Revert the last change, whoever made it (up to 50 steps) |
+| `get_perf_report` | The profiler's numbers, readable by the agent; registered only while `?perf=1` armed profiling |
 
 **Two links, never confused.** `designUrl` reopens an independent copy: parameters
 only, bookmarkable, printable months later; it is also the address bar and the
@@ -188,9 +189,9 @@ The repo ships [`webmcp-profiler`](./packages/webmcp-profiler), a zero-dependenc
 analyser for any WebMCP tool surface, on
 [npm](https://www.npmjs.com/package/webmcp-profiler). Open the live app with
 `?perf=overlay` and every tool call is measured: wall time, main-thread blocking,
-payload bytes and estimated tokens, and the host "think time" between calls. Its
-first finding (the tools run in single-digit milliseconds; an oversized preview
-payload was the real cost) is fixed above.
+payload bytes and estimated tokens, and the host "think time" between calls; an
+agent reads the same numbers through `get_perf_report`. The site imports the
+package source, so profiler and app change in one pull request (`AGENTS.md`).
 
 ## Deploy
 

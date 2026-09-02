@@ -10,6 +10,7 @@
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
 import { chromium } from "playwright"
+import { FAKE_HOST_INIT_SCRIPT } from "webmcp-profiler/testing"
 
 const PORT = 4199
 const BASE = `http://localhost:${PORT}`
@@ -62,23 +63,9 @@ const serverReady = async () => {
   throw new Error("vite preview never became reachable")
 }
 
-const mcpHostInit = () => {
-  window.__mcpTools = {}
-  // standards-realistic fake: registration is ASYNC — each tool
-  // resolves on a later tick — and the registration signal removes the tool
-  // again on abort, like a current-draft host
-  document.modelContext = {
-    registerTool: (t, opts) =>
-      new Promise((resolve) => {
-        setTimeout(() => {
-          if (opts?.signal?.aborted) return resolve()
-          window.__mcpTools[t.name] = t
-          opts?.signal?.addEventListener("abort", () => delete window.__mcpTools[t.name])
-          resolve()
-        }, 2)
-      }),
-  }
-}
+// the package's own fake host (webmcp-profiler/testing): standards-realistic,
+// async per-tool promises, abort-driven removal; mirrors tools to __mcpTools
+const mcpHostInit = FAKE_HOST_INIT_SCRIPT
 
 const callTool = (page, name, input = {}) =>
   page.evaluate(
@@ -417,7 +404,7 @@ try {
   const whyTools = await whyPage.locator("dt").count()
   check(
     "/why defaults to the 5-minute read with every tool listed",
-    /print flat/.test(whyHero ?? "") && whyTools === EXPECTED_TOOLS.length,
+    /print flat/.test(whyHero ?? "") && whyTools === EXPECTED_TOOLS.length + 1 /* + get_perf_report, listed as conditional */,
     `hero: ${whyHero}, tools: ${whyTools}`
   )
   await whyPage.getByRole("radio", { name: "1 minute" }).click()
@@ -443,7 +430,7 @@ try {
   const copyBtn = await guidePage.getByRole("button", { name: "Copy prompt" }).isVisible()
   check(
     "/webmcp has the depth toolbar, agent deep dive, and the human easter egg",
-    guideTools === EXPECTED_TOOLS.length &&
+    guideTools === EXPECTED_TOOLS.length + 1 /* + get_perf_report, listed as conditional */ &&
       /Hello, agent/.test(guideAgentHero ?? "") &&
       humanEgg &&
       copyBtn,
@@ -554,27 +541,45 @@ try {
   await perfPage.waitForTimeout(2500)
   await callTool(perfPage, "describe_project")
   await callTool(perfPage, "update_form", { heightMm: 210 })
-  const perf = await perfPage.evaluate(() => {
+  const perf = await perfPage.evaluate(async () => {
     const p = window.__webmcpPerf
     if (!p) return null
     const spans = p.spans()
     const report = p.report()
+    const host = window.__webmcpFakeHost
+    const viaTool = await host.call("get_perf_report", { view: "summary" })
     return {
       spanCount: spans.length,
       tools: spans.map((s) => s.tool),
       bytesOk: spans.every((s) => s.resultBytes > 100 && s.estTokens > 0),
       format: report.format,
+      sessionOk: /^[0-9a-f]{8}$/.test(report.session.id),
       registered: report.ledger.registeredTools.length,
+      registeredNames: report.ledger.registeredTools,
+      schemaOk: report.ledger.registeredTools.every((n) => report.ledger.tools[n].schemaBytes > 0),
+      reportToolInternal: report.ledger.tools.get_perf_report?.internal === true,
+      toolOk: viaTool.structuredContent?.ok === true && viaTool.content?.[0]?.text?.includes("payloads"),
     }
   })
   check(
-    "?perf=1 profiles host tool calls into spans with payload accounting",
+    "?perf=1 profiles host tool calls into spans with payload accounting (report format 2)",
     perf !== null &&
       perf.spanCount >= 2 &&
       perf.tools.includes("describe_project") &&
       perf.bytesOk &&
-      perf.format === "webmcp-perf-report/1" &&
-      perf.registered === EXPECTED_TOOLS.length,
+      perf.format === "webmcp-perf-report/2" &&
+      perf.sessionOk &&
+      perf.schemaOk,
+    JSON.stringify(perf)
+  )
+  check(
+    "?perf=1 registers get_perf_report as the fifteenth tool and an agent can read the report through it",
+    perf !== null &&
+      perf.registered === EXPECTED_TOOLS.length + 1 &&
+      perf.registeredNames.includes("get_perf_report") &&
+      perf.reportToolInternal &&
+      perf.toolOk &&
+      !perf.tools.includes("get_perf_report"),
     JSON.stringify(perf)
   )
   await perfCtx.close()

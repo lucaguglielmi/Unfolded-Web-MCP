@@ -406,8 +406,9 @@ function FiveMinutes() {
             <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">?perf=1</code>{" "}
             turns it on for this browser (it remembers),{" "}
             <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">?perf=0</code>{" "}
-            turns it off. Nothing is measured, stored, or sent otherwise — and even when on,
-            everything stays in your tab.
+            turns it off. Nothing is measured, stored, or sent otherwise — and when on, nothing
+            leaves your browser: spans are visible to other tabs on this origin and to you
+            through export, and to no one else.
           </li>
           <li>
             <span className="font-semibold text-foreground">For the console-inclined:</span>{" "}
@@ -557,6 +558,7 @@ function ForAgents() {
     shareLinks: unknown
     liveSync: unknown
     profiler: unknown
+    profilerNotes: unknown
     layoutConstants: unknown
     interactionModel: unknown
   }
@@ -675,11 +677,12 @@ function ForAgents() {
           <Code>?perf=1</Code> (via <Code>open_model</Code>, if you like) and every call you
           make is spanned: wall time, payload bytes, the tokens your result costs you to
           read, and the gap the host + model spent thinking before your call arrived. Read
-          it back with <Code>window.__webmcpPerf.report()</Code>. Known baseline: every tool
-          here executes in single-digit milliseconds — if an interaction feels slow, the
-          ledger will show you it isn't the page.
+          it back through the host: call <Code>get_perf_report</Code>, registered as the
+          fifteenth tool while profiling is armed. Known baseline: every tool here executes
+          in single-digit milliseconds — if an interaction feels slow, the ledger will show
+          you it isn't the page.
         </p>
-        <JsonBlock label="profiler" data={m.profiler} />
+        <JsonBlock label="profiler · profilerNotes" data={{ profiler: m.profiler, profilerNotes: m.profilerNotes }} />
       </section>
 
       <section className="border-t border-border/60 py-14">

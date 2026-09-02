@@ -1,15 +1,44 @@
 # webmcp-profiler 0.2 — generic-package hardening spec
 
-Status: **design spec, nothing landed**  
+Status: **landed in 0.2.0** (deviations from the first draft are listed under "Changes since first draft")  
 Governing rule: **the profiler and the Unfolded site change together** — every change to the package lands in the same pull request as the app-side updates it needs, and is gated by the whole repo's checks (§2.1)  
 Baseline: `main` at `85e31b9` (`Merge pull request #7`), package `webmcp-profiler@0.1.1` as published on npm  
 Companion: [`webmcp-profiler-spec.md`](./webmcp-profiler-spec.md) is the long-range design; this document is the work between 0.1.1 and 0.2.0 only.
 
 Changes since first draft (history in git): §15 security, §16
-performance, §17 Vite consumers, §18 reusability, §19 documentation were
-added by later review passes; §2.1, §4.3, §5, §9.1, §10.1, §11, §13, and
-§14 were amended in place to carry their config keys, tests, app-side
-work, and traceability.
+performance, §17 Vite consumers, §18 reusability, §19 documentation, and
+§20 adoption were added by later review passes; §2.1, §4.3, §5, §9.1,
+§10.1, §11, §13, and §14 were amended in place to carry their config
+keys, tests, app-side work, and traceability.
+
+Deviations made while implementing, each for a measured reason:
+
+- `describe()` and `help()` on a `Profiler` return promises: the
+  documentation tables are 6.6 KB gzipped and load on demand, which is
+  what keeps the core chunk at 3.6 KB. The synchronous `describe()` and
+  the tables ship under the `webmcp-profiler/docs` subpath for build-time
+  generators and for the site's manifest (§18.1).
+- Size ceilings (§16.5): overlay 4 KB and IIFE 14 KB gzipped instead of
+  3 KB and 10 KB. The overlay grew with relay validation and per-session
+  tables; the IIFE inlines every chunk, the docs included, by design.
+  Core 6 KB and attach 1 KB stand (measured 3.6 KB and 0.33 KB).
+- Overhead (§16.1): the 128 KB ceiling is 1 ms, measured at about 0.6 ms,
+  which is the one JSON serialization of the result. The 1 KB ceiling of
+  0.05 ms stands (measured about 0.01 ms).
+- The report tool's `summary` view (§18.5) is under 2 KB, not 1 KB: the
+  status object and totals travel with it so an agent gets the phase and
+  the split in one call.
+- Peer dependencies (§15.7): Playwright is declared as an optional peer
+  for the bench; the package test asserts every peer is optional and no
+  runtime dependency exists.
+- The lazy gate (§5, §16.6) lives at `webmcp-profiler/attach-lazy` as
+  well as being re-exported from `attach`, because a static re-export
+  would pull the core into the same chunk and defeat the point.
+- The gate opens on `?perf=on` and `?perf=true` as synonyms of `1` and
+  on `off` and `false` as synonyms of `0` (§5), all persisted as `1` or
+  cleared.
+- `PACKAGE_VERSION` and `session.version` (§4.1) are injected at build
+  time; source consumers (the site, tests) see `0.0.0-dev`.
 
 ## 1. Purpose
 

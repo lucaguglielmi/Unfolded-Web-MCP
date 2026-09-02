@@ -9,8 +9,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -31,8 +31,20 @@ jobs:
       - name: Cross-device pairing e2e (non-blocking)
         run: npm run e2e:pairing
         continue-on-error: true
+      # The agentless bench of the tool surface, kept as an artifact per run
+      # and compared against the previous green run (non-blocking for one
+      # release, per docs/webmcp-profiler-0.2-spec.md §18.8).
+      - name: Bench the WebMCP tool surface (non-blocking)
+        run: npm run perf -- --json bench.json
+        continue-on-error: true
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: bench-${{ github.sha }}
+          path: bench.json
+          if-no-files-found: ignore
       - name: Deploy
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

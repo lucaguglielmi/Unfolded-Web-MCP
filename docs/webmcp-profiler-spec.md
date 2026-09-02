@@ -99,10 +99,12 @@ The only mandatory layer. On load it patches the registration surface —
 wrapped transparently:
 
 - **Early load** (before the app registers): pure pass-through wrapping.
-- **Late load** (bookmarklet / DevTools snippet on a page that already
-  registered): retrofits by re-registering wrapped copies where the host
-  allows it, else falls back to wrapping the site's own registry if one
-  is exposed (this app: `window.__unfoldedTools`).
+- **Late load** *(retrofit shipped; re-registration not yet built)*
+  (bookmarklet / DevTools snippet on a page that already registered):
+  wraps the site's own registry if one is exposed
+  (`__webmcpPerf.instrument(window.__myTools)`); re-registering wrapped
+  copies through the host is designed but not built, because the draft's
+  `getTools()` does not expose `execute`.
 - **No host present** *(designed, not yet built)*: install a *recording*
   stub `modelContext` so registration timing and tool surface are still
   captured, and flag the session `hostless` (useful in CI). Today the
@@ -347,12 +349,23 @@ above derive from this list.
    a hidden agent tab. Note: ChatGPT's hidden and in-app browsers are
    separate browsing contexts, so BroadcastChannel may not bridge them —
    the WebSocket relay (§7) remains the answer there.
-4. (structure shipped) `packages/webmcp-profiler` is a workspace package
-   — ESM + IIFE + type-declaration builds, `npm pack` verified, publish
-   workflow at `.github/workflows/publish-profiler.yml` (dispatch or a
-   `webmcp-profiler-v*` tag; needs the NPM_TOKEN repo secret until npm
-   trusted publishing is configured). The app consumes the package
-   source via the `@/profiler` alias, staying its first consumer.
+4. (shipped) `packages/webmcp-profiler` is a workspace package: ESM,
+   IIFE, declaration, and bench builds; published by
+   `.github/workflows/publish-profiler.yml` through npm trusted
+   publishing (OIDC, provenance, no token) on any push to `main` that
+   changes the package's `package.json` to a version not yet on npm. The
+   app consumes the package source via the `@/profiler` alias and is its
+   first consumer; `AGENTS.md` carries the same-pull-request rule.
+4b. (shipped, 0.2.0) The generic-package release,
+   [webmcp-profiler-0.2-spec.md](./webmcp-profiler-0.2-spec.md): typed
+   exports and `onSpan`, configurable names and gate, SSR no-op and
+   idempotent attach, UTF-8 bytes with one serialization, per-kind token
+   estimates, schema bytes, session ids, union Long-Task attribution,
+   registry unregistration, a relay overlay that renders remote sessions,
+   `profilerTool` for agents, `createFakeHost`, `status()`, `help()`,
+   `summary()`, `describe()`, `compare()`, the Perfetto export, the bench
+   CLI with schema-driven inputs, the report schema, and the generated
+   documentation. Report format is `webmcp-perf-report/2`.
 
 Shipped alongside step 2: the first finding acted on —
 `get_preview_image` went from a 480 px PNG (~130 KB ≈ 32 K tokens per
