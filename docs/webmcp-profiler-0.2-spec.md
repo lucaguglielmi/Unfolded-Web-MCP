@@ -5,6 +5,18 @@ Governing rule: **the profiler and the Unfolded site change together** — every
 Baseline: `main` at `85e31b9` (`Merge pull request #7`), package `webmcp-profiler@0.1.1` as published on npm  
 Companion: [`webmcp-profiler-spec.md`](./webmcp-profiler-spec.md) is the long-range design; this document is the work between 0.1.1 and 0.2.0 only.
 
+> **Amendments (2026-09-02, security and performance review).** §15
+> (security) and §16 (performance) were added after a second pass over
+> the sections above; §17 answers how Vite consumers use the package.
+> They amend earlier sections in place where a rule changes (§4.3 gains
+> `sample` and `errorPolicy`; §5 gains the `allow` predicate and
+> `maybeAttachProfilerLazy`; §9.1 gains relay message validation; §10.1
+> gains a privacy statement, an SRI snippet, and a Vite recipe; §11 and
+> §13 gain their tests and app-side work; §2.1's inventory gains
+> `e2e/perf.mjs` and the publish workflow). The traceability table in
+> §14 is unchanged: these sections add requirements, they do not close
+> review findings.
+
 ## 1. Purpose
 
 The 2026-09-02 review of `packages/webmcp-profiler` found the core sound
@@ -86,9 +98,11 @@ that keeps it true:
    `src/main.tsx` (boot gate), `src/pages/agentManifest.ts` (manifest,
    `PERF_STORAGE_KEY`, `REPORT_FORMAT`), `src/pages/WebMCPPage.tsx`
    (console API mentions, npm links), `e2e/run.mjs` (profiler check),
-   `README.md` (profiler section, subject to the docs guard's word
-   ceiling), `docs/performance-report.md` (numbers and claims), and the
-   long-range `docs/webmcp-profiler-spec.md`.
+   `e2e/perf.mjs` (the agentless bench and its `--perf` overhead run,
+   §16.7), `README.md` (profiler section, subject to the docs guard's
+   word ceiling), `docs/performance-report.md` (numbers and claims),
+   `.github/workflows/publish-profiler.yml`, and the long-range
+   `docs/webmcp-profiler-spec.md`.
 7. **Path to its own repository** (not part of 0.2, but 0.2 must not
    make it harder): when the package leaves, the app switches
    `@/profiler/*` to `webmcp-profiler` / `webmcp-profiler/attach`
@@ -241,6 +255,10 @@ export interface ProfilerConfig {
   tokenEstimator?: TokenEstimator
   /** convenience for onSpan() at attach time */
   onSpan?: (span: Span) => void
+  /** fraction of calls that get a span, 0..1; unsampled calls pass through untouched (§16.2) */
+  sample?: number                 // 1
+  /** what an error span keeps of a thrown error (§15.2) */
+  errorPolicy?: "message" | "name" | "none"   // "message"
 }
 ```
 
@@ -300,6 +318,8 @@ export interface GateConfig extends ProfilerConfig {
   storageKey?: string                  // "webmcp-perf:mode"
   /** console.info line on attach; false silences, a function replaces */
   announce?: boolean | ((profiler: Profiler) => void)   // true
+  /** last word on whether the gate may open at all (§15.1) */
+  allow?: () => boolean                // () => true
 }
 
 export type PerfMode = "1" | "overlay"
@@ -321,7 +341,13 @@ Rules:
   `attachProfiler` unchanged, with `overlay` forced true for mode
   `overlay`.
 - The return value is the profiler when attached, `null` when the gate
-  stayed closed or the environment has no `window`.
+  stayed closed, `allow()` returned false, or the environment has no
+  `window`.
+- `maybeAttachProfilerLazy(config): Promise<Profiler | null>` is the
+  same gate with the core loaded by dynamic import only when the gate
+  opens (§16.6). It is a second export, not a change to the sync one,
+  so `src/main.tsx` keeps its synchronous call and its ordering
+  guarantee.
 
 Unfolded's `src/main.tsx` keeps calling `maybeAttachProfiler()` with no
 arguments.
@@ -540,7 +566,8 @@ Change: the aggregate and ledger-totals arithmetic move out of
 `totalsFromSpans(spans)`, used by both the collector and the overlay.
 The overlay keeps a `Map<sessionId, Span[]>` of relayed spans (ring of
 `buffer` per session, default 500) and applies §7.7 `update` messages
-by id. Render order: the local table when local spans exist, then one
+by id, after validating every message against §15.4. Render order:
+the local table when local spans exist, then one
 block per remote session titled `relayed · <sessionId>` with its own
 table and ledger line. A tab with no local calls therefore shows the
 hidden tab's real per-tool table as its main content. The "waiting for
@@ -572,13 +599,20 @@ contains it as text and no `img` element.
 7. The ledger and the one-line split.
 8. Overlay and relay, including what the relay can and cannot bridge.
 9. The report: `webmcp-perf-report/2` and the diff from `/1`.
-10. Build your own exporter: an `onSpan` beacon in eight lines.
-11. Host support: the draft's `document.modelContext`, legacy locations,
-    Chromium-only Long Tasks.
-12. Case study: Unfolded — the `?perf=1` links, the 130 KB → 7 KB
+10. Build your own exporter: an `onSpan` beacon in eight lines, with
+    `sample` for production volumes.
+11. Privacy and security statement (§15.6): what a span contains, what
+    it never contains, who on the page can read the global, how to arm
+    the gate safely, the SRI script tag.
+12. Using it with Vite (§17): the three-line recipe, the dev-only gate,
+    the lazy gate, SSR frameworks.
+13. Host support: the draft's `document.modelContext`, legacy locations,
+    Chromium-only Long Tasks, CSP requirements (§15.5).
+14. Overhead: the measured numbers from §16.1's self-benchmark.
+15. Case study: Unfolded — the `?perf=1` links, the 130 KB → 7 KB
     finding, `npm run perf`. This is where every tryunfolded.com URL now
     lives.
-13. Files, license, home.
+16. Files, license, home.
 
 ### 10.2 Long-range spec catches up
 
@@ -626,9 +660,29 @@ environment with hand-stubbed globals. Additions:
     `span.fields` keys equal the span's keys, and that every
     `consoleApi.methods` name exists on a `Profiler` instance.
 
+12. `privacy.test.ts` (§15.3): the no-bodies invariant.
+13. `relay.test.ts` (§15.4): malformed and oversized channel messages
+    are dropped; the session and span caps hold.
+14. `errors.test.ts` (§15.2): each `errorPolicy`, the length cap, no
+    stack traces.
+15. `gate.test.ts` additions (§15.1): `allow` false keeps the gate shut
+    and clears a persisted mode; the lazy variant resolves to the same
+    instance a later sync call returns.
+16. `overhead.test.ts` (§16.1): the self-benchmark with its thresholds.
+17. `sampling.test.ts` (§16.2): `sample: 0` records no spans and still
+    counts calls; `sample: 1` records all.
+18. `measures.test.ts` (§16.4): evicted spans clear their
+    `performance.measure` entries.
+19. `package.test.ts` additions (§15.7, §16.5): `dependencies` and
+    `peerDependencies` absent; the size ceilings against a fresh
+    `dist/` when one is present.
+20. `passthrough.test.ts` (§15.7): `registerTool`'s `exposedTo` option
+    and the descriptor's `inputSchema` reach the host untouched.
+
 `e2e/run.mjs`'s profiler check additionally asserts `schemaBytes > 0`
 for every registered tool and `report.session.id` is 8 hex chars. It
 stays the site-level regression test required by §2.1 item 2.
+`e2e/perf.mjs` gains the `--perf` flag of §16.7.
 
 ## 12. Build
 
@@ -664,11 +718,20 @@ carrying its own app-side changes:
    entry. App side: `e2e/run.mjs` literal and new assertions, the
    manifest's `span.fields` and `ledger` text, `performance-report.md`
    byte figures.
-4. Overlay and relay (§9) with the DOM tests. App side: none expected;
-   `?perf=overlay` verified by hand on the preview build.
-5. Docs (§10) including the root README's profiler section, then the
-   version bump to 0.2.0 in `package.json`, which is what triggers the
-   publish workflow.
+4. Overlay and relay (§9) with the DOM tests, relay validation and
+   caps (§15.4), CSP-safe styles (§15.5), hidden-tab render pause
+   (§16.3). App side: none expected; `?perf=overlay` verified by hand
+   on the preview build, once with a strict CSP header served by
+   `wrangler dev` to prove §15.5.
+5. Security and performance (§15.1–§15.3, §15.7, §16.1, §16.2, §16.4,
+   §16.6) with their tests. App side: the manifest's `activation`
+   block documents `allow` and `sample`; `e2e/perf.mjs` gains `--perf`
+   (§16.7) and its two columns go into `docs/performance-report.md`;
+   the publish workflow gains the size step (§16.5) and pinned actions
+   (§15.7).
+6. Docs (§10, §17) including the root README's profiler section, then
+   the version bump to 0.2.0 in `package.json`, which is what triggers
+   the publish workflow.
 
 Validation before the bump: root `npm run lint && npm test && npm run
 build && npm run e2e` green; `npm pack --dry-run` shows `LICENSE`,
@@ -711,3 +774,274 @@ can be closed by breaking the site that hosts the package.
 Additions beyond the review, flagged where they appear: `pollMs` and the
 stop-polling rule (§4.3), null gaps for overlapping calls (§7.7),
 `sessionId` (§7.5, required by §7.7 and §9.1), `publint` (§3.3).
+
+## 15. Security
+
+The profiler's threat model is small by construction: it runs as the
+site's own script, sees only what the site's tools already return, and
+records shapes, sizes, and timings. The review found nothing that gives
+an attacker a capability they do not already have as same-origin
+script. What follows closes the ways the profiler could *widen* what
+same-origin script or a same-origin tab can see, and hardens the parts
+of it that touch untrusted input.
+
+### 15.1 Arming is the site's decision, not the link's
+
+Problem: any link with `?perf=1` arms profiling for the origin,
+persistently, for whoever clicks it. On Unfolded that is the intended
+agent workflow; on a site with a logged-in area it may not be, and 0.1.1
+also persisted any value at all.
+
+Change: `GateConfig.allow` (§5) is consulted before the parameter and
+before storage. When it returns false the gate neither attaches nor
+writes storage, and it clears a previously persisted mode. The README
+shows the two common predicates: `() => import.meta.env.DEV` and a
+check of a site-issued flag. §5's whitelist of accepted values is
+security-motivated as well: nothing arbitrary reaches `localStorage`.
+
+Unfolded keeps the default `() => true`: the agent manifest tells agents
+to profile themselves, and the profiler exposes nothing the agent does
+not already receive as tool results.
+
+### 15.2 Error strings
+
+Problem: an error span keeps `error.message` verbatim, which travels
+into `report()`, `export()`, and every same-origin tab on the relay.
+Messages can carry internals (URLs with tokens, SQL, file paths).
+
+Change: `errorPolicy` (§4.3): `"message"` (default) keeps the message
+truncated to 200 characters; `"name"` keeps only `error.name`; `"none"`
+records `isError` alone. Stack traces are never recorded under any
+policy. The Unfolded manifest keeps the default.
+
+### 15.3 The no-bodies invariant is a test
+
+The long-range spec promises that payload contents never leave the page.
+0.2 makes it checkable: a test executes a tool whose input and result
+each contain a unique canary string, then asserts the canary appears in
+none of `JSON.stringify(report())`, the relay message, the `onSpan`
+argument, or the overlay's DOM. The README's privacy statement (§15.6)
+links to that test by path.
+
+### 15.4 Relay input is untrusted
+
+Problem: `BroadcastChannel` is same-origin, but "same origin" includes
+every tab, iframe, and extension content script on that origin. The
+overlay in 0.1.1 pushes whatever arrives into an array and renders it.
+
+Change: the overlay validates each message before use: `kind` in
+`{span, update}`; `sessionId` matching `/^[0-9a-f]{8}$/`; `seq` a
+non-negative integer; `tool` a string of at most 128 characters; every
+numeric field finite; `contentTypes` an object of at most 16 string
+keys; unknown fields dropped. Anything else is discarded silently. Caps:
+at most 8 remote sessions (least recently updated evicted), at most
+`buffer` spans per session, and messages beyond 1 000 in one second are
+dropped for the rest of that second. Rendering is by `textContent` only
+(§9.2), which covers relayed tool names as well as local ones.
+
+### 15.5 Content Security Policy
+
+Problem: the overlay injects an inline `<style>` into its shadow root,
+which a `style-src` without `'unsafe-inline'` blocks; the CDN script
+tag needs `script-src` to allow the CDN; `export()` navigates to a
+`blob:` URL.
+
+Change: the overlay builds its stylesheet with `new CSSStyleSheet()` +
+`replaceSync` and `shadow.adoptedStyleSheets`, falling back to the
+inline element only where constructable stylesheets are missing. The
+README's host-support section lists exactly what a strict CSP must
+allow: nothing for the ESM build with the overlay closed; nothing
+additional for the overlay on browsers with constructable stylesheets;
+`script-src https://cdn.jsdelivr.net` for the script tag; `blob:` where
+the browser requires it for `export()`. Unfolded's own headers are the
+§2.1 proof: the preview build is run once with a strict policy in PR 4
+of §13.
+
+### 15.6 The global and the README's privacy statement
+
+Any script on the page can read `window.__webmcpPerf`, call
+`detach()`, or `instrument()` its own objects. That is not an escalation
+(same-origin script already owns the page), but consumers who load
+third-party scripts should know the data is there. The README's privacy
+statement says, in this order: what a span contains (field list), what
+it never contains (input and result bodies, stack traces, user
+identifiers), that the global and the relay are readable by any
+same-origin script or tab, `globalName: false` and `relay: false` for
+production telemetry through `onSpan`, and `allow` for gating who can
+arm it.
+
+### 15.7 Supply chain and the host boundary
+
+- Zero runtime dependencies stays a hard rule, enforced by the package
+  test (`dependencies` and `peerDependencies` absent; the Vite plugin
+  of §17.4, if it lands, declares `vite` only as an optional peer via
+  `peerDependenciesMeta`).
+- The publish workflow pins every action to a commit SHA, keeps
+  `permissions` at `contents: read` + `id-token: write`, and keeps
+  OIDC trusted publishing with provenance. `npm ci` only; no `npm
+  install` in CI.
+- `prepublishOnly` refuses a dirty working tree and a version that has
+  no `CHANGELOG.md` heading.
+- The README's script-tag snippet pins an exact version and carries
+  `integrity` and `crossorigin="anonymous"`; the CHANGELOG entry for
+  each release records the IIFE's SRI hash, printed by the publish
+  workflow and pasted by the release PR. A range URL (`@0.2`) is shown
+  only with a sentence saying it forfeits SRI.
+- The monkey-patch of a native `document.modelContext` stays a
+  pass-through: every argument, including `exposedTo`, and the return
+  value reach the host untouched, and the wrapper never reads back or
+  rewrites the descriptor's `inputSchema`. §11.20 asserts it.
+
+## 16. Performance
+
+The profiler must never become the thing it measures. 0.1.1's hot path
+is already small: two clock reads, one ring push, one `measure`. The
+findings below are where it spends more than it needs to, and where a
+long agent session grows memory without bound.
+
+### 16.1 A self-benchmark with thresholds
+
+Change: `overhead.test.ts` runs 2 000 calls of a tool returning a 1 KB
+result, instrumented and raw, in the same process, and asserts the
+instrumented p50 is within 0.05 ms of raw; then 200 calls with a 128 KB
+result asserting the overhead is under 0.5 ms per call. The numbers
+print in the test output and the README's overhead section quotes the
+last measured pair. Thresholds are absolute and generous enough not to
+flake on CI runners; the point is to catch a regression of an order of
+magnitude, not a microsecond.
+
+### 16.2 Sampling
+
+Change: `ProfilerConfig.sample` (§4.3). The wrapper draws
+`Math.random()` once per call; an unsampled call runs the original
+`execute` with no serialization, no span, no relay, and the ledger only
+increments `totals.calls` and `totals.unsampledCalls`. Default 1, so
+Unfolded and every existing consumer see every call. This is the knob
+for production telemetry through `onSpan` on high-volume sites.
+
+### 16.3 The overlay does no work nobody sees
+
+Change: renders are skipped while `document.visibilityState ===
+"hidden"` and while the panel is hidden, and one render runs on
+`visibilitychange` back to visible. The 250 ms coalescing stays. A
+hidden agent tab opened with `?perf=overlay` therefore costs nothing
+per span beyond the collector. Rows are rebuilt only for tools whose
+aggregate changed since the last render (a per-tool `calls` counter
+comparison), which keeps the DOM work at O(changed tools).
+
+### 16.4 `performance.measure` entries are bounded
+
+Problem: every call adds a measure to the performance timeline and
+nothing removes it; a long session accumulates thousands of entries.
+
+Change: when a span is evicted from the ring buffer, the collector calls
+`performance.clearMeasures("webmcp:<tool>#<seq>")`; `reset()` and
+`dispose()` clear every `webmcp:` measure. The DevTools view keeps the
+same window the ring buffer keeps.
+
+### 16.5 Size ceilings in CI
+
+Change: the publish workflow, after `build`, fails if the gzipped size of
+`dist/core-*.js` exceeds 6 KB, `dist/attach.js` 1 KB, the overlay chunk
+3 KB, or the IIFE 10 KB. Today's numbers (2.9 / 0.45 / 1.7 / 4.2 KB)
+leave room for §7 and §8. The package test (§11.19) runs the same check
+locally when a `dist/` exists.
+
+### 16.6 Zero cost when the gate is closed, including bytes
+
+Problem: `attach.ts` imports `./index` statically, so the core rides in
+every consumer's main bundle even when the gate never opens. For
+Unfolded that is 2.9 KB gzipped against a multi-hundred-KB app; for a
+small site it is noticeable.
+
+Change: `maybeAttachProfilerLazy` (§5) loads the core with a dynamic
+`import("./index")` only when the gate opens, so bundlers (Vite
+included, §17) emit it as a separate chunk. The sync
+`maybeAttachProfiler` stays exactly as it is, because its ordering
+guarantee (attached before any registration can run) is what Unfolded's
+boot line relies on. The README explains the trade: lazy saves bytes
+and returns a promise; sync guarantees ordering. Both run the same gate
+logic (§5) from one shared function.
+
+### 16.7 Measure the overhead on the real site
+
+Change (app side, §2.1): `e2e/perf.mjs --perf` runs the same cases with
+`?perf=1` armed and prints, per tool, the delta of p50 and p95 against
+the unarmed run. `docs/performance-report.md` gains one table with both
+columns. Expected: deltas within noise for text tools and a visible but
+sub-millisecond delta for `get_preview_image`, which is what §7.2's
+single serialization buys.
+
+### 16.8 Small things, measured rather than assumed
+
+- `utf8Length` (§7.1) takes a fast path: a native non-ASCII regex test
+  first, and only a string that has non-ASCII characters is scanned.
+- `aggregates()` is recomputed on demand; at 500 spans it costs under a
+  millisecond and stays that way. Incremental per-tool statistics are
+  not worth their state; noted so nobody adds them without a number.
+- The registry poll (§4.3) is three property reads every 250 ms and
+  stops on a native host. No `requestIdleCallback`; the timer throttles
+  with the tab like any other.
+- Relay `postMessage` per span is one structured clone of a flat object.
+  `relay: false` removes it entirely for consumers who use `onSpan`.
+- `originals` and `patched` hold strong references to objects the host
+  already keeps alive; `detach()` clears both.
+
+## 17. Vite consumers
+
+Vite consumers need nothing special; they were the design target of the
+ESM build. What 0.2 guarantees and what it adds:
+
+### 17.1 What works out of the box
+
+- `import { maybeAttachProfiler } from "webmcp-profiler/attach"` and
+  `import { attachProfiler } from "webmcp-profiler"` resolve through the
+  `exports` map (§3.3). `type: "module"`, `sideEffects` (§3.2), and the
+  `types` conditions are what Vite's resolver and TypeScript expect.
+- The overlay's dynamic import stays a dynamic import in `dist/`, so
+  Vite's production build emits it as its own chunk, and dev-mode
+  pre-bundling (`optimizeDeps`) handles it.
+- Nothing in the package reads `process.env`, `require`, `__dirname`,
+  or Node globals, so neither dev nor build needs polyfills.
+- SSR frameworks on Vite (SvelteKit, Nuxt, Astro, Remix) hit §6.1: a
+  module that calls `attachProfiler` during server rendering gets the
+  no-op profiler and no crash.
+- HMR re-evaluates the boot module on a full reload only, and §6.2's
+  idempotent attach covers a second evaluation regardless.
+
+### 17.2 The README recipe
+
+```ts
+// main.ts — first line, before tool registration starts
+import { maybeAttachProfiler } from "webmcp-profiler/attach"
+maybeAttachProfiler({ allow: () => import.meta.env.DEV || location.search.includes("perf=") })
+```
+
+and the byte-conscious variant:
+
+```ts
+import { maybeAttachProfilerLazy } from "webmcp-profiler/attach"
+maybeAttachProfilerLazy().then((p) => p?.overlay())
+```
+
+The README states the ordering caveat for the lazy form and shows the
+`?perf=overlay` link as the way to see it working in `vite dev`.
+
+### 17.3 Verification
+
+§13's validation adds a scratch `npm create vite@latest` app (vanilla
+TypeScript template) that installs the packed tarball, uses both recipes,
+and is driven by Playwright to produce a `webmcp-perf-report/2`
+document in `vite dev` and in `vite preview`. It is a throwaway check
+in the release checklist, not a committed fixture.
+
+### 17.4 Optional, after 0.2: a Vite plugin
+
+A `webmcp-profiler/vite` subpath exporting a plugin that injects the
+IIFE script tag through `transformIndexHtml` in dev and preview only
+(`apply: "serve"` plus an opt-in for preview), so a site profiles in
+development with zero application code. It is small and it is the
+"make their life easier" item, but it adds a Node-side entry and an
+optional peer dependency to a browser package, so it lands in 0.3 with
+its own tests, not in this release. The 0.2 README mentions it as
+planned so nobody builds a competing one in the meantime.
