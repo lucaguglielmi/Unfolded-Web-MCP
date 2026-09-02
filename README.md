@@ -63,14 +63,14 @@ committed e2e suite):
 - **Fourteen tools with real contracts** — zod-validated inputs exported as JSON
   Schema, current-draft descriptors (top-level titles, `readOnlyHint` where
   truthful, host cancellation signals honored), and graceful `isError` results
-  that include the unchanged state.
+  that include the unchanged state, plus a parseable `structuredContent`
+  half (`tool-result/1`): `{ ok, message, state, … }`.
 - **Every tool that changes the design returns the full new state** (PDF
   export included), so the agent never needs a follow-up read. Snapshots are
   pure and carry a permanent `designUrl`; the *return channel* is a separate,
   non-mutating tool — `create_live_handoff` mints a single-use
-  `liveHandoffUrl` and fails closed, so the
-  potter's own browser follows the agent's session, and a link that "opens
-  the right shape but doesn't pair" can no longer be handed out by mistake.
+  `liveHandoffUrl` and fails closed, so the potter's own browser follows the
+  agent's session.
 - **A solver, not just setters** — `set_capacity` computes the exact height for
   a target volume in one call instead of letting the agent iterate.
 - **The agent sees what the potter sees** — `get_preview_image` returns the

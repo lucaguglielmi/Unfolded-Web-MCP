@@ -9,6 +9,7 @@ import { feedback } from "@/lib/feedback"
 import { useTimeout } from "@/lib/useTimeout"
 import { cn } from "@/lib/utils"
 // the tool list renders from its single source next to the registrations
+import { TOOL_RESULT_CONTRACT } from "@/mcp/modelContext"
 import { TOOL_SUMMARIES } from "@/mcp/tools"
 import { buildAgentManifest } from "./agentManifest"
 import { liveSync } from "@/store/syncClient"
@@ -531,6 +532,7 @@ const AGENT_CONNECTION: [string, string][] = [
   ["Two links, never confused", "designUrl (in every state snapshot) is a permanent permalink: parameters only, reopens an independent copy — for explicit bookmark/print/archive asks. liveHandoffUrl comes ONLY from create_live_handoff: the same parameters plus ?via=chatgpt and a single-use ?join= token; the tab that opens it silently follows YOUR session both ways and strips the token. It is the default link after any edit — call the tool right before you reply, return it verbatim, never the address bar. Links parse forgivingly: legacy vocabulary normalizes, unknown keys are ignored, out-of-range values clamp."],
   ["Units contract", "tool inputs and outputs are millimeters and milliliters, always. set_units only changes what the human sees (UI, warnings, printed PDF)."],
   ["Full-state returns", "every mutation returns the complete snapshot — form, clay, paperSize, units, capacityMl, annotated pieces, printedPages, warnings, designUrl — so you never need a read-after-write. Snapshots are pure: they never mint or spend a live token."],
+  ["Structured results", `every result carries its MCP-style content array and isError unchanged, plus a structuredContent object (contract ${TOOL_RESULT_CONTRACT}): { ok, message, state, warnings? } for the state-reporting tools — ok mirrors !isError and state deep-equals the JSON in the text; the handoff object, the template summary, and { pages, paper, rows, cols } for the export, each with ok and message; the preview keeps its image and adds { ok, message, summary }. Parse the object, skip the text.`],
   ["Manual driving", "window.__unfoldedTools exposes each registered tool: __unfoldedTools.set_capacity.execute({capacityMl: 350})."],
   ["Live sessions", "create_live_handoff invites the tap; join_session (the potter reads you a code) and start_pairing (you mint one for them) cover the spoken path. Once any device joins, syncing is transparent — peers' edits simply appear in your next read, so re-read before assuming state."],
 ]
@@ -539,7 +541,7 @@ const AGENT_PLAYBOOK: string[] = [
   "Call describe_project first — one read gives you the whole design. Finish with create_live_handoff whenever you hand back a link: it is the potter's way to continue in their own browser.",
   "For a target volume use set_capacity, never an update_form guessing loop: volume is linear in height and the tool solves it exactly.",
   "After a visual change, get_preview_image shows you exactly what the potter sees — verify before you announce.",
-  "Errors come back as isError text with per-field issues AND the unchanged state; recover by correcting the field, not by re-reading.",
+  "Errors come back as isError text with per-field issues AND the unchanged state — structuredContent says the same as { ok: false, message, state }; recover by correcting the field, not by re-reading.",
   "The human is your peer: they may edit between your calls (you'll see it in your next result), and undo_last_change reverts either of you.",
   "Pairing direction matters: the device that opens a link or enters a code ADOPTS this session's design. The potter wants to SEE your work elsewhere → create_live_handoff and hand them liveHandoffUrl verbatim, or start_pairing for a spoken code. The work lives on their other screen → ask for its code and join_session. If a live link fails to mint, send no link — retry once, then offer a code.",
 ]

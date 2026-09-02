@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { TOOL_RESULT_CONTRACT } from "@/mcp/modelContext"
 import { buildTools } from "@/mcp/tools"
 import {
   claySettingsSchema,
@@ -64,6 +65,7 @@ export function buildAgentManifest(): Record<string, unknown> {
         "every mutating tool returns the full new state (form, clay, paperSize, units, capacityMl, pieces, printedPages, warnings, designUrl) — snapshots are pure and never spend a live token",
         "designUrl is a permanent permalink (independent copy, no session); liveHandoffUrl exists only as create_live_handoff output and is the default link to hand the potter after any edit",
         "invalid input returns isError text with per-field issues AND the unchanged state",
+        `every result also carries structuredContent (contract ${TOOL_RESULT_CONTRACT}): ok mirrors !isError, message opens the text, and state — when present — deep-equals the JSON the text serializes`,
       ],
       formulas: {
         shrinkageScale: "s = 1 / (1 - shrinkagePct/100); every template length = fired length * s",
@@ -71,6 +73,23 @@ export function buildAgentManifest(): Record<string, unknown> {
         coneFrustumWall: "annular sector: slant = hypot(rMax-rMin, H); outerR = rMax*slant/(rMax-rMin); innerR = outerR - slant; angle = 2*pi*rMax/outerR (mid-surface radii, then * s)",
         facetedWall: "N panels, width = 2*R*sin(pi/N) at each rim (trapezoid when tapered), miter bevel recomputed for the face lean",
         capacity: "V(h) is linear in h at fixed diameters and clay: solve h for target V in closed form",
+      },
+    },
+    resultContract: {
+      version: TOOL_RESULT_CONTRACT,
+      envelope: "MCP-style { content: [{type:'text'|'image', ...}], isError } unchanged, plus structuredContent beside it — additive, a host that ignores the field loses nothing",
+      invariants: [
+        "structuredContent.ok === !isError",
+        "structuredContent.message is the sentence the text content opens with",
+        "structuredContent.state, when present, deep-equals the pretty-printed JSON in the text",
+      ],
+      shapes: {
+        stateReporting: "describe_project, open_model, update_form, set_clay, set_units, set_capacity, apply_preset, join_session, start_pairing, undo_last_change → { ok, message, state, warnings? }; on failure (validation, failed join, nothing to undo, no pairing service) { ok: false, message, state } with the unchanged state",
+        create_live_handoff: "{ ok, message, liveHandoffUrl, designUrl, expiresAt, expiresInSeconds, singleUse, instruction }; fail-closed: { ok: false, message, state } with no URL field",
+        get_template_summary: "{ ok, message, ...template summary }",
+        get_preview_image: "image content unchanged; { ok, message, summary }",
+        export_templates: "{ ok, message, pages, paper, rows, cols }",
+        cancelled: "any tool aborted by the host's signal → { ok: false, message }",
       },
     },
     tools,
