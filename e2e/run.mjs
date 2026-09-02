@@ -89,6 +89,8 @@ const callTool = (page, name, input = {}) =>
         types: result.content.map((c) => c.type),
         text: result.content.find((c) => c.type === "text")?.text ?? "",
         imageBytes: result.content.find((c) => c.type === "image")?.data?.length ?? 0,
+        // hardening 9.3: the additive structured half (tool-result/1)
+        structured: result.structuredContent ?? null,
       }
     },
     [name, input]
@@ -171,7 +173,8 @@ try {
   // hand the rest of the suite the live registry
   await page.evaluate(() => (window.__mcpTools = window.__mcpToolsReplaced))
 
-  const desc = stateFrom(await callTool(page, "describe_project"))
+  const descRes = await callTool(page, "describe_project")
+  const desc = stateFrom(descRes)
   check(
     "describe_project carries capacity and a permanent, token-free designUrl",
     desc.capacityMl > 0 &&
@@ -199,6 +202,19 @@ try {
     "set_capacity solves height for the target volume",
     !cap.isError && Math.abs(capState.capacityMl - 500) <= 2,
     `capacity after: ${capState.capacityMl}`
+  )
+  // 9.3: the structured half rides beside the untouched text on a read and
+  // a mutation alike — ok mirrors !isError and state is the text's JSON
+  const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+  check(
+    "describe_project and set_capacity carry structuredContent (tool-result/1)",
+    descRes.structured?.ok === true &&
+      typeof descRes.structured.message === "string" &&
+      sameJson(descRes.structured.state, desc) &&
+      cap.structured?.ok === true &&
+      cap.structured.message.startsWith("Height set to") &&
+      sameJson(cap.structured.state, capState),
+    JSON.stringify({ describe: descRes.structured?.ok, mutation: cap.structured?.message })
   )
 
   // --------------------------------------------------------------- set_units
@@ -297,7 +313,16 @@ try {
         }),
     }
   })
-  await latePage.waitForTimeout(4500) // slow-poll heartbeat is 3s
+  // the slow-poll heartbeat is 3s and the 14 registrations then land one
+  // awaited tick at a time — poll for the full set (a fixed 4.5s wait
+  // sampled a loaded runner mid-registration at 10 or 13 tools)
+  await latePage
+    .waitForFunction(
+      (count) => Object.keys(window.__mcpToolsLate).length === count,
+      EXPECTED_TOOLS.length,
+      { timeout: 15_000 }
+    )
+    .catch(() => {})
   const lateCount = await latePage.evaluate(() => Object.keys(window.__mcpToolsLate).length)
   const lateBadge = await latePage.evaluate(
     () => !!document.querySelector('[data-connection-hub] .animate-ping')

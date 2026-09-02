@@ -133,3 +133,53 @@ memory behavior on mobile Safari.
 4. **Structural wins already in place**: PDF and 3D stacks are lazy
    chunks; no GPU work is preloaded on browsers that can't use it; the
    preview payload is 19× lighter than its first version.
+
+## 7 · Structured results — contract `tool-result/1` (2026-09-02)
+
+Hardening spec §9.3, done additively. Every tool result keeps its
+MCP-style `content` array and `isError` flag byte-for-byte — the envelope
+ChatGPT's agent browser is verified against — and gains a
+`structuredContent` object beside it. The WebMCP draft itself defines no
+result envelope: its IDL is `callback ToolExecuteCallback = Promise<any>
+(object inputObject, ToolExecuteCallbackOptions options)` and the "tool
+execute steps" hand the host the fulfilled value after "serializing a
+JavaScript value to a JSON string". So the field name follows the MCP
+convention (`structuredContent` next to `content`), which is also what
+MCP-B's published types expose; a host that ignores the field loses
+nothing, and one that prefers structured data has it without parsing text.
+
+The contract, versioned `tool-result/1` (`TOOL_RESULT_CONTRACT` in
+`src/mcp/modelContext.ts`):
+
+| tool(s) | `structuredContent` |
+| --- | --- |
+| describe_project, open_model, update_form, set_clay, set_units, set_capacity, apply_preset, join_session, start_pairing, undo_last_change | `{ ok, message, state, warnings? }` — `state` is the same `describeState()` snapshot the text serializes (pretty-printed there, compact here); `warnings` only when the design has any |
+| any of the above on failure (validation, failed join, nothing to undo, no pairing service) | `{ ok: false, message, state }` — the unchanged state |
+| create_live_handoff | the handoff object (`liveHandoffUrl`, `designUrl`, `expiresAt`, `expiresInSeconds`, `singleUse`, `instruction`) plus `ok`/`message`; fail-closed: `{ ok: false, message, state }` with no URL field |
+| get_template_summary | the template summary object plus `ok`/`message` |
+| get_preview_image | image content unchanged; `{ ok, message, summary }` |
+| export_templates | `{ ok, message, pages, paper, rows, cols }` |
+| host cancellation (any tool) | `{ ok: false, message }` |
+
+Invariants a host can rely on, pinned by `src/mcp/structuredResult.test.ts`
+for every tool and by an e2e check on a read and a mutation: `ok` mirrors
+`!isError`; when `state` is present it deep-equals the JSON in the text;
+tool names, descriptions, schemas, and annotations are untouched (the
+discovery-metadata budget test is unchanged and green).
+
+Payload bytes (classic-mug design, measured by the test's last case):
+
+| tool | text content (pretty JSON) | `structuredContent` (compact) | `state` alone | envelope total |
+| --- | --- | --- | --- | --- |
+| describe_project | 673 B | 603 B | 555 B | 1,276 B |
+| update_form | 687 B | 601 B | 555 B | 1,288 B |
+
+Reading: the structured half is ~10% smaller than the text it mirrors
+(compact JSON versus 2-space pretty-printing), so carrying both roughly
+doubles a ~700 B result to ~1.3 KB — about 150 extra tokens per call on a
+host that serializes the whole result, still an order of magnitude under
+the 7 KB preview image and negligible against a model round trip. When
+the text half is retired (after structured results are verified in
+ChatGPT and Chrome), results get ~10% cheaper than today's text alone.
+Until then the duplication is the price of not touching the one path
+known to work.
