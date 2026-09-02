@@ -1,7 +1,25 @@
+import fs from "node:fs"
 import path from "node:path"
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
+
+/**
+ * `.env.example` is committed and is the build's DEFAULT for every VITE_
+ * variable the environment (or a git-ignored local .env, which Vite loads
+ * itself and which wins) doesn't set — so a clean checkout and CI build
+ * with the public values without anyone copying a file first. Nothing in
+ * it is secret: VITE_ values are inlined into the client bundle.
+ */
+function applyEnvExampleDefaults(): void {
+  const file = path.resolve(import.meta.dirname, ".env.example")
+  if (!fs.existsSync(file)) return
+  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+    const match = line.match(/^\s*(VITE_[A-Z0-9_]+)\s*=\s*(.*?)\s*$/)
+    if (match && process.env[match[1]] === undefined) process.env[match[1]] = match[2]
+  }
+}
+applyEnvExampleDefaults()
 
 // https://vite.dev/config/
 export default defineConfig({

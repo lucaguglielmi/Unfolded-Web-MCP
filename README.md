@@ -304,8 +304,10 @@ GitHub Actions (`.github/workflows/deploy.yml`); it needs the `CLOUDFLARE_API_TO
 and `CLOUDFLARE_ACCOUNT_ID` repo secrets. Manual deploy: `npm run build && npx wrangler deploy`.
 
 Share links, WebMCP tools, and the app itself are origin-independent; the only
-place the deployed domain is written down is `VITE_SITE_URL` in [`.env`](./.env)
-(used for the absolute `og:*` meta tags). Moving domains is a one-line change.
+place the deployed domain is written down is `VITE_SITE_URL` in
+[`.env.example`](./.env.example) (for the absolute `og:*` meta tags). That committed
+file is the build's default; a git-ignored local `.env` overrides it. Every `VITE_`
+value is inlined into the client bundle, so no `.env` here may hold a secret.
 
 ## License
 

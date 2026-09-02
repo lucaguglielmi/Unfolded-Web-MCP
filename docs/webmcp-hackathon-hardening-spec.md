@@ -13,6 +13,13 @@ Submission deadline: **2026-09-03 22:00 CEST**
 > pairing gate, 9.1 gains a measurable prerequisite, and 8.4 notes the
 > committed `.env` holds only a public value. New: §5.3, the combined
 > connection button (WebMCP + pairing status in one control).
+>
+> **Amendments (2026-09-02).** Removed at the owner's request: 6.2
+> (consecutive URL-changing mutations regression), 6.4 (test-quality gaps —
+> its three items had landed anyway: `cereal-bowl` replaced, the visible
+> tab's edit reaching the agent's next read is asserted in `e2e/pairing.mjs`,
+> `EXPECTED_TOOLS` stays independent), and 9.2 (3D bundle review — measured
+> healthy in docs/performance-report.md). Executed: 8.4 (see its Done note).
 
 ## 1. Purpose
 
@@ -323,26 +330,6 @@ Required change:
 - Record the registration options signal and simulate abort-driven removal.
 - Add coverage for context replacement and page visibility transitions.
 
-### 6.2 Test consecutive URL-changing mutations
-
-Observed issue: reusing previously discovered host handles after a URL-changing
-mutation produced a stale security-context error in one live browser; fresh tool
-discovery fixed it.
-
-Required change:
-
-- Add a real browser regression that performs multiple consecutive mutations
-  while URL synchronization is enabled.
-- Test both host behaviors: rediscovery between calls and reuse of an existing
-  registered descriptor where supported.
-- Do not weaken URL state synchronization merely to satisfy the fake host.
-
-Acceptance criteria:
-
-- At least five consecutive mutations produce the correct final state and URL.
-- No tool is duplicated and no stale mutation lands after navigation/context
-  replacement.
-
 ### 6.3 Gate Worker and pairing behavior in deployment CI
 
 Current issue: `deploy.yml` runs `npm run e2e`, but the distinctive Worker and
@@ -366,15 +353,6 @@ Acceptance criteria:
 - A broken two-client state propagation path is loudly visible in CI, and
   blocks deployment once the pairing gate is promoted.
 - The normal deployment remains within a reasonable hackathon feedback cycle.
-
-### 6.4 Close current test-quality gaps
-
-- Replace the nonexistent `cereal-bowl` preset in `e2e/perf.mjs` with a real
-  preset so the benchmark does not measure an error path on alternate runs.
-- Add an actual assertion that a human edit from the visible tab reaches the
-  agent's next read; do not leave this behavior as a comment-only claim.
-- Keep `EXPECTED_TOOLS` independent from production metadata so adding or
-  removing a public tool requires an explicit contract update.
 
 ---
 
@@ -516,6 +494,15 @@ urgency; nothing secret is exposed today.)
   Vite-prefixed variables are client-visible.
 - Do not rewrite deployment configuration unless this can land without risk.
 
+**Done (2026-09-02).** `.env*` is git-ignored with `!.env.example` excepted;
+`.env` is removed from the repository and `VITE_SITE_URL` lives in the
+committed `.env.example`, whose header states that every `VITE_` value is
+inlined into the client bundle. To keep it the *single* place the origin is
+written down without touching deployment configuration, `vite.config.ts`
+reads `.env.example` as the default for any `VITE_` variable the
+environment doesn't set — a clean checkout and CI build with the public
+values, and a git-ignored local `.env` (which Vite loads itself) overrides.
+
 ---
 
 ## 9. P1 — payload and performance work
@@ -547,19 +534,6 @@ drop in correct tool selection in the standard prompt suite.
 > boilerplate. The suite caught and reverted two over-trims during the
 > work. The last ~5% to 25% would cut protected contract sentences —
 > stopped deliberately. Full numbers: docs/performance-report.md.
-
-### 9.2 Review the 3D bundle
-
-The review build reported the lazy viewport chunk at approximately 938 KB
-minified / 251 KB gzip.
-
-- Measure cold load on a mid-range mobile device and in ChatGPT before changing
-  imports.
-- Audit Three.js/drei imports and optional helpers.
-- Preserve lazy loading and avoid preloading GPU work on browsers that cannot
-  use it.
-- Set performance budgets for shell interaction and time-to-preview rather than
-  optimizing bundle size in isolation.
 
 ### 9.3 Keep structured-result migration post-submission
 
@@ -594,9 +568,9 @@ submission notes.
 ## 11. Implementation order and stop rules
 
 1. Sections 4.1–4.4: registration, types, descriptors, cancellation.
-2. Section 6.1 and 6.2: tests that prove the new lifecycle and chained calls.
+2. Section 6.1: tests that prove the new lifecycle.
 3. Section 5: truthful no-WebGL/error experience.
-4. Sections 6.3–6.4: Worker/pairing gates and current test gaps.
+4. Section 6.3: Worker/pairing gates.
 5. Section 7.1: README and judge quick start.
 6. Run the complete automated and manual validation matrix.
 7. Record the video and complete Devpost.
@@ -621,7 +595,6 @@ P0 is complete when all of the following are true:
 - the standard and Worker suites pass as deployment gates; the pairing suite
   runs in CI (non-blocking until promoted per amended 6.3);
 - the README contains no broken plan link and provides reproducible judge steps;
-- consecutive live mutations work in ChatGPT without stale state;
 - a real print calibration check has passed;
 - the final video, Devpost fields, public repository, license, and live URL have
   been verified before the deadline.
