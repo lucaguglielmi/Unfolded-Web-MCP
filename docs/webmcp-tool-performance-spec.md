@@ -1,8 +1,8 @@
 # Unfolded — WebMCP Tool Performance Specification
 
 Status: **proposed** — nothing below has landed  
-Baseline: `main` at `85e31b9` (`Merge pull request #7: phone pairing`), re-measured on this branch (docs-only ahead of it)  
-Supersedes: the "renaming or merging the public tool names" non-goal of docs/webmcp-hardening-spec.md §2, for the four tools §4 names
+Baseline: `main` at `85e31b9` (`Merge pull request #7: phone pairing`), re-measured on this branch  
+Supersedes: the pre-launch rule that public tool names are never renamed or merged, for the four tools §4 names
 
 ## 1. Purpose
 
@@ -191,9 +191,9 @@ The README's "solver, not just setters" paragraph moves to describing the
 by design), `e2e/perf.mjs` (cases), `e2e/pairing.mjs` (tool names),
 `src/pages/agentManifest.ts` (`resultContract.shapes`, `invariants`),
 `src/pages/WebMCPPage.tsx` (prompts; count derives from `TOOL_SUMMARIES`),
-`src/pages/WhyPage.tsx`, README (tool table, prompts, "14 tools"),
-docs/webmcp-hardening-spec.md (amendment note: merging now authorized by
-this spec), docs/performance-report.md (§1 re-measured).
+`src/pages/WhyPage.tsx`, README (tool table — `docsGuard.test.ts` checks
+it against `TOOL_SUMMARIES` name-for-name — plus prompts and "14 tools"),
+docs/performance-report.md (§1 re-measured).
 
 ---
 
@@ -366,9 +366,9 @@ call, so the two-path behavior must be described without confusing the
 routing the prompt suite protects.
 
 Also on the same review: **retire the text half of results** once
-`structuredContent` is verified in ChatGPT's browser and Chrome
-(docs/webmcp-hardening-spec.md §9.3's original plan) — that is where the
-other ~40% of per-call bytes goes.
+`structuredContent` is verified in ChatGPT's browser and Chrome — the
+plan docs/performance-report.md §7 records — that is where the other
+~40% of per-call bytes goes.
 
 ---
 
@@ -407,10 +407,10 @@ other ~40% of per-call bytes goes.
   already.
 - docs/performance-report.md: §1 and §7 re-measured after §4–§5; note the
   contract bump.
-- docs/webmcp-hardening-spec.md: amendment note pointing here for the
-  merge and for the 11-tool count in its validation matrix.
 - docs/live-handoff-link-spec.md: the snapshot example loses the two
   constants; §8 of this spec is referenced from its post-launch notes.
+- README's "Deeper reading" list links this spec (done with the spec
+  itself).
 - Manual validation matrix additions:
 
 | Environment | Added check |
@@ -468,8 +468,8 @@ the description, not the tool, needs work.
 
 ## 14. References
 
-- docs/performance-report.md — the audit this spec re-measures
-- docs/webmcp-hardening-spec.md §9 — the metadata trim and the structured-result decision
+- docs/performance-report.md — the audit this spec re-measures, including
+  the metadata trim (§1) and the structured-result decision (§7)
 - docs/live-handoff-link-spec.md — the link contract §8 preserves
 - docs/webmcp-profiler-spec.md — the ledger fields §7 measures with
 - WebMCP Draft Community Group Report: <https://webmachinelearning.github.io/webmcp/>
