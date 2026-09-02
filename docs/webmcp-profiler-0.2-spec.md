@@ -1679,3 +1679,96 @@ For the two profiler specs and the ones that follow:
 - The long-range spec's §12 stays the single source of truth for what
   has landed; when a 0.2 section lands, §12 gains a line and this
   document's status line moves. Nothing else is edited twice.
+
+## 20. Last review: adoption
+
+Findings of the final pass, after §18 and §19. §14.3 traces them.
+
+### 20.1 Typed tools must be accepted
+
+Problem (verified with `tsc --strict`): `ToolLike.execute` is a property
+typed `(input: unknown) => unknown`, which TypeScript checks
+contravariantly, so a consumer's `execute: (input: MyInput) => …` is not
+assignable. `instrument(myTools)` and the fake host reject exactly the
+descriptors TypeScript users have.
+
+Change: declare `execute` with method syntax (bivariant) and forward
+`...args: unknown[]`. A compile-time test assigns a descriptor with a
+narrowed input type to `ToolLike` and to `Record<string, ToolLike>`.
+
+### 20.2 Demo first
+
+The README's first screen after the one-paragraph "what" is "See it in
+ten seconds, nothing installed": the hosted example page (§18.3, served
+by the site at `/webmcp-profiler/demo/`) that installs the fake host,
+registers two tools, fires calls by itself, and opens the overlay; and
+the live-site variant (`tryunfolded.com/?perf=overlay` plus one console
+line). A short capture of the overlay filling sits under it, as an
+image the npm page renders.
+
+### 20.3 The bookmarklet
+
+The IIFE is already a bookmarklet. The README and the site's WebMCP
+page carry a drag-to-bookmarks link whose `javascript:` body injects
+the pinned, SRI-checked CDN script and calls `WebMCPProfiler.attach({
+overlay: true })`. It is how the profiler reaches sites the reader does
+not own.
+
+### 20.4 Tested hosts
+
+A README table: host, where it exposes `modelContext`, what was
+verified, at which package version. Rows are added only with evidence.
+The fake host (§18.2) is the first row; the Chrome and Edge origin
+trials, ChatGPT desktop, and the polyfills people use follow as each is
+exercised. Where a polyfill is an npm package it runs in CI, so its row
+cannot rot.
+
+### 20.5 Stability promise
+
+A README section: what is stable at 0.2 (`attachProfiler` and the gate
+signatures, every default, the report format's versioning rule, the
+global's name), what is experimental (relay, bench, `compare()`
+thresholds), and that a deprecation is announced one minor release
+before removal with a console warning. Semver applies from 0.2 as if
+it were 1.x: a breaking change bumps the minor.
+
+### 20.6 Perfetto export
+
+`exportTrace()` writes the buffered spans as Chrome trace-event JSON
+(`ph: "X"` complete events, `cat: "webmcp"`, args carrying bytes and
+tokens, host gaps as instant events between calls), so a session opens
+in Perfetto or `chrome://tracing` beside anything else the reader
+traces. Pure function `toTraceEvents(report)` in core; the download is
+the console method.
+
+### 20.7 Smoke the tarball in CI
+
+The publish workflow packs the package, installs the tarball into a
+scratch directory, and runs a Node script that imports every public
+subpath, calls `describe()`, `compare()` on two reports, and validates
+a report against the schema. What is tested is what ships.
+
+### 20.8 Small polish
+
+- The wrapped `execute` carries the original's `name` and `length` via
+  `Object.defineProperty`, for hosts that introspect.
+- The overlay's ledger line is an `aria-live="polite"` region, the
+  close button is focusable with a visible focus ring, and the panel
+  respects `prefers-reduced-motion` (no backdrop blur).
+- A bundle-size badge beside the npm badge.
+- Package split (bench and CLI as a sibling package) stays a 0.3
+  decision; noted so the subpath layout of §18.7 is not mistaken for
+  the final shape.
+
+### 14.3 Adoption review → section
+
+| # | Finding | Closed by |
+| --- | --- | --- |
+| A1 | Typed tool descriptors do not compile against `ToolLike` | §20.1 |
+| A2 | No zero-install way to see it | §20.2 |
+| A3 | No way to profile a site you do not own | §20.3 |
+| A4 | No evidence of which hosts it was run against | §20.4 |
+| A5 | No stability or deprecation promise at 0.x | §20.5 |
+| A6 | No export a performance engineer's tools can open | §20.6 |
+| A7 | The published tarball is never executed before publish | §20.7 |
+| A8 | Wrapper identity, overlay accessibility, size badge | §20.8 |
