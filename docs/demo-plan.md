@@ -46,27 +46,24 @@ sets up the next beat.
 The UX-designer pride point — name the problem explicitly, judges won't
 know it exists: *ChatGPT's browser is invisible, and Safari can't speak
 WebMCP. How do the two talk?*
-- In Safari: open **Continue on another screen** (the connection button —
-  the two status dots), tap **copy prompt**. The clipboard now holds a
-  ready-made agent prompt with the pairing code already inside it — the
-  user never reads or types a code.
-- Paste it into ChatGPT. The agent opens the app in its hidden browser and
-  `join_session` fires from the code in the prompt: paired, one paste.
+- In Safari: tap the connection button (the two status dots) →
+  **Build with your agent**. Two ways in, both zero-typing:
+  - **Open in ChatGPT** — a real `chatgpt.com/?q=` link: on the phone it
+    hands off straight into the ChatGPT app with the prompt pre-filled.
+    This is the hero take.
+  - **Copy prompt** — same prompt for any assistant; paste it anywhere.
+- The prompt carries a pre-minted single-use pairing code (the hub
+  re-mints before expiry, so it's always fresh): the agent opens the app
+  in its hidden browser and `join_session` fires. Paired — one tap, no
+  code read aloud, no token pasted by hand.
 - Prove it immediately with something small: ask the agent to make it
   hexagonal → the Safari tab changes in about a second. Then the reverse:
   drag a slider **in Safari**, ask the agent *"what did I just change?"* —
   it reads the current state on its next tool call.
 - One line on the mechanics worth saying out loud: WebSockets to a
-  per-session room, single-use short-lived codes, every edit is an undo
-  step on both sides.
-
-> **Build gap to close before recording:** today `PairDialog` copies the
-> *bare* code or the invite link, and the kickstart prompt (with the tool
-> briefing) lives on `/webmcp` *without* a code. The one-paste flow above
-> needs a small **"Copy prompt for your agent"** button in the pairing
-> dialog that wraps the freshly minted code in a kickstart-style prompt
-> ("Open tryunfolded.com in your built-in browser … then call
-> `join_session` with code XXXXXX …"). Small change, big demo moment.
+  per-session room, the code is single-use and short-lived but the
+  connection it opens stays live, and every edit is an undo step on both
+  sides.
 
 ### 1:30–2:05 — Beat 2: from a photo to a template (Safari still visible)
 In ChatGPT: upload a photo of a favorite mug/vase. Prompt: *"Recreate this
@@ -120,12 +117,11 @@ real WebMCP host.
 >
 > Here's the part I'm proudest of as a UX designer. I'm designing in
 > Safari — which has no WebMCP at all. ChatGPT's browser does, but it's
-> hidden. I tap *copy prompt*, paste it into the chat, and that's the
-> whole handshake — the pairing code travels inside the prompt, and the
-> two browsers are connected over WebSockets, both directions. Watch:
-> every change the agent makes lands in my Safari tab in about a second,
-> and every slider I drag here is visible to the agent on its next tool
-> call.
+> hidden. One tap on *Open in ChatGPT* and that's the whole handshake —
+> the pairing code travels inside the prompt, and the two browsers are
+> connected over WebSockets, both directions. Watch: every change the
+> agent makes lands in my Safari tab in about a second, and every slider
+> I drag here is visible to the agent on its next tool call.
 >
 > [photo beat] … [capacity beat] …
 >
@@ -141,10 +137,10 @@ real WebMCP host.
 - **Keep visible:** ChatGPT's tool-call chips (proof it's WebMCP, not
   editing tricks) and the two status dots turning on in Safari when the
   session pairs.
-- **Mint the code in Safari, not in the agent** — the joining side adopts
-  the other's design, and we want the agent to adopt the Safari design.
-  The copy-prompt button belongs in Safari's pairing dialog for the same
-  reason.
+- **Initiate from Safari's hub, not from the agent** — the joining side
+  adopts the other's design, and we want the agent to adopt the Safari
+  design. The hub's Open-in-ChatGPT / Copy-prompt flow already does this
+  correctly.
 - **Record beats as separate takes**; `open_model` on a share link
   restores any state between takes.
 
@@ -154,7 +150,9 @@ real WebMCP host.
   with `chrome://flags/#enable-webmcp-testing` standing in for the hidden
   browser — same tools, same chips; the Safari side of the story is
   unchanged.
-- **Pairing code expiry (5 min):** mint the code right before the take.
+- **Pairing code expiry (5 min):** the hub pre-mints and re-mints
+  automatically while the panel is open — just don't dawdle between the
+  handoff tap and the agent's `join_session`.
 - **Photo beat variance:** pick the photo in rehearsal and keep it. One
   visible self-correction round via `get_preview_image` is fine on camera;
   cut if it takes more than two.
