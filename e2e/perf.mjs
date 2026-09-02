@@ -5,10 +5,12 @@
  *
  * Reports min / p50 / p95 / max over N runs, plus result payload size —
  * a big payload is a cost the page never sees: the HOST has to serialize
- * it into the model's context, and the model has to read it. Network
- * tools (join_session, start_pairing) are excluded: their latency is a
- * Durable Object round trip, not page compute, and the preview server
- * has no worker behind it.
+ * it into the model's context, and the model has to read it. Four tools
+ * are excluded: join_session, start_pairing, and create_live_handoff
+ * talk to the pairing service (their latency is a Durable Object round
+ * trip, not page compute, and the preview server has no worker behind
+ * it), and export_templates downloads a real multi-page PDF, whose cost
+ * docs/performance-report.md measures separately.
  *
  * Baseline (sandbox Chromium): every tool p50 ≤ 5 ms,
  * p95 ≤ 13 ms — tool execution is NOT where agent-perceived latency

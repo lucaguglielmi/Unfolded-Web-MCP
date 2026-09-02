@@ -349,7 +349,8 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "export_templates",
       description:
-        "Export the printable template as a multi-page PDF and download it in the potter's browser — remind them to print at 100% scale and check the calibration ruler on page 1. Pages tile the true-scale template with 10 mm glue overlaps. Optionally set paperSize ('A4', 'A3', or 'Letter') first. Returns the page count and the full new state.",
+        "Export the printable template as a multi-page PDF and download it in the potter's browser — remind them to print at 100% scale and check the calibration ruler on page 1. Pages tile the true-scale template with 10 mm glue overlaps. Optionally set paperSize ('A4', 'A3', or 'Letter') first. Returns the page count and the full new state." +
+        LINK_RULE,
       inputSchema: toInputSchema(
         z.object({
           paperSize: z.enum(["A4", "A3", "Letter"]).optional().describe("Paper size for the printout"),

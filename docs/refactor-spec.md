@@ -64,6 +64,11 @@ rest of the app is deliberately origin-independent.
 - **Accept:** grepping the repo for the domain finds exactly one authoritative
   occurrence (plus README mention).
 
+> Post-landing note: prose and agent-prompt strings in `src/` had grown
+> their own copies of the domain; they now read `SITE_URL` from
+> `src/lib/siteUrl.ts` — the single authoritative occurrence (with the
+> env-less unit-test fallback documented inside it).
+
 ---
 
 ## P1 — architecture: module boundaries (the visible craftsmanship)
@@ -78,7 +83,11 @@ Target layout, no logic changes:
   strings *for agents*; they belong to the MCP layer, next to `tools.ts`).
 - **Accept:** every existing test passes with only import-path updates; the
   store file no longer imports from `export/svg` or `export/pdf` types except
-  what its own actions need; file lengths roughly 200/60/60/90.
+  what its own actions need; file lengths roughly 200/60/60/90. (Post-landing
+  note: the split shipped as specified, but the store file settled around
+  330 lines — the coalescing scopes and export counting stayed with the
+  actions that use them; the length target was aspirational, the boundary
+  is the contract.)
 
 ### 6. Store factory instead of module-global test seams
 `lastHistoryPushAt` and `importPdfModule` are module-level mutables, which is
@@ -143,8 +152,9 @@ sound cannot be turned off.
   per-control calls through one `feedback(kind)` entry so policy lives in one
   file. *(behavior: adds a mute control)*
 - **Accept:** muting stops both blips and vibration app-wide; preference
-  survives reload; existing feedback e2e-style check still counts 6 events for
-  the 7-click script when unmuted.
+  survives reload. (The "6 events for the 7-click script" e2e-style check
+  described here was never written; the mute policy is covered at unit
+  level in `feedback.ts`'s tests instead.)
 
 ---
 

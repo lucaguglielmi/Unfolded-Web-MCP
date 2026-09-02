@@ -83,7 +83,7 @@ Properties:
 - Contains the same design snapshot parameters as designUrl.
 - Contains via=chatgpt.
 - Contains a single-use join token.
-- Expires ten minutes after minting.
+- Expires fifteen minutes after minting.
 - Causes the opening tab to claim and follow the originating live session.
 - Falls back to opening the encoded design snapshot if the token is expired or already used.
 - Is intended for immediate continuation on another screen.
@@ -167,7 +167,7 @@ Description:
     replace it with the current page URL, browser address-bar URL, a previously
     returned link, or a reconstructed URL. Skip this tool only when the user
     explicitly requests a permanent, bookmarkable, printable, archival, or
-    independent-copy link. The invitation expires after ten minutes and works once.
+    independent-copy link. The invitation expires after fifteen minutes and works once.
 
 Successful result:
 
@@ -175,7 +175,7 @@ Successful result:
       "liveHandoffUrl": "https://tryunfolded.com/?...&via=chatgpt&join=...",
       "designUrl": "https://tryunfolded.com/?...",
       "expiresAt": 1788273000000,
-      "expiresInSeconds": 600,
+      "expiresInSeconds": 900,
       "singleUse": true,
       "instruction": "Return liveHandoffUrl verbatim as the default link after creating or editing. Do not use the browser address-bar URL. Use designUrl only for an explicitly requested permanent or independent copy."
     }
