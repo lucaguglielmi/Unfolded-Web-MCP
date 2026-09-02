@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
-import { Check, Copy, Link as LinkIcon, MonitorSmartphone } from "lucide-react"
+import { Check, Copy, KeyRound, Link as LinkIcon, MonitorSmartphone } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
 import { Button } from "@/components/ui/button"
 import {
@@ -414,9 +414,12 @@ export function PairDialog({
                   </div>
                 )}
                 <p className="text-muted-foreground text-center text-xs leading-relaxed">
-                  Read it to {otherScreen}, or type it into ChatGPT:{" "}
+                  Type it on {otherScreen}: connection button → <strong>Continue on another
+                  screen</strong> → <strong>Enter a code from another screen</strong>. Or type it
+                  into ChatGPT:{" "}
                   <em>&ldquo;join my Unfolded session, code {activeCode ? pretty(activeCode.code) : "K7F-3QP"}&rdquo;</em>
-                  {" "}— the agent joins with <span className="font-mono">join_session</span>. Works once, valid 15 minutes.
+                  {" "}— the agent joins with <span className="font-mono">join_session</span>. Works
+                  once, valid 15 minutes.
                 </p>
               </div>
             </>
@@ -424,14 +427,17 @@ export function PairDialog({
 
           {/* the other direction: THIS device follows a session whose code
               came from another screen (or an agent's start_pairing) */}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setShowEntry((v) => !v)}
             aria-expanded={showEntry}
-            className="text-muted-foreground hover:text-foreground self-center text-xs underline-offset-4 transition-colors hover:underline"
+            className="w-full"
           >
+            <KeyRound className="size-4" />
             Enter a code from another screen
-          </button>
+          </Button>
 
           {showEntry && (
             <div className="rise-in flex flex-col gap-3">
