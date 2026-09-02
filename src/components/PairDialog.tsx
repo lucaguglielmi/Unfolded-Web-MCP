@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { Check, Copy, Link as LinkIcon, MonitorSmartphone } from "lucide-react"
 import { LogoMark } from "@/components/LogoMark"
 import { Button } from "@/components/ui/button"
@@ -72,6 +72,11 @@ export function PairDialog({
   const status = liveSync.status()
   const peers = liveSync.peers()
   const paired = liveSync.isPaired()
+  const live = status === "syncing" && peers > 1
+
+  // deliberately inviting a THIRD screen while already live re-enables the
+  // QR/link section below
+  const [addingAnother, setAddingAnother] = useState(false)
 
   const agentStatus = useProjectStore((s) => s.agentStatus)
   const form = useProjectStore((s) => s.form)
@@ -83,7 +88,10 @@ export function PairDialog({
   // previous one expires while it is open
   const inviteExpired = invite !== null && invite.expiresAt <= now
   useEffect(() => {
-    if (!open || (invite && !inviteExpired)) return
+    // while live (and not deliberately adding a third screen) mint nothing:
+    // the success panel replaces the QR, and a fresh invitation would only
+    // pretend the spent one still worked
+    if (!open || (live && !addingAnother) || (invite && !inviteExpired)) return
     let cancelled = false
     void (async () => {
       const minted = await liveSync.mintToken()
@@ -114,7 +122,25 @@ export function PairDialog({
     // the invite deliberately does NOT re-mint on every design edit — the
     // link's design params are a snapshot, but the joined device adopts the
     // SESSION's live state anyway (adopt-on-join), so staleness is harmless
-  }, [open, inviteExpired]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, inviteExpired, live, addingAnother]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // HONESTY: a QR/link/code is single-use, so the moment the other screen
+  // claims it (peers rises and we're live) the displayed invitation is
+  // spent — stop showing it and its countdown, and say what happened.
+  // The functional setNotice keeps the joiner's own "Paired — this device
+  // now follows that session." message when THIS device was the joiner.
+  const wasLive = useRef(live)
+  useEffect(() => {
+    const was = wasLive.current
+    wasLive.current = live
+    if (!live) return
+    setInvite(null)
+    setCode(null)
+    setAddingAnother(false)
+    if (open && !was) {
+      setNotice((n) => n ?? { tone: "ok", text: "Your other screen joined — edits now sync live, both ways." })
+    }
+  }, [live, open])
 
   // one ticking clock drives both countdowns
   const codeExpired = code !== null && code.expiresAt <= now
@@ -195,6 +221,7 @@ export function PairDialog({
     liveSync.unpair()
     setCode(null)
     setInvite(null)
+    setAddingAnother(false)
     setNotice({ tone: "ok", text: "Unpaired — this device keeps the design, but stops syncing." })
   }
 
@@ -211,6 +238,7 @@ export function PairDialog({
         if (!next) {
           setNotice(null)
           setShowCode(false)
+          setAddingAnother(false)
           // never reuse an invite across opens: the tab may have joined a
           // DIFFERENT session since (a cached link would point at the one
           // it left) — tokens are cheap, mint fresh next time
@@ -258,7 +286,27 @@ export function PairDialog({
             </p>
           ) : null}
 
-          {/* primary: scan or open the link — instant, no typing */}
+          {/* primary: scan or open the link — instant, no typing. While
+              live, the single-use invitation is spent, so an honest success
+              panel replaces the QR instead of a countdown on a dead code */}
+          {live && !addingAnother ? (
+            <div className="rise-in flex flex-col items-center gap-3 rounded-lg border border-emerald-600/30 bg-emerald-600/5 px-4 py-5 text-center">
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                Your screens are linked
+              </p>
+              <p className="text-muted-foreground text-xs leading-relaxed">
+                Edits made on any of them appear on all, live. The invitation you shared
+                is spent — each QR, link, or code works exactly once.
+              </p>
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() => setAddingAnother(true)}
+              >
+                Invite another screen
+              </Button>
+            </div>
+          ) : (
           <div className="flex flex-col items-center gap-3">
             {invite?.qr ? (
               <div className="rise-in relative">
@@ -300,6 +348,7 @@ export function PairDialog({
               uses it can edit this design.
             </p>
           </div>
+          )}
 
           <div className="text-muted-foreground flex items-center gap-3 text-[11px] uppercase">
             <span className="bg-border h-px flex-1" />

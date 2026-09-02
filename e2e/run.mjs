@@ -151,7 +151,16 @@ try {
         }),
     }
   })
-  await page.waitForTimeout(4500) // slow heartbeat is 3s
+  // detection rides the slow 3s heartbeat and the 13 awaited registrations
+  // land one by one, so poll for completion instead of sampling a fixed
+  // instant (a fixed 4.5s wait caught slow CI runners mid-registration)
+  await page
+    .waitForFunction(
+      (count) => Object.keys(window.__mcpToolsReplaced).length === count,
+      EXPECTED_TOOLS.length,
+      { timeout: 15_000 }
+    )
+    .catch(() => {})
   const replaced = await page.evaluate(() => Object.keys(window.__mcpToolsReplaced).length)
   check(
     "replacing document.modelContext re-registers all tools on the new registry",
@@ -405,6 +414,22 @@ try {
     () => document.body.innerText.includes("chrome://flags/#enable-webmcp-testing")
   )
   check("Chrome with a WebMCP host never sees the nudge", !nudgeWithHost)
+  // same tab, /webmcp: the Chrome card detects the enabled flag (API present
+  // + registration succeeded) and shows the good-news pill
+  await quietPage.goto(`${BASE}/webmcp`, { waitUntil: "networkidle" })
+  await quietPage
+    .waitForFunction(
+      () => document.body.innerText.includes("your WebMCP flag is enabled"),
+      null,
+      { timeout: 10000 }
+    )
+    .catch(() => {})
+  check(
+    "/webmcp shows the flag-enabled good-news pill in Chrome with a host",
+    await quietPage.evaluate(() =>
+      document.body.innerText.includes("your WebMCP flag is enabled in this Chrome session")
+    )
+  )
   await quietPage.close()
   await chromeCtx.close()
 

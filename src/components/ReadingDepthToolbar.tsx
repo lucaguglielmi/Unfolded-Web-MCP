@@ -22,7 +22,10 @@ export function ReadingDepthToolbar({
   onChange: (depth: ReadingDepth) => void
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border/60 pt-6 pb-5">
+    // sticky: the depth choice stays reachable however deep the read goes.
+    // -mx-6/px-6 mirror the pages' column padding so the blur band runs
+    // edge-to-edge of the column on phones.
+    <div className="sticky top-0 z-30 -mx-6 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border/60 bg-background/85 px-6 py-4 backdrop-blur-md">
       <p className="text-muted-foreground text-sm">How much time do you have to read this?</p>
       <div
         role="radiogroup"

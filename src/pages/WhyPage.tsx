@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { ArrowUpRight } from "lucide-react"
 import { ExplainerHeader } from "@/components/ExplainerHeader"
-import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
+import { useDesignHref } from "@/lib/useStudioHref"
+import { StudioCtaBar } from "@/components/StudioCtaBar"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 // the tool list renders from its single source next to the registrations
 import { TOOL_SUMMARIES } from "@/mcp/tools"
@@ -485,13 +486,13 @@ function ForAgents() {
 
 export function WhyPage() {
   const [depth, setDepth] = useState<ReadingDepth>("5min")
-  const studioHref = useStudioHref()
 
   return (
     <div className="webmcp-page app-fade-in min-h-dvh bg-background text-foreground antialiased dark:bg-gradient-to-b dark:from-[#0a1122] dark:via-[#060a14] dark:to-[#04060c]">
       <ExplainerHeader current="why" />
 
-      <main className="mx-auto max-w-3xl px-6 pb-24">
+      {/* pb clears the fixed studio CTA bar */}
+      <main className="mx-auto max-w-3xl px-6 pb-44">
         {/* reading-depth toolbar */}
         <ReadingDepthToolbar depth={depth} onChange={setDepth} />
 
@@ -514,15 +515,11 @@ export function WhyPage() {
             >
               GitHub <ArrowUpRight className="size-3.5" />
             </a>
-            <a
-              href={studioHref}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/85"
-            >
-              Open the studio
-            </a>
           </div>
         </footer>
       </main>
+
+      <StudioCtaBar />
     </div>
   )
 }

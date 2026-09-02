@@ -1,8 +1,8 @@
-import { useState, useSyncExternalStore } from "react"
-import { ArrowUpRight, MonitorSmartphone } from "lucide-react"
-import { isRealChrome } from "@/components/ChromeFlagNudge"
+import { useEffect, useState, useSyncExternalStore } from "react"
+import { ArrowUpRight, Check, Copy, MonitorSmartphone } from "lucide-react"
 import { PairDialog } from "@/components/PairDialog"
 import { Button } from "@/components/ui/button"
+import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
 import { useDesignHref } from "@/lib/useStudioHref"
 import { liveSync } from "@/store/syncClient"
@@ -13,7 +13,8 @@ import { useProjectStore, type AgentStatus } from "@/store/useProjectStore"
  * status dots on a single button, with a panel that explains both states in
  * plain language for wherever this tab actually is — ChatGPT's in-app
  * browser, a native WebMCP host, or a plain browser — and offers the two
- * actions that matter: Continue on another screen, and About WebMCP.
+ * actions that matter: Continue on another screen, the agent-prompt
+ * buttons, and a How-does-it-work link to /webmcp.
  *
  * Honesty rules inherited unchanged from the pill and badge it replaces:
  * the agent dot never guesses from the user agent (green only on a real
@@ -38,7 +39,7 @@ const AGENT: Record<
     ping: false,
   },
   unavailable: {
-    title: "No agent here",
+    title: "Build with your agent",
     label: "WebMCP",
     dot: "bg-stone-300 dark:bg-slate-600",
     ping: false,
@@ -53,9 +54,9 @@ function agentDescription(agentStatus: AgentStatus): string {
   if (agentStatus === "chatgpt") {
     return "This design arrived through a link your agent minted. Agent links are live invitations: tapping the latest one makes this tab follow the agent's session both ways — your edits here reach it on its next read."
   }
-  return isRealChrome()
-    ? "This looks like Chrome — WebMCP is one experimental flag away (chrome://flags/#enable-webmcp-testing). Or ask ChatGPT to open tryunfolded.com in its built-in browser."
-    : "No WebMCP host in this tab. Ask ChatGPT to open tryunfolded.com in its built-in browser — the page connects the moment a host appears."
+  // action-first, jargon-free: the buttons below do the work (Chrome's
+  // experimental-flag hint lives in the dedicated nudge banner instead)
+  return "Tap Open in ChatGPT below — or copy the prompt for any assistant — and it joins this exact design, live."
 }
 
 type SyncState = "none" | "alone" | "reconnecting" | "live"
@@ -86,9 +87,29 @@ const SYNC: Record<SyncState, { title: string; dot: string; description: string 
   },
 }
 
+/** the paste-into-ChatGPT prompt: what the site is, and the single-use
+    pairing code that makes the agent's tab join THIS session */
+function agentPrompt(code: string, minutes: number): string {
+  const pretty = `${code.slice(0, 3)}-${code.slice(3)}`
+  return (
+    `Open https://tryunfolded.com in your built-in browser — it's a parametric ` +
+    `slab-pottery template designer that exposes WebMCP tools. Once it loads, call ` +
+    `its join_session tool with code ${pretty} so you're editing the same live ` +
+    `design I have open here. Join right away: the code itself is single-use and ` +
+    `only valid for ${minutes} minutes, but once you've joined, our connection ` +
+    `stays live. Then describe the current design and help me refine it.`
+  )
+}
+
 export function ConnectionHub() {
   const [open, setOpen] = useState(false)
   const [pairOpen, setPairOpen] = useState(false)
+  const [promptState, setPromptState] = useState<"idle" | "minting" | "copied" | "error">("idle")
+  const [chatgptInvite, setChatgptInvite] = useState<{
+    code: string
+    expiresAt: number
+    prompt: string
+  } | null>(null)
   const agentStatus = useProjectStore((s) => s.agentStatus)
   const lastAgentCall = useProjectStore((s) => s.lastAgentCall)
   const webmcpHref = useDesignHref("/webmcp")
@@ -122,6 +143,73 @@ export function ConnectionHub() {
       : syncState === "reconnecting"
         ? "syncing…"
         : agent.label
+
+  // Pre-mint the pairing code while the panel is open so "Open in ChatGPT"
+  // can be a REAL link (chatgpt.com/?q= injects the prompt into a new chat,
+  // and on phones the universal link hands off into the ChatGPT app — which
+  // only works reliably from a genuine anchor tap, not a scripted open
+  // after an async mint). Codes are single-use and cheap, same as the
+  // Continue dialog's eager QR tokens; a panel outliving the 5-minute TTL
+  // re-mints just before expiry.
+  useEffect(() => {
+    if (!open || agentStatus !== "unavailable") return
+    let cancelled = false
+    let timer: number | undefined
+    const mint = async () => {
+      const minted = await liveSync.mintCode()
+      if (cancelled) return
+      if (!minted) {
+        setChatgptInvite(null)
+        return
+      }
+      const minutes = Math.max(1, Math.round((minted.expiresAt - Date.now()) / 60_000))
+      setChatgptInvite({ ...minted, prompt: agentPrompt(minted.code, minutes) })
+      timer = window.setTimeout(
+        () => void mint(),
+        Math.max(1_000, minted.expiresAt - Date.now() - 5_000)
+      )
+    }
+    void mint()
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+      setChatgptInvite(null)
+    }
+  }, [open, agentStatus])
+
+  const chatgptHref = chatgptInvite
+    ? `https://chatgpt.com/?q=${encodeURIComponent(chatgptInvite.prompt)}`
+    : null
+
+  const copyAgentPrompt = async () => {
+    if (promptState === "minting") return
+    // reuse the pre-minted code (so link and copy carry the SAME code)
+    // unless it's about to expire; mint fresh otherwise
+    let prompt =
+      chatgptInvite && chatgptInvite.expiresAt > Date.now() + 30_000
+        ? chatgptInvite.prompt
+        : null
+    if (!prompt) {
+      setPromptState("minting")
+      const minted = await liveSync.mintCode()
+      if (!minted) {
+        setPromptState("error")
+        window.setTimeout(() => setPromptState("idle"), 2500)
+        return
+      }
+      const minutes = Math.max(1, Math.round((minted.expiresAt - Date.now()) / 60_000))
+      prompt = agentPrompt(minted.code, minutes)
+    }
+    try {
+      await navigator.clipboard.writeText(prompt)
+      feedback("success")
+      setPromptState("copied")
+      window.setTimeout(() => setPromptState("idle"), 2000)
+    } catch {
+      window.prompt("Copy this prompt into ChatGPT:", prompt)
+      setPromptState("idle")
+    }
+  }
 
   const syncDescription =
     syncState === "live"
@@ -186,8 +274,58 @@ export function ConnectionHub() {
                   className="text-foreground mt-1.5 inline-flex items-center gap-1 text-xs font-medium hover:underline"
                   onClick={() => setOpen(false)}
                 >
-                  About WebMCP <ArrowUpRight className="size-3" />
+                  How does it work <ArrowUpRight className="size-3" />
                 </a>
+                {agentStatus === "unavailable" && (
+                  // compact sizing: the pair must fit the panel's width on
+                  // phones without the row overflowing
+                  <div className="mt-2.5 flex gap-1.5">
+                    {chatgptHref ? (
+                      <Button asChild variant="secondary" size="sm" className="min-w-0 flex-1 px-2 text-xs">
+                        <a
+                          href={chatgptHref}
+                          target="_blank"
+                          rel="noopener"
+                          data-chatgpt-prompt
+                          aria-label="Open ChatGPT with a prompt that visits this site and pairs with this session"
+                          onClick={() => setOpen(false)}
+                        >
+                          <ArrowUpRight className="size-3.5" />
+                          Open in ChatGPT
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button variant="secondary" size="sm" className="min-w-0 flex-1 px-2 text-xs" disabled>
+                        Preparing…
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className={cn(
+                        "min-w-0 flex-1 px-2 text-xs",
+                        promptState === "copied" && "text-emerald-600",
+                        promptState === "error" && "text-red-600"
+                      )}
+                      onClick={() => void copyAgentPrompt()}
+                      aria-label="Copy a prompt that opens this site and pairs with this session"
+                    >
+                      {promptState === "copied" ? (
+                        <>
+                          <Check className="size-3.5" /> Copied
+                        </>
+                      ) : promptState === "error" ? (
+                        <>Retry</>
+                      ) : promptState === "minting" ? (
+                        <>Preparing…</>
+                      ) : (
+                        <>
+                          <Copy className="size-3.5" /> Copy prompt
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 

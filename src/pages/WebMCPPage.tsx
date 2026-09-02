@@ -1,7 +1,9 @@
 import { useMemo, useState, useSyncExternalStore } from "react"
 import { ArrowUpRight, Check } from "lucide-react"
+import { isRealChrome } from "@/components/ChromeFlagNudge"
 import { ExplainerHeader } from "@/components/ExplainerHeader"
-import { useDesignHref, useStudioHref } from "@/lib/useStudioHref"
+import { useDesignHref } from "@/lib/useStudioHref"
+import { StudioCtaBar } from "@/components/StudioCtaBar"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 import { feedback } from "@/lib/feedback"
 import { cn } from "@/lib/utils"
@@ -159,6 +161,10 @@ function OneMinute() {
 /* ------------------------------------------------------------ 5 minutes */
 
 function FiveMinutes() {
+  // flag detection = API presence: enabling chrome://flags/#enable-webmcp-testing
+  // is exactly what makes registration succeed in a Chrome tab, so a "native"
+  // agent state in real Chrome means the flag is already on
+  const flagIsOn = useProjectStore((s) => s.agentStatus) === "native" && isRealChrome()
   return (
     <>
       {/* hero */}
@@ -196,8 +202,13 @@ function FiveMinutes() {
             <h3 className="font-semibold tracking-tight">ChatGPT's in-app browser</h3>
             <p className="mt-1 text-sm text-muted-foreground/80">WebMCP works out of the box.</p>
             <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-foreground/75">
-              <li>1. In the ChatGPT app, open this site in the built-in browser.</li>
-              <li>2. Watch the WebMCP pill in the header turn green.</li>
+              <li>
+                1. Easiest: tap the connection button in the header → <strong>Open in
+                ChatGPT</strong>. The chat opens with the ask pre-written — this site plus a
+                pairing code that links the agent to your tab. (Or open the site manually in
+                the ChatGPT app's built-in browser.)
+              </li>
+              <li>2. Watch the connection button's agent dot turn green.</li>
               <li>3. Ask for the pot you want — the design changes as you chat.</li>
             </ol>
             <p className="mt-3 text-xs leading-relaxed text-muted-foreground/80">
@@ -210,6 +221,12 @@ function FiveMinutes() {
           <div className="rounded-2xl border border-border p-6">
             <h3 className="font-semibold tracking-tight">Google Chrome (desktop &amp; Android)</h3>
             <p className="mt-1 text-sm text-muted-foreground/80">Behind an experimental flag.</p>
+            {flagIsOn && (
+              <p className="rise-in mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-600/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <Check className="size-3.5 shrink-0" />
+                Good news — your WebMCP flag is enabled in this Chrome session.
+              </p>
+            )}
             <ol className="mt-4 space-y-2.5 text-sm leading-relaxed text-foreground/75">
               <li>
                 1. Open{" "}
@@ -695,14 +712,14 @@ function ForAgents() {
 
 export function WebMCPPage() {
   const [depth, setDepth] = useState<ReadingDepth>("5min")
-  const studioHref = useStudioHref()
   const whyHref = useDesignHref("/why")
 
   return (
     <div className="webmcp-page app-fade-in min-h-dvh bg-background text-foreground antialiased dark:bg-gradient-to-b dark:from-[#0a1122] dark:via-[#060a14] dark:to-[#04060c]">
       <ExplainerHeader current="webmcp" />
 
-      <main className="mx-auto max-w-3xl px-6 pb-24">
+      {/* pb clears the fixed studio CTA bar */}
+      <main className="mx-auto max-w-3xl px-6 pb-44">
         {/* reading-depth toolbar */}
         <ReadingDepthToolbar depth={depth} onChange={setDepth} />
 
@@ -731,15 +748,11 @@ export function WebMCPPage() {
             >
               GitHub <ArrowUpRight className="size-3.5" />
             </a>
-            <a
-              href={studioHref}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/85"
-            >
-              Open the studio
-            </a>
           </div>
         </footer>
       </main>
+
+      <StudioCtaBar />
     </div>
   )
 }

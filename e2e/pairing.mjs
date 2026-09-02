@@ -195,6 +195,12 @@ try {
   const d = await ctxD.newPage()
   await a.keyboard.press("Escape")
   await openContinue(a)
+  // A is already paired, so the dialog shows the honest success panel
+  // instead of a spent invitation — inviting a third screen is an
+  // explicit click now
+  const anotherScreen = a.locator('button:text-is("Invite another screen")')
+  await anotherScreen.waitFor({ state: "visible", timeout: 5000 }).catch(() => {})
+  if (await anotherScreen.isVisible()) await anotherScreen.click()
   await a.waitForFunction(
     () => (document.querySelector("[data-continue-url]")?.getAttribute("data-continue-url") ?? "").includes("join="),
     null,
@@ -222,6 +228,69 @@ try {
   )
   await ctxD.close()
   await ctxE.close()
+
+  // the hub's "No agent here" section offers a paste-into-ChatGPT prompt
+  // that carries quick instructions plus a live pairing code
+  const ctxH = await browser.newContext()
+  const h = await ctxH.newPage()
+  await h.goto(`${BASE}/`)
+  await h.evaluate(() => {
+    window.__copiedPrompt = null
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: (t) => {
+          window.__copiedPrompt = t
+          return Promise.resolve()
+        },
+      },
+    })
+  })
+  await h.click("[data-connection-hub]")
+  // the Open-in-ChatGPT link injects the same prompt via chatgpt.com/?q=
+  await h.waitForFunction(
+    () =>
+      (document.querySelector("a[data-chatgpt-prompt]")?.getAttribute("href") ?? "").includes(
+        "chatgpt.com/?q="
+      ),
+    null,
+    { timeout: 15000 }
+  )
+  const chatHref = await h.getAttribute("a[data-chatgpt-prompt]", "href")
+  const injected = decodeURIComponent(chatHref.split("?q=")[1] ?? "")
+  check(
+    "hub: Open-in-ChatGPT link injects the prompt with a pairing code",
+    injected.includes("join_session") && /[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}/.test(injected),
+    injected.slice(0, 140)
+  )
+  await h.click('button:has-text("Copy prompt")')
+  await h.waitForFunction(() => typeof window.__copiedPrompt === "string", null, { timeout: 15000 })
+  const copiedPrompt = await h.evaluate(() => window.__copiedPrompt)
+  check(
+    "hub: ChatGPT prompt carries instructions and a pairing code",
+    copiedPrompt.includes("tryunfolded.com") &&
+      copiedPrompt.includes("join_session") &&
+      /[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}/.test(copiedPrompt),
+    (copiedPrompt ?? "none").slice(0, 140)
+  )
+  // and the code in it is real: a second page joins with it
+  const promptCode = (copiedPrompt.match(/[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}/) ?? [""])[0]
+  const ctxI = await browser.newContext()
+  const iPage = await ctxI.newPage()
+  await iPage.addInitScript(mcpHostInit)
+  await iPage.goto(`${BASE}/`)
+  await iPage.waitForFunction(() => window.__mcpTools?.join_session, null, { timeout: 15000 })
+  const promptJoin = await iPage.evaluate(async ([c]) => {
+    const r = await window.__mcpTools.join_session.execute({ code: c })
+    return { isError: r.isError ?? false, text: r.content.find((x) => x.type === "text")?.text ?? "" }
+  }, [promptCode])
+  check(
+    "hub: the prompt's code pairs via join_session",
+    !promptJoin.isError && promptJoin.text.includes("Joined live session"),
+    promptJoin.text.slice(0, 120)
+  )
+  await ctxH.close()
+  await ctxI.close()
 
   // agent continuity: a tab driven by an agent hands out tokened shareUrls;
   // tapping one makes the visible tab a live follower of the hidden one
