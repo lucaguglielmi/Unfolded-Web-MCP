@@ -6,6 +6,14 @@ semver as if 0.x were 1.x (a breaking change bumps the minor).
 
 ## [Unreleased]
 
+## [0.2.2]
+
+### Added
+
+- The bench honours `HTTPS_PROXY` / `NO_PROXY` for its browser and caps TLS
+  at 1.2 behind a proxy, so it runs in sandboxes and CI runners whose egress
+  goes through a TLS-inspecting proxy.
+
 ## [0.2.1]
 
 ### Fixed

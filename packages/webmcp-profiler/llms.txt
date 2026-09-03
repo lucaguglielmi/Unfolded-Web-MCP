@@ -1,4 +1,4 @@
-# webmcp-profiler 0.2.1 — reference for agents
+# webmcp-profiler 0.2.2 — reference for agents
 
 Drop-in performance analyser for WebMCP tool surfaces. Measures every registered tool's execute():
 wall time, Long-Task blocking, payload bytes and estimated tokens, error rate, schema weight, and the

@@ -110,6 +110,7 @@ interface Browser {
   newPage(options?: Record<string, unknown>): Promise<Page>
   close(): Promise<void>
 }
+declare const process: { env: Record<string, string | undefined> }
 
 interface Descriptor {
   name: string
@@ -171,7 +172,12 @@ export async function runBench(opts: BenchOptions): Promise<BenchResult> {
   const log = opts.log ?? (() => undefined)
   const runs = opts.runs ?? 40
   const { chromium } = await loadPlaywright()
-  const browser = await chromium.launch({ headless: opts.headless ?? true, executablePath: opts.executablePath })
+  // honour an egress proxy (sandboxes, CI) that Chromium would not read from the environment
+  const proxyServer = process.env.HTTPS_PROXY ?? process.env.https_proxy
+  const proxy = proxyServer ? { server: proxyServer, bypass: process.env.NO_PROXY ?? "localhost,127.0.0.1" } : undefined
+  // TLS-inspecting proxies can reset Chromium's TLS 1.3 handshake; cap at 1.2 only behind a proxy
+  const args = proxy ? ["--ssl-version-max=tls1.2"] : []
+  const browser = await chromium.launch({ headless: opts.headless ?? true, executablePath: opts.executablePath, proxy, args })
   try {
     const { page, descriptors } = await openPage(browser, opts.url, true, opts)
     const byName = new Map(descriptors.map((d) => [d.name, d]))
