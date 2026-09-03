@@ -53,9 +53,13 @@ export function useWebMCP(): void {
       if (!found) return false
 
       if (active?.ctx === found.ctx) {
-        // registered on this very registry — just keep the badge honest
-        setAgentStatus("native")
-        setAgentApiLocation(found.location)
+        // registered on this very registry — the steady state, reached
+        // every 500 ms for the life of the tab: keep the badge honest
+        // without writing the store when nothing changed (a write would
+        // notify every subscriber for no reason)
+        const current = useProjectStore.getState()
+        if (current.agentStatus !== "native") setAgentStatus("native")
+        if (current.agentApiLocation !== found.location) setAgentApiLocation(found.location)
         return true
       }
 

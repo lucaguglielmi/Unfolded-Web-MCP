@@ -32,7 +32,7 @@ line: `schemas 9.8KB (~2.5K tok) · tools 0.3s · payloads 310KB (~78K tok) · h
 - **Hosted demo:** [tryunfolded.com/webmcp-profiler/demo/](https://tryunfolded.com/webmcp-profiler/demo/)
   installs a fake host, registers two tools, fires calls by itself, and opens the panel.
 - **On a real site:** open [tryunfolded.com/?perf=overlay](https://tryunfolded.com/?perf=overlay),
-  then paste one line in DevTools: `__unfoldedTools.set_capacity.execute({ capacityMl: 350 })`.
+  then paste one line in DevTools: `__unfoldedTools.update_design.execute({ capacityMl: 350 })`.
   The panel fills. `__webmcpPerf.summary()` prints the split.
 
 ## Install
@@ -294,7 +294,7 @@ Chrome trace-event JSON that opens in Perfetto.
 
 ```
 npx webmcp-profiler bench http://localhost:4173 --runs 40 --json bench.json
-npx webmcp-profiler bench http://localhost:4173 --cases perf.cases.json --allow-mutating update_form --budget budgets.json
+npx webmcp-profiler bench http://localhost:4173 --cases perf.cases.json --allow-mutating update_design --budget budgets.json
 npx webmcp-profiler compare base.json head.json --thresholds thresholds.json
 ```
 
