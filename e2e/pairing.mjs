@@ -109,10 +109,10 @@ try {
   await b.keyboard.press("Escape")
 
   // edits converge in both directions (driven through the WebMCP tools)
-  await a.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 142 }))
+  await a.evaluate(() => window.__mcpTools.update_design.execute({ heightMm: 142 }))
   await b.waitForFunction(() => window.location.search.includes("height=142"), null, { timeout: 10000 })
   check("A → B: height edit lands on B", true)
-  await b.evaluate(() => window.__mcpTools.set_clay.execute({ shrinkagePct: 9 }))
+  await b.evaluate(() => window.__mcpTools.update_design.execute({ shrinkagePct: 9 }))
   await a.waitForFunction(() => window.location.search.includes("shrinkage=9"), null, { timeout: 10000 })
   check("B → A: clay edit lands on A", true)
 
@@ -126,7 +126,7 @@ try {
   // unpair stops the flow
   await openContinue(b)
   await b.click("text=Unpair this device")
-  await a.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 200 }))
+  await a.evaluate(() => window.__mcpTools.update_design.execute({ heightMm: 200 }))
   await a.waitForFunction(() => window.location.search.includes("height=200"), null, { timeout: 10000 })
   await new Promise((r) => setTimeout(r, 1500))
   check(
@@ -138,7 +138,7 @@ try {
   // flow B: the work lives on B ("the phone") — its agent mints via
   // start_pairing, and A joins B's session by entering the code
   await b.keyboard.press("Escape")
-  await b.evaluate(() => window.__mcpTools.update_form.execute({ name: "Flow B planter" }))
+  await b.evaluate(() => window.__mcpTools.update_design.execute({ name: "Flow B planter" }))
   const mintResult = await b.evaluate(async () => {
     const r = await window.__mcpTools.start_pairing.execute({})
     return r.content.find((c) => c.type === "text")?.text ?? ""
@@ -186,8 +186,8 @@ try {
   // offline resilience: B drops off the network, A keeps editing, B's own
   // offline edit survives the reconnect and both converge
   await ctxB.setOffline(true)
-  await a.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 188 }))
-  await b.evaluate(() => window.__mcpTools.set_clay.execute({ wallThicknessMm: 8 }))
+  await a.evaluate(() => window.__mcpTools.update_design.execute({ heightMm: 188 }))
+  await b.evaluate(() => window.__mcpTools.update_design.execute({ wallThicknessMm: 8 }))
   await new Promise((r) => setTimeout(r, 1200))
   check(
     "offline B hasn't seen A's edit yet",
@@ -221,7 +221,7 @@ try {
   await d.goto(continueUrl)
   await d.waitForFunction(() => !window.location.search.includes("join="), null, { timeout: 10000 })
   check("continue link: the token is stripped from the address bar", true)
-  await a.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 222 }))
+  await a.evaluate(() => window.__mcpTools.update_design.execute({ heightMm: 222 }))
   await d.waitForFunction(() => window.location.search.includes("height=222"), null, { timeout: 15000 })
   check("continue link: the opening device follows live, no code typed", true)
 
@@ -230,7 +230,7 @@ try {
   const e2 = await ctxE.newPage()
   await e2.goto(continueUrl)
   await e2.waitForFunction(() => !window.location.search.includes("join="), null, { timeout: 10000 })
-  await a.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 233 }))
+  await a.evaluate(() => window.__mcpTools.update_design.execute({ heightMm: 233 }))
   await d.waitForFunction(() => window.location.search.includes("height=233"), null, { timeout: 15000 })
   check(
     "continue link: second open is burned — no ghost follower",
@@ -316,11 +316,12 @@ try {
     return JSON.parse(r.content.find((c) => c.type === "text")?.text ?? "{}")
   })
   check(
-    "agent tab: describe_project carries a permanent designUrl and no token",
+    "agent tab: describe_project carries a permanent designUrl, no token, and the session fact",
     typeof described.designUrl === "string" &&
       !described.designUrl.includes("join=") &&
       described.shareUrl === undefined &&
-      described.liveHandoffTool === "create_live_handoff",
+      described.liveHandoffTool === undefined &&
+      typeof described.session?.paired === "boolean",
     JSON.stringify({ designUrl: described.designUrl, shareUrl: described.shareUrl }).slice(0, 160)
   )
   const handoff = await f.evaluate(async () => {
@@ -343,12 +344,12 @@ try {
   await g.addInitScript(mcpHostInit) // a host in the visible tab stands in for the human's UI edit below
   await g.goto(agentUrl)
   await g.waitForFunction(() => !window.location.search.includes("join="), null, { timeout: 10000 })
-  await f.evaluate(() => window.__mcpTools.set_clay.execute({ shrinkagePct: 7 }))
+  await f.evaluate(() => window.__mcpTools.update_design.execute({ shrinkagePct: 7 }))
   await g.waitForFunction(() => window.location.search.includes("shrinkage=7"), null, { timeout: 15000 })
   check("agent tab: the visible tab follows the hidden browser live", true)
   // and the visible tab's edits reach the agent's next read
-  await g.waitForFunction(() => window.__mcpTools?.update_form, null, { timeout: 15000 })
-  await g.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 171 }))
+  await g.waitForFunction(() => window.__mcpTools?.update_design, null, { timeout: 15000 })
+  await g.evaluate(() => window.__mcpTools.update_design.execute({ heightMm: 171 }))
   await f.waitForFunction(() => window.location.search.includes("height=171"), null, { timeout: 15000 })
   const agentRead = await f.evaluate(async () => {
     const r = await window.__mcpTools.describe_project.execute({})
@@ -360,7 +361,7 @@ try {
   const j = await ctxJ.newPage()
   await j.goto(agentUrl)
   await j.waitForFunction(() => !window.location.search.includes("join="), null, { timeout: 10000 })
-  await f.evaluate(() => window.__mcpTools.set_clay.execute({ wallThicknessMm: 9 }))
+  await f.evaluate(() => window.__mcpTools.update_design.execute({ wallThicknessMm: 9 }))
   await g.waitForFunction(() => window.location.search.includes("wall=9"), null, { timeout: 15000 })
   await new Promise((r) => setTimeout(r, 1200))
   const burnedSearch = await j.evaluate(() => window.location.search)

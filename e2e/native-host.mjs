@@ -55,7 +55,7 @@ try {
   const version = await page.evaluate(() => navigator.userAgent.match(/Chrome\/[\d.]+/)?.[0])
   const native = await page.evaluate(() => "modelContext" in document && Object.getPrototypeOf(document.modelContext) !== Object.prototype)
   check(`native host: document.modelContext is a platform object (${version}, WebMCPTesting)`, native)
-  check(`native host: the site registered its tools (${tools.size})`, tools.size >= 15, [...tools.keys()].join(","))
+  check(`native host: the site registered its tools (${tools.size})`, tools.size >= 12, [...tools.keys()].join(","))
   check("profiler: found the host on document", (await page.evaluate(() => window.__webmcpPerf?.ledger().hostLocation)) === "document")
 
   const invoke = async (toolName, input = {}) => {
@@ -77,7 +77,7 @@ try {
 
   // an agent-like session: read, mutate, look, read again
   const session = [
-    ["describe_project", {}], ["set_capacity", { capacityMl: 350 }], ["update_form", { type: "faceted", facets: 6, heightMm: 120 }],
+    ["describe_project", {}], ["update_design", { capacityMl: 350 }], ["update_design", { type: "faceted", facets: 6, heightMm: 120, shrinkagePct: 13, units: "in" }],
     ["get_preview_image", {}], ["get_template_summary", {}], ["undo_last_change", {}], ["describe_project", {}],
   ]
   const results = []

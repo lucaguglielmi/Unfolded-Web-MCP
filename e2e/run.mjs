@@ -20,10 +20,7 @@ const BASE = `http://localhost:${PORT}`
 const EXPECTED_TOOLS = [
   "describe_project",
   "open_model",
-  "update_form",
-  "set_clay",
-  "set_capacity",
-  "set_units",
+  "update_design",
   "get_template_summary",
   "get_preview_image",
   "export_templates",
@@ -76,7 +73,7 @@ const callTool = (page, name, input = {}) =>
         types: result.content.map((c) => c.type),
         text: result.content.find((c) => c.type === "text")?.text ?? "",
         imageBytes: result.content.find((c) => c.type === "image")?.data?.length ?? 0,
-        // the additive structured half (tool-result/1)
+        // the additive structured half (tool-result/2)
         structured: result.structuredContent ?? null,
       }
     },
@@ -141,9 +138,9 @@ try {
         }),
     }
   })
-  // detection rides the slow 3s heartbeat and the awaited registrations
-  // (one per EXPECTED_TOOLS entry) land one by one, so poll for completion instead of sampling a fixed
-  // instant (a fixed 4.5s wait caught slow CI runners mid-registration)
+  // detection rides the 500 ms watch and the registrations land together
+  // (one parallel set) — still poll for completion instead of sampling a
+  // fixed instant
   await page
     .waitForFunction(
       (count) => Object.keys(window.__mcpToolsReplaced).length === count,
@@ -163,15 +160,24 @@ try {
   const descRes = await callTool(page, "describe_project")
   const desc = stateFrom(descRes)
   check(
-    "describe_project carries capacity and a permanent, token-free designUrl",
+    "describe_project carries capacity, a permanent token-free designUrl, and the session fact",
     desc.capacityMl > 0 &&
       typeof desc.designUrl === "string" &&
       desc.designUrl.includes("type=") &&
       !desc.designUrl.includes("via=") &&
       !desc.designUrl.includes("join=") &&
       desc.shareUrl === undefined &&
-      desc.liveHandoffTool === "create_live_handoff",
-    JSON.stringify({ capacityMl: desc.capacityMl, designUrl: desc.designUrl })
+      desc.linkMode === undefined &&
+      desc.liveHandoffTool === undefined &&
+      desc.session?.paired === false &&
+      desc.session?.peers === 1,
+    JSON.stringify({ capacityMl: desc.capacityMl, designUrl: desc.designUrl, session: desc.session })
+  )
+  // tool-result/2: the text half is compact JSON, so every state call costs less
+  check(
+    "results are compact JSON (tool-result/2): no pretty-printing, under 1,200 B for describe_project",
+    !descRes.text.includes("\n") && descRes.text.length + JSON.stringify(descRes.structured).length < 1_200,
+    `text ${descRes.text.length} B, structured ${JSON.stringify(descRes.structured).length} B`
   )
   // no /api in this static harness: the live link must fail CLOSED — an
   // error and no URL of any kind, never a permanent link in its place
@@ -182,19 +188,19 @@ try {
     handoff.text.slice(0, 120)
   )
 
-  // ------------------------------------------------------------ set_capacity
-  const cap = await callTool(page, "set_capacity", { capacityMl: 500 })
+  // ---------------------------------------------------- update_design: capacity
+  const cap = await callTool(page, "update_design", { capacityMl: 500 })
   const capState = stateFrom(cap)
   check(
-    "set_capacity solves height for the target volume",
+    "update_design with capacityMl solves height for the target volume",
     !cap.isError && Math.abs(capState.capacityMl - 500) <= 2,
     `capacity after: ${capState.capacityMl}`
   )
-  // 9.3: the structured half rides beside the untouched text on a read and
-  // a mutation alike — ok mirrors !isError and state is the text's JSON
+  // the structured half rides beside the text on a read and a mutation
+  // alike — ok mirrors !isError and state is the text's JSON
   const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b)
   check(
-    "describe_project and set_capacity carry structuredContent (tool-result/1)",
+    "describe_project and update_design carry structuredContent (tool-result/2)",
     descRes.structured?.ok === true &&
       typeof descRes.structured.message === "string" &&
       sameJson(descRes.structured.state, desc) &&
@@ -204,30 +210,52 @@ try {
     JSON.stringify({ describe: descRes.structured?.ok, mutation: cap.structured?.message })
   )
 
-  // --------------------------------------------------------------- set_units
-  const inches = stateFrom(await callTool(page, "set_units", { units: "in" }))
+  // ------------------------------------- update_design: one call, one undo step
+  // the potter's whole sentence — shape, clay, units — lands as ONE call
+  const beforeCombined = stateFrom(await callTool(page, "describe_project"))
+  const combined = await callTool(page, "update_design", {
+    type: "faceted",
+    facets: 6,
+    heightMm: 180,
+    shrinkagePct: 13,
+    units: "in",
+  })
+  const combinedState = stateFrom(combined)
   check(
-    "set_units switches every human-facing measurement to inches",
-    inches.units === "in" &&
-      inches.designUrl.includes("units=in") &&
-      inches.pieces.every((p) => p.includes(" in")),
-    JSON.stringify({ units: inches.units, piece: inches.pieces[0] })
+    "update_design applies shape, clay and units in one call",
+    !combined.isError &&
+      combinedState.form.type === "faceted" &&
+      combinedState.form.facets === 6 &&
+      combinedState.form.heightMm === 180 &&
+      combinedState.clay.shrinkagePct === 13 &&
+      combinedState.units === "in" &&
+      combinedState.designUrl.includes("units=in") &&
+      combinedState.pieces.every((p) => p.includes(" in")),
+    JSON.stringify({ form: combinedState.form, clay: combinedState.clay, units: combinedState.units })
   )
-  const metric = stateFrom(await callTool(page, "set_units", { units: "cm" }))
-  check("set_units switches back to centimeters", metric.units === "cm" && metric.designUrl.includes("units=cm"))
+  const combinedUndone = stateFrom(await callTool(page, "undo_last_change"))
+  check(
+    "one undo reverts the whole combined call (form and clay; units are a display setting)",
+    combinedUndone.form.type === beforeCombined.form.type &&
+      combinedUndone.form.heightMm === beforeCombined.form.heightMm &&
+      combinedUndone.clay.shrinkagePct === beforeCombined.clay.shrinkagePct,
+    JSON.stringify({ form: combinedUndone.form, clay: combinedUndone.clay })
+  )
+  const metric = stateFrom(await callTool(page, "update_design", { units: "cm" }))
+  check("update_design switches back to centimeters", metric.units === "cm" && metric.designUrl.includes("units=cm"))
   const unitToggles = await page
     .locator('[role="radiogroup"][aria-label="Measurement units"]')
     .count()
   check("units toggle present in both the params panel and the 3D preview", unitToggles === 2)
 
   // ---------------------------------------------------- legacy + taper model
-  const legacy = stateFrom(await callTool(page, "update_form", { type: "tapered" }))
+  const legacy = stateFrom(await callTool(page, "update_design", { type: "tapered" }))
   check(
     "legacy type 'tapered' maps to round + tapered",
     legacy.form.type === "round" && legacy.form.tapered === true
   )
   const hexT = stateFrom(
-    await callTool(page, "update_form", { type: "faceted", facets: 6, tapered: true, topDiameterMm: 150, bottomDiameterMm: 100 })
+    await callTool(page, "update_design", { type: "faceted", facets: 6, tapered: true, topDiameterMm: 150, bottomDiameterMm: 100 })
   )
   check(
     "tapered prisms unroll to trapezoid panels",
@@ -274,7 +302,7 @@ try {
   )
 
   // -------------------------------------------------- URL tracks agent edits
-  await callTool(page, "update_form", { heightMm: 200 })
+  await callTool(page, "update_design", { heightMm: 200 })
   await page.waitForTimeout(700)
   const liveUrl = await page.evaluate(() => window.location.search)
   check("the address bar live-tracks agent edits", liveUrl.includes("height=200"), liveUrl)
@@ -300,9 +328,9 @@ try {
         }),
     }
   })
-  // the slow-poll heartbeat is 3s and the 14 registrations then land one
-  // awaited tick at a time — poll for the full set (a fixed 4.5s wait
-  // sampled a loaded runner mid-registration at 10 or 13 tools)
+  // the watch polls every 500 ms for the life of the tab and the
+  // registrations land as one parallel set — poll for the full set anyway
+  // (a fixed wait sampled a loaded runner mid-registration)
   await latePage
     .waitForFunction(
       (count) => Object.keys(window.__mcpToolsLate).length === count,
@@ -326,9 +354,10 @@ try {
   await latePage.close()
 
   // ------------------------------------ visibility transitions
-  // A hidden tab must not poll for a host; the visibilitychange recheck
-  // must catch up the moment the tab is visible again. document.hidden is
-  // faked via a configurable getter so the transition is deterministic.
+  // A hidden tab keeps polling, at the slow 3 s rate (an agent browser
+  // that never reports itself visible must still register); a
+  // visibilitychange recheck is immediate. document.hidden is faked via a
+  // configurable getter so the transition is deterministic.
   const hiddenPage = await ctx.newPage()
   await hiddenPage.addInitScript(() => {
     window.__fakeHidden = true
@@ -353,28 +382,33 @@ try {
         }),
     }
   })
-  // several fast-poll ticks pass while "hidden" — the host must stay undiscovered
-  await hiddenPage.waitForTimeout(2500)
-  const registeredWhileHidden = await hiddenPage.evaluate(
-    () => Object.keys(window.__mcpToolsHidden).length
-  )
-  check("a hidden tab does not poll for a WebMCP host", registeredWhileHidden === 0)
-  await hiddenPage.evaluate(() => {
-    window.__fakeHidden = false
-    document.dispatchEvent(new Event("visibilitychange"))
-  })
+  // no visibility event at all: the slow hidden poll (3 s) must find the host
+  const hiddenT0 = Date.now()
   await hiddenPage
     .waitForFunction(
       (count) => Object.keys(window.__mcpToolsHidden).length === count,
       EXPECTED_TOOLS.length,
-      { timeout: 15_000 }
+      { timeout: 10_000 }
     )
     .catch(() => {})
+  const registeredWhileHidden = await hiddenPage.evaluate(
+    () => Object.keys(window.__mcpToolsHidden).length
+  )
+  check(
+    "a hidden tab still discovers a late host on the slow heartbeat, with no visibility event",
+    registeredWhileHidden === EXPECTED_TOOLS.length && Date.now() - hiddenT0 < 6_000,
+    `tools: ${registeredWhileHidden} after ${Date.now() - hiddenT0} ms`
+  )
+  await hiddenPage.evaluate(() => {
+    window.__fakeHidden = false
+    document.dispatchEvent(new Event("visibilitychange"))
+  })
+  await hiddenPage.waitForTimeout(1200)
   const afterVisible = await hiddenPage.evaluate(
     () => Object.keys(window.__mcpToolsHidden).length
   )
   check(
-    "the visibilitychange recheck registers the full set once visible",
+    "becoming visible keeps the registered set intact (no duplicate registration)",
     afterVisible === EXPECTED_TOOLS.length,
     `tools after visible: ${afterVisible}`
   )
@@ -540,7 +574,7 @@ try {
   await perfPage.goto(`${BASE}/?perf=1`, { waitUntil: "networkidle" })
   await perfPage.waitForTimeout(2500)
   await callTool(perfPage, "describe_project")
-  await callTool(perfPage, "update_form", { heightMm: 210 })
+  await callTool(perfPage, "update_design", { heightMm: 210 })
   const perf = await perfPage.evaluate(async () => {
     const p = window.__webmcpPerf
     if (!p) return null
@@ -573,7 +607,7 @@ try {
     JSON.stringify(perf)
   )
   check(
-    "?perf=1 registers get_perf_report as the fifteenth tool and an agent can read the report through it",
+    "?perf=1 registers get_perf_report as the twelfth tool and an agent can read the report through it",
     perf !== null &&
       perf.registered === EXPECTED_TOOLS.length + 1 &&
       perf.registeredNames.includes("get_perf_report") &&
