@@ -1,0 +1,31 @@
+direction: down
+
+input: Tool input
+start: performance.now()
+execute: Await original execute()
+settle: performance.now()
+summary: Summarise result {
+  label: "Summarise result\nbytes · types · image bytes · errors"
+}
+span: Record span {
+  label: "Record span\nwall · blocking · gap · ~tokens"
+}
+views: Update ledger, listeners and DevTools measure
+
+input -> start -> execute -> settle -> summary -> span -> views
+
+*.style.border-radius: 14
+input.style.fill: "#dbeafe"
+input.style.stroke: "#2563eb"
+start.style.fill: "#ede9fe"
+start.style.stroke: "#7c3aed"
+execute.style.fill: "#d1fae5"
+execute.style.stroke: "#059669"
+settle.style.fill: "#ede9fe"
+settle.style.stroke: "#7c3aed"
+summary.style.fill: "#ffedd5"
+summary.style.stroke: "#ea580c"
+span.style.fill: "#fef3c7"
+span.style.stroke: "#d97706"
+views.style.fill: "#e0f2fe"
+views.style.stroke: "#0284c7"

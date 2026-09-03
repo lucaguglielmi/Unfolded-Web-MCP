@@ -105,6 +105,8 @@
     "build": "vite build && vite build -c vite.iife.config.ts && tsc -p tsconfig.build.json && tsc -p tsconfig.bench.json",
     "docs": "node scripts/gen-docs.mjs",
     "docs:check": "node scripts/gen-docs.mjs --check",
+    "page": "node scripts/build-page.mjs",
+    "diagrams": "d2 --layout=dagre --theme=4 --pad=36 diagrams/architecture.d2 diagrams/architecture.svg && d2 --layout=dagre --theme=4 --pad=36 diagrams/evidence-loop.d2 diagrams/evidence-loop.svg && d2 --layout=dagre --theme=4 --pad=36 diagrams/host-gap.d2 diagrams/host-gap.svg && d2 --layout=dagre --theme=4 --pad=36 diagrams/interception.d2 diagrams/interception.svg && d2 --layout=dagre --theme=4 --pad=36 diagrams/latency-split.d2 diagrams/latency-split.svg && d2 --layout=dagre --theme=4 --pad=36 diagrams/relay.d2 diagrams/relay.svg && d2 --layout=dagre --theme=4 --pad=36 diagrams/span-lifecycle.d2 diagrams/span-lifecycle.svg && npm run page",
     "size": "node scripts/size-check.mjs",
     "example": "vite preview --outDir examples --open /vanilla/",
     "prepublishOnly": "node scripts/prepublish-check.mjs && npm run build && publint && npm run docs:check && npm run size",

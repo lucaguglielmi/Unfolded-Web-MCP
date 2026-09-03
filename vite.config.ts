@@ -21,6 +21,20 @@ function applyEnvExampleDefaults(): void {
 }
 applyEnvExampleDefaults()
 
+/** Publish the profiler's self-contained explainer without duplicating its source. */
+function publishProfilerGuide() {
+  return {
+    name: "publish-profiler-guide",
+    apply: "build" as const,
+    closeBundle(): void {
+      const source = path.resolve(import.meta.dirname, "packages/webmcp-profiler/index.html")
+      const targetDir = path.resolve(import.meta.dirname, "dist/webmcp-profiler")
+      fs.mkdirSync(targetDir, { recursive: true })
+      fs.copyFileSync(source, path.join(targetDir, "index.html"))
+    },
+  }
+}
+
 // https://vite.dev/config/
 const profilerVersion = JSON.parse(
   fs.readFileSync(new URL("./packages/webmcp-profiler/package.json", import.meta.url), "utf8")
@@ -28,7 +42,7 @@ const profilerVersion = JSON.parse(
 
 export default defineConfig({
   define: { __WEBMCP_PROFILER_VERSION__: JSON.stringify(profilerVersion) },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), publishProfilerGuide()],
   test: {
     // agent worktrees live under .claude/ (git-ignored); their copies of
     // the suites must not run against this tree's sources

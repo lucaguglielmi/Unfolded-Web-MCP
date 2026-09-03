@@ -9,6 +9,10 @@ tool surfaces. One import, zero dependencies, no framework: it wraps whatever
 `modelContext` registry a host injects, however late, and measures every tool
 call the page serves. It also lets the *agent* read the numbers, through a tool.
 
+For a visual explanation of the architecture, measurements, relay,
+privacy model, current limits, and roadmap, open
+[`index.html`](./index.html) from this package folder.
+
 ## Why
 
 "WebMCP is slow" is three different problems wearing one coat:

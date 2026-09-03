@@ -1,0 +1,46 @@
+direction: down
+
+attach: attachProfiler() starts
+host: Has modelContext appeared? {
+  shape: diamond
+}
+poll: Check document, navigator and window every 250 ms
+patch: Patch registerTool and provideContext
+timing: Was the profiler attached before registration? {
+  shape: diamond
+}
+automatic: Every newly registered tool is wrapped automatically
+retrofit: Call instrument(siteToolMap) for already registered tools
+invoke: Any caller invokes the same wrapped execute function
+detach: detach() restores tools, host methods and observers
+
+attach -> host
+host -> patch: Yes
+host -> poll: Not yet
+poll -> host: Keep watching
+patch -> timing
+timing -> automatic: Yes
+timing -> retrofit: No
+automatic -> invoke
+retrofit -> invoke
+invoke -> detach: When profiling ends
+
+*.style.border-radius: 14
+attach.style.fill: "#dbeafe"
+attach.style.stroke: "#2563eb"
+host.style.fill: "#fef3c7"
+host.style.stroke: "#d97706"
+poll.style.fill: "#f5f5f4"
+poll.style.stroke: "#78716c"
+patch.style.fill: "#ede9fe"
+patch.style.stroke: "#7c3aed"
+timing.style.fill: "#fef3c7"
+timing.style.stroke: "#d97706"
+automatic.style.fill: "#d1fae5"
+automatic.style.stroke: "#059669"
+retrofit.style.fill: "#ffedd5"
+retrofit.style.stroke: "#ea580c"
+invoke.style.fill: "#e0f2fe"
+invoke.style.stroke: "#0284c7"
+detach.style.fill: "#f5f5f4"
+detach.style.stroke: "#78716c"

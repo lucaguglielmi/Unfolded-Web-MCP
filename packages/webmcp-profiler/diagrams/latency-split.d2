@@ -1,0 +1,36 @@
+direction: down
+
+request: Agent starts a task
+call: WebMCP tool call
+compute: Page compute {
+  label: "Page compute\nexecute() wall time"
+}
+payload: Payload cost {
+  label: "Payload cost\nbytes + estimated tokens"
+}
+gap: Host + model wait {
+  label: "Host + model wait\nsettled → next call"
+}
+answer: Evidence, not a guess
+
+request -> call
+call -> compute: measure execution
+call -> payload: weigh result
+call -> gap: bracket orchestration
+compute -> answer
+payload -> answer
+gap -> answer
+
+*.style.border-radius: 14
+request.style.fill: "#dbeafe"
+request.style.stroke: "#2563eb"
+call.style.fill: "#ede9fe"
+call.style.stroke: "#7c3aed"
+compute.style.fill: "#d1fae5"
+compute.style.stroke: "#059669"
+payload.style.fill: "#ffedd5"
+payload.style.stroke: "#ea580c"
+gap.style.fill: "#fef3c7"
+gap.style.stroke: "#d97706"
+answer.style.fill: "#e0f2fe"
+answer.style.stroke: "#0284c7"
