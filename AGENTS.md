@@ -74,6 +74,10 @@ and `docs/webmcp-profiler-spec.md`.
 a source of new requirements.
 Do not add new implementation details to retrospective reports or release
 records.
+`docs/explorations/` holds ideas that are **not approved**: never a
+source of requirements, never to be implemented unless the repository
+owner explicitly decides to proceed. Do not cite an exploration from
+code, tests, guards, or agent-facing copy.
 
 ## Releasing the package
 
