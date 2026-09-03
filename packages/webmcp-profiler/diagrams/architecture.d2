@@ -1,0 +1,34 @@
+direction: down
+
+host: WebMCP host registry {
+  label: "WebMCP host\ndocument · navigator · window"
+}
+interceptor: Interceptor {
+  label: "Interceptor\npatch registration + wrap execute"
+}
+tool: Site tool {
+  label: "Original tool\ninput → execute → result"
+}
+collector: Collector {
+  label: "Collector\n500-span ring buffer + ledger"
+}
+surfaces: Surfaces {
+  label: "Surfaces\noverlay · console · JSON · DevTools"
+}
+
+host -> interceptor: registerTool / provideContext
+interceptor -> tool: transparent wrapper
+tool -> collector: timing + size metadata
+collector -> surfaces: live and exportable evidence
+
+*.style.border-radius: 14
+host.style.fill: "#ede9fe"
+host.style.stroke: "#7c3aed"
+interceptor.style.fill: "#dbeafe"
+interceptor.style.stroke: "#2563eb"
+tool.style.fill: "#d1fae5"
+tool.style.stroke: "#059669"
+collector.style.fill: "#ffedd5"
+collector.style.stroke: "#ea580c"
+surfaces.style.fill: "#e0f2fe"
+surfaces.style.stroke: "#0284c7"

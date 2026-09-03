@@ -1,0 +1,38 @@
+direction: down
+
+hidden: Hidden agent tab {
+  label: "Hidden agent tab\nprofiler records spans"
+}
+safe: Span metadata only {
+  label: "Span metadata only\nno input or result bodies"
+}
+channel: BroadcastChannel {
+  label: "BroadcastChannel\nwebmcp-perf:<origin>"
+}
+visible: Visible same-origin tab
+overlay: Live overlay
+caveat: Separate browsing context? {
+  shape: diamond
+}
+future: WebSocket relay is planned, not shipped
+
+hidden -> safe -> channel -> visible -> overlay
+hidden -> caveat
+caveat -> channel: Same context
+caveat -> future: Cannot bridge
+
+*.style.border-radius: 14
+hidden.style.fill: "#ede9fe"
+hidden.style.stroke: "#7c3aed"
+safe.style.fill: "#d1fae5"
+safe.style.stroke: "#059669"
+channel.style.fill: "#dbeafe"
+channel.style.stroke: "#2563eb"
+visible.style.fill: "#e0f2fe"
+visible.style.stroke: "#0284c7"
+overlay.style.fill: "#d1fae5"
+overlay.style.stroke: "#059669"
+caveat.style.fill: "#fef3c7"
+caveat.style.stroke: "#d97706"
+future.style.fill: "#f5f5f4"
+future.style.stroke: "#78716c"
