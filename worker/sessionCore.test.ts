@@ -82,6 +82,14 @@ describe("SessionCore apply", () => {
     expect(core.apply("garbage").ok).toBe(false)
     expect(core.version).toBe(0)
   })
+
+  it("rejects inherited paper names instead of poisoning the session state", () => {
+    const core = new SessionCore()
+    core.bootstrap(fullSlice())
+    expect(core.apply({ paperSize: "toString" }).ok).toBe(false)
+    expect(core.state.paperSize).toBe("Letter")
+    expect(core.version).toBe(0)
+  })
 })
 
 describe("parseHello", () => {

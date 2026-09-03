@@ -17,7 +17,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 const { mintToken, mintCode, joinWithCode } = vi.hoisted(() => ({
   mintToken: vi.fn<() => Promise<{ token: string; expiresAt: number } | null>>(),
   mintCode: vi.fn<() => Promise<{ code: string; expiresAt: number } | null>>(),
-  joinWithCode: vi.fn<() => Promise<{ ok: boolean; retryable?: boolean }>>(),
+  joinWithCode: vi.fn<(code: string, signal?: AbortSignal) => Promise<{ ok: boolean; retryable?: boolean }>>(),
 }))
 
 vi.mock("@/store/syncClient", async (importOriginal) => {
@@ -323,6 +323,37 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
       ok: false,
       message: "Cancelled by the host before completing — no changes were made.",
     })
+  })
+
+  it("join cancellation after the claim returns the cancellation result", async () => {
+    const controller = new AbortController()
+    joinWithCode.mockImplementationOnce(async (_code, signal) => {
+      expect(signal).toBe(controller.signal)
+      controller.abort()
+      return { ok: false, retryable: false }
+    })
+    const result = await tool("join_session").execute({ code: "K7F-3QP" }, { signal: controller.signal })
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent).toEqual({
+      ok: false,
+      message: "Cancelled by the host before completing — no changes were made.",
+    })
+  })
+
+  it("export cancellation does not commit an optional paper-size change", async () => {
+    let finish!: (value: { pages: number; paper: "A3"; rows: number; cols: number }) => void
+    useProjectStore.setState({
+      exportPdf: () => new Promise((resolve) => { finish = resolve }) as never,
+    })
+    const controller = new AbortController()
+    const pending = tool("export_templates").execute({ paperSize: "A3" }, { signal: controller.signal })
+    await Promise.resolve()
+    controller.abort()
+    finish({ pages: 3, paper: "A3", rows: 1, cols: 2 })
+    const result = await pending
+    expect(result.isError).toBe(true)
+    expect(result.structuredContent?.ok).toBe(false)
+    expect(useProjectStore.getState().paperSize).toBe("A4")
   })
 
   it("measures text vs structured payload bytes (recorded in docs/performance-report.md)", async () => {

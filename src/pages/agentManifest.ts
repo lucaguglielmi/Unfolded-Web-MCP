@@ -147,6 +147,7 @@ export function buildAgentManifest(): Record<string, unknown> {
           hello: { protocolVersion: "number", clientId: "string", actor: "'human'|'agent'", state: "DesignSlice? (first-contact bootstrap only)" },
           patch: { patchId: "string", baseVersion: "number", patches: "SharePatches" },
           mint_code: {},
+          mint_token: {},
           bye: {},
         },
         serverToClient: {
@@ -155,6 +156,7 @@ export function buildAgentManifest(): Record<string, unknown> {
           resync: { state: "DesignSlice", version: "number" },
           presence: { peers: "number" },
           code: { code: "string", expiresAt: "epoch ms" },
+          token: { token: "string", expiresAt: "epoch ms" },
           error: { code: "string", message: "string" },
         },
       },

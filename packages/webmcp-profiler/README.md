@@ -12,6 +12,10 @@ call the page serves. It also lets the *agent* read the numbers, through a tool.
 **[Open the visual guide →](https://tryunfolded.com/webmcp-profiler/)** —
 architecture, measurements, relay, privacy, limitations, and roadmap.
 
+For a visual explanation of the architecture, measurements, relay,
+privacy model, current limits, and roadmap, open
+[`index.html`](./index.html) from this package folder.
+
 ## Why
 
 "WebMCP is slow" is three different problems wearing one coat:

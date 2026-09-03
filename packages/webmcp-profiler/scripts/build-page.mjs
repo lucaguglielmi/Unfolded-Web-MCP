@@ -9,6 +9,9 @@ const outputPath = join(packageRoot, "index.html")
 
 let html = await readFile(templatePath, "utf8")
 const css = await readFile(cssPath, "utf8")
+const { version } = JSON.parse(await readFile(join(packageRoot, "package.json"), "utf8"))
+
+html = html.replaceAll("__WEBMCP_PROFILER_VERSION__", version)
 
 html = html.replace(
   '    <link rel="stylesheet" href="./profiler.css" />',

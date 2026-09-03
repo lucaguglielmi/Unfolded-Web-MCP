@@ -39,4 +39,12 @@ describe("profiler manifest", () => {
     profiler.detach()
     host.uninstall()
   })
+
+  it("documents both pairing mint messages supported by the worker", () => {
+    const manifest = buildAgentManifest() as {
+      liveSync: { transport: { clientToServer: Record<string, unknown>; serverToClient: Record<string, unknown> } }
+    }
+    expect(manifest.liveSync.transport.clientToServer).toHaveProperty("mint_token")
+    expect(manifest.liveSync.transport.serverToClient).toHaveProperty("token")
+  })
 })

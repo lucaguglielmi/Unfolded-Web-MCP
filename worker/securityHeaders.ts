@@ -25,7 +25,10 @@ export function securityHeaders(requestUrl: URL): Record<string, string> {
   const host = requestUrl.host
   const csp = [
     "default-src 'self'",
-    "script-src 'self' https://static.cloudflareinsights.com",
+    // The profiler guide is intentionally self-contained and has one inline
+    // clipboard handler. Keep its exact hash here so the deployed guide works
+    // without weakening script-src to unsafe-inline.
+    "script-src 'self' 'sha256-E/t7skD8zO/p7pLoNjuqxsVh7kDieOfw8/z60LMNIbQ=' https://static.cloudflareinsights.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",

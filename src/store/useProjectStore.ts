@@ -161,7 +161,7 @@ export function createProjectStore({
      * locally to the human, the tool as an isError result to the agent), so
      * one actor's failure never leaks into the other's UI.
      */
-    exportPdf: () => Promise<ExportResult>
+    exportPdf: (paperOverride?: PaperSize) => Promise<ExportResult>
   }
 
   return create<ProjectState>()(subscribeWithSelector((set, get) => ({
@@ -290,10 +290,11 @@ export function createProjectStore({
     // flip the badge too, regardless of how/when the host injected the API.
     recordAgentCall: (tool) =>
       set({ lastAgentCall: { tool, at: Date.now() }, agentStatus: "native" }),
-    exportPdf: async () => {
+    exportPdf: async (paperOverride) => {
       set((state) => ({ exportsInFlight: state.exportsInFlight + 1 }))
       try {
-        const { form, clay, paperSize, unit } = get()
+        const { form, clay, paperSize: currentPaperSize, unit } = get()
+        const paperSize = paperOverride ?? currentPaperSize
         const pieces = buildPieces(form, clay)
         const { exportTemplatesPdf } = await loadPdfModule()
         return await exportTemplatesPdf({

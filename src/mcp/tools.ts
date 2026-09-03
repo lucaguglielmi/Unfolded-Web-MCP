@@ -378,10 +378,12 @@ export function buildTools(): ToolDescriptor[] {
         useProjectStore.getState().recordAgentCall("export_templates")
         try {
           const { paperSize } = exportTemplatesInput.parse(input ?? {})
-          if (paperSize) useProjectStore.getState().setPaperSize(paperSize)
-          // last safe point: past here the PDF generates and downloads
+          // Export against the requested paper without mutating design state
+          // until the irreversible download has succeeded. A cancellation or
+          // exporter failure therefore cannot leave a phantom paper-size edit.
+          const result = await useProjectStore.getState().exportPdf(paperSize)
           if (options?.signal?.aborted) return cancelledResult()
-          const result = await useProjectStore.getState().exportPdf()
+          if (paperSize) useProjectStore.getState().setPaperSize(paperSize)
           const message =
             `PDF downloaded in the potter's browser: ${result.pages} pages on ${result.paper} ` +
             `(1 overview + ${result.pages - 1} template pages in a ${result.rows}x${result.cols} grid). ` +
@@ -481,6 +483,7 @@ export function buildTools(): ToolDescriptor[] {
           // the signal reaches the claim fetch; a cancel aborts the network
           // call and joinWithCode commits nothing afterwards
           const joined = await liveSync.joinWithCode(code, options?.signal)
+          if (options?.signal?.aborted) return cancelledResult()
           if (!joined.ok) {
             return joined.retryable
               ? plainError("The pairing service is busy — wait a minute and try once more.")
@@ -493,6 +496,7 @@ export function buildTools(): ToolDescriptor[] {
           // the session's design arrives with the welcome — wait for it so
           // the returned state is the adopted one
           await liveSync.whenSyncing(8_000)
+          if (options?.signal?.aborted) return cancelledResult()
           const others = Math.max(0, liveSync.peers() - 1)
           return stateResult(`Joined live session — now syncing with ${others} other device(s).`)
         } catch (error) {

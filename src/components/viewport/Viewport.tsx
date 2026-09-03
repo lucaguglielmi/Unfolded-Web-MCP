@@ -3,6 +3,7 @@ import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { ContactShadows, Grid, Html, Line, OrbitControls } from "@react-three/drei"
 import { cn } from "@/lib/utils"
+import { firedWallMm } from "@/lib/geometry/unroll"
 import { registerPreviewCanvas } from "@/lib/previewCapture"
 import { useTheme, type Theme } from "@/lib/theme"
 import { formatLength, type Unit } from "@/lib/units"
@@ -274,6 +275,7 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
   const theme = useTheme()
   const form = useProjectStore((s) => s.form)
   const wallThicknessMm = useProjectStore((s) => s.clay.wallThicknessMm)
+  const shrinkagePct = useProjectStore((s) => s.clay.shrinkagePct)
   const unit: Unit = useProjectStore((s) => s.unit)
 
   // A faceted form is a lathe with exactly N revolution segments; flat
@@ -294,7 +296,9 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
     const maxDim = Math.max(form.heightMm, 2 * Math.max(topR, bottomR))
     const s = TARGET_SIZE / maxDim
 
-    const t = Math.min(wallThicknessMm, Math.min(topR, bottomR) - 1) * s
+    // Form dimensions are fired targets; wallThicknessMm is the wet slab.
+    // The preview must use the same fired wall as capacity and warnings.
+    const t = Math.min(firedWallMm({ shrinkagePct, wallThicknessMm }), Math.min(topR, bottomR) - 1) * s
     const h = form.heightMm * s
     const oTop = topR * s
     const oBot = bottomR * s
@@ -320,7 +324,7 @@ function Scene({ measurementsMode }: { measurementsMode: MeasurementsMode }) {
       halfBot: oBot,
       maxHalf: Math.max(oTop, oBot),
     }
-  }, [form, wallThicknessMm])
+  }, [form, wallThicknessMm, shrinkagePct])
 
   // flatShading is baked into compiled materials, so key meshes on the mode
   const meshKey = `${isFaceted}-${radialSegments}`

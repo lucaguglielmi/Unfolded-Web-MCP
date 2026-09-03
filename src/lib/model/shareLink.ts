@@ -151,7 +151,7 @@ export function sanitizeSharePatches(raw: unknown): SharePatches | null {
   const out: SharePatches = {}
   if (typeof r.form === "object" && r.form !== null) out.form = r.form as SharePatches["form"]
   if (typeof r.clay === "object" && r.clay !== null) out.clay = r.clay as SharePatches["clay"]
-  if (typeof r.paperSize === "string" && r.paperSize in PAPERS) {
+  if (typeof r.paperSize === "string" && Object.prototype.hasOwnProperty.call(PAPERS, r.paperSize)) {
     out.paperSize = r.paperSize as PaperSize
   }
   if (isUnit(r.unit)) out.unit = r.unit

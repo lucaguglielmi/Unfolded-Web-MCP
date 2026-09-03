@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { buildShareParams, parseShareParams, shareUrl } from "./shareLink"
+import { buildShareParams, parseShareParams, sanitizeSharePatches, shareUrl } from "./shareLink"
 import { DEFAULT_CLAY, PRESETS } from "./schemas"
 
 describe("parseShareParams", () => {
@@ -85,6 +85,14 @@ describe("parseShareParams", () => {
     expect(parseShareParams("units=metric").unit).toBe("cm")
     expect(parseShareParams("units=furlongs").unit).toBeUndefined()
     expect(parseShareParams("height=110").unit).toBeUndefined()
+  })
+})
+
+describe("sanitizeSharePatches", () => {
+  it("accepts only own paper names, not Object.prototype properties", () => {
+    expect(sanitizeSharePatches({ paperSize: "A4" })).toEqual({ paperSize: "A4" })
+    expect(sanitizeSharePatches({ paperSize: "toString" })).toBeNull()
+    expect(sanitizeSharePatches({ paperSize: "constructor" })).toBeNull()
   })
 })
 

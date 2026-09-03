@@ -184,7 +184,10 @@ async function defaultClaimCode(code: string, signal?: AbortSignal): Promise<Cla
       sid: typeof record.sid === "string" ? record.sid : undefined,
       retryable: record.retryable === true,
     }
-  } catch {
+  } catch (error) {
+    if (signal?.aborted || (error instanceof Error && error.name === "AbortError")) {
+      return { ok: false, retryable: false }
+    }
     // no /api here, or the network blinked — worth another try
     return { ok: false, retryable: true }
   }
