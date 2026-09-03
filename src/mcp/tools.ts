@@ -43,7 +43,7 @@ export const TOOL_SUMMARIES: { name: string; blurb: string; conditional?: true }
   { name: "apply_preset", blurb: "Start from a classic mug, tumbler, bud vase, or hex planter." },
   { name: "create_live_handoff", blurb: "Mint the single-use link that continues this design live on the potter's screen — the default link after any edit." },
   { name: "join_session", blurb: "Pair this tab into a live session with the 6-character code from the potter's other device." },
-  { name: "start_pairing", blurb: "Mint a 6-character code so the potter's other device can join THIS design live." },
+  { name: "start_pairing", blurb: "Mint a 6-character code (and a tappable link) so the potter's other device can join THIS design live." },
   { name: "undo_last_change", blurb: "Revert the last change — the agent's or the potter's." },
   {
     name: "get_perf_report",
@@ -507,7 +507,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "start_pairing",
       description:
-        "Mint a 6-character pairing code for THIS tab's session and tell it to the potter. Entered on their other device (connection button → Continue on another screen), that device then FOLLOWS this design — use it when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop'. Valid 15 minutes, one use; both devices stay live peers. Returns the full state.",
+        "Mint a 6-character pairing code for THIS tab's session and tell it to the potter — also mint and give them a liveHandoffUrl link that does the same thing in one tap. Entered on their other device (connection button → Continue on another screen), or opened as a link, that device then FOLLOWS this design — use it when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop', 'pair from here'. Valid 15 minutes, one use; both devices stay live peers. Returns the full state.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Start device pairing",
       annotations: { title: "Start device pairing" },
@@ -515,9 +515,13 @@ export function buildTools(): ToolDescriptor[] {
         if (options?.signal?.aborted) return cancelledResult()
         useProjectStore.getState().recordAgentCall("start_pairing")
         try {
-          const minted = await liveSync.mintCode()
-          // a cancel that lands mid-mint: the unused code simply expires
-          // and the never-peered session forgets itself (solo grace)
+          // the code and the link are two independent mints for the same
+          // session — always attempt both together (the in-app "Continue
+          // on another screen" dialog does the same), so the potter never
+          // gets the code alone when a tappable link was also possible
+          const [minted, handoff] = await Promise.all([liveSync.mintCode(), createLiveHandoff()])
+          // a cancel that lands mid-mint: the unused code/token simply
+          // expires and the never-peered session forgets itself (solo grace)
           if (options?.signal?.aborted) return cancelledResult()
           if (!minted) {
             return stateError(
@@ -526,11 +530,19 @@ export function buildTools(): ToolDescriptor[] {
               "Current state"
             )
           }
-          return stateResult(
+          const message =
             `Pairing code: ${prettyCode(minted.code)} — valid 15 minutes, one use. ` +
-              "On the other device: the connection button (two dots in the header) → Continue on another screen → " +
-              "Enter a code from another screen → type this code. " +
-              "That device will adopt this design; afterwards edits sync both ways."
+            "On the other device: the connection button (two dots in the header) → Continue on another screen → " +
+            "Enter a code from another screen → type this code." +
+            (handoff
+              ? ` Or, faster, send them this link and one tap does the same thing: ${handoff.liveHandoffUrl}`
+              : "") +
+            " That device will adopt this design; afterwards edits sync both ways."
+          const state = describeState()
+          return textResult(
+            stateText(message, state),
+            false,
+            structured(true, message, state, handoff ? { liveHandoffUrl: handoff.liveHandoffUrl } : undefined)
           )
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
