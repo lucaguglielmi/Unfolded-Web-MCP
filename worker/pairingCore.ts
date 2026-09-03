@@ -50,6 +50,10 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{20,64}$/
 export const DEFAULT_PER_IP_PER_MINUTE = 10
 /** claims allowed globally per second (production value) */
 export const DEFAULT_GLOBAL_PER_SECOND = 100
+/** the per-IP sliding window */
+const IP_WINDOW_MS = 60_000
+/** the global sliding window */
+const GLOBAL_WINDOW_MS = 1_000
 
 /**
  * Both limits are constructor options so a local test run — where every
@@ -114,6 +118,8 @@ export class PairingCore {
   private codes = new Map<string, CodeRecord>()
   private globalClaims: number[] = []
   private ipClaims = new Map<string, number[]>()
+  /** when the per-IP table was last swept of idle addresses */
+  private ipClaimsPrunedAt = 0
   /** test seam only: a [0,1) source that replaces the CSPRNG for rigged codes */
   private readonly random: (() => number) | null
   private readonly perIpPerMinute: number
@@ -159,15 +165,23 @@ export class PairingCore {
   }
 
   claim(rawCode: string, ip: string, now: number): ClaimResult {
-    // throttle before touching the table, so probing is bounded whatever
-    // is probed
-    this.globalClaims = this.globalClaims.filter((t) => now - t < 1_000)
-    if (this.globalClaims.length >= this.globalPerSecond) return { ok: false, reason: "rate_limited" }
-    this.globalClaims.push(now)
-    const perIp = (this.ipClaims.get(ip) ?? []).filter((t) => now - t < 60_000)
-    if (perIp.length >= this.perIpPerMinute) return { ok: false, reason: "rate_limited" }
+    // Throttle before touching the table, so probing is bounded whatever
+    // is probed. The per-IP budget is checked FIRST and charged for every
+    // attempt that passes it: a flooding address exhausts only its own
+    // window, and the shared global budget is spent only by claims that
+    // got through the per-IP gate — so one address can never lock every
+    // other claimer out of pairing.
+    this.pruneIpClaims(now)
+    const perIp = (this.ipClaims.get(ip) ?? []).filter((t) => now - t < IP_WINDOW_MS)
+    if (perIp.length >= this.perIpPerMinute) {
+      this.ipClaims.set(ip, perIp) // the window slid; keep only what still counts
+      return { ok: false, reason: "rate_limited" }
+    }
     perIp.push(now)
     this.ipClaims.set(ip, perIp)
+    this.globalClaims = this.globalClaims.filter((t) => now - t < GLOBAL_WINDOW_MS)
+    if (this.globalClaims.length >= this.globalPerSecond) return { ok: false, reason: "rate_limited" }
+    this.globalClaims.push(now)
 
     // a claim is either a 6-glyph code (normalized) or a join token
     // (matched verbatim) — one table, shape-discriminated, uniform misses
@@ -180,8 +194,31 @@ export class PairingCore {
     return { ok: true, sid: record.sid }
   }
 
+  /**
+   * Forget addresses whose whole window has slid past, so the table holds
+   * only IPs seen in the last minute rather than every IP that ever
+   * claimed. Amortized: a full pass at most once per window, since it
+   * runs on the claim path (a claim-only attacker never triggers a mint
+   * or an alarm sweep).
+   */
+  private pruneIpClaims(now: number): void {
+    if (now - this.ipClaimsPrunedAt < IP_WINDOW_MS) return
+    this.ipClaimsPrunedAt = now
+    for (const [ip, times] of this.ipClaims) {
+      const live = times.filter((t) => now - t < IP_WINDOW_MS)
+      if (live.length === 0) this.ipClaims.delete(ip)
+      else this.ipClaims.set(ip, live)
+    }
+  }
+
+  /** addresses currently tracked by the per-IP limiter (a memory bound, for tests) */
+  trackedIps(): number {
+    return this.ipClaims.size
+  }
+
   /** drop expired codes; returns whether anything changed (worth persisting) */
   sweep(now: number): boolean {
+    this.pruneIpClaims(now)
     let changed = false
     for (const [code, record] of this.codes) {
       if (record.expiresAt <= now) {

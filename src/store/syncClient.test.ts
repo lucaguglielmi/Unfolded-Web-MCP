@@ -219,6 +219,18 @@ describe("createSyncClient", () => {
     expect(socket.sentOfKind("hello")).toHaveLength(2)
   })
 
+  it("asks for one resync per gap, however many patches arrive before the snapshot", () => {
+    startSynced(3)
+    for (const version of [9, 10, 11, 12]) {
+      socket.receive({ kind: "patch", version, clientId: "tab-b", patches: { form: { heightMm: 100 + version } } })
+    }
+    expect(socket.sentOfKind("hello")).toHaveLength(2) // the connect hello + one resync
+    // the snapshot lands: the next gap is a new gap and earns a new request
+    socket.receive({ kind: "resync", state: slice(store), version: 12, peers: 2 })
+    socket.receive({ kind: "patch", version: 20, clientId: "tab-b", patches: { form: { heightMm: 120 } } })
+    expect(socket.sentOfKind("hello")).toHaveLength(3)
+  })
+
   it("sanitizes foreign shapes in peer patches", () => {
     startSynced(3)
     socket.receive({

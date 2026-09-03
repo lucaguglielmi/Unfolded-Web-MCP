@@ -22,6 +22,14 @@ describe("formatVolume", () => {
     expect(formatVolume(12000, "cm")).toBe("12 L")
   })
 
+  it("keeps the zeros of whole liters (10 L is not 1 L)", () => {
+    expect(formatVolume(10000, "cm")).toBe("10 L")
+    expect(formatVolume(20000, "cm")).toBe("20 L")
+    expect(formatVolume(100000, "cm")).toBe("100 L")
+    expect(formatVolume(1000, "cm")).toBe("1 L")
+    expect(formatVolume(2957.35, "in")).toBe("100 fl oz")
+  })
+
   it("uses US fluid ounces in imperial mode", () => {
     expect(formatVolume(355, "in")).toBe("12 fl oz")
     expect(formatVolume(29.5735, "in")).toBe("1 fl oz")

@@ -57,7 +57,8 @@ export function buildAgentManifest(): Record<string, unknown> {
       invariants: [
         "all tool I/O lengths are millimeters of the FIRED piece; volumes are milliliters",
         "templates are wet-clay sizes: every dimension is scaled by 1/(1 - shrinkagePct/100)",
-        "round walls develop on the slab mid-surface: radius used is r_outer - wallThicknessMm/2",
+        "wallThicknessMm is the WET slab as rolled (the only non-fired input); templates subtract it from wet outer sizes, the interior subtracts the fired wall wallThicknessMm*(1 - shrinkagePct/100) from fired outer sizes",
+        "round walls develop on the slab mid-surface: radius used is wet r_outer - wallThicknessMm/2",
         "faceted walls are flat panels cut to the outer face; the corner miter absorbs thickness",
         "straight forms mirror topDiameterMm = bottomDiameterMm; turning taper on without an explicit top flares it to min(300, round(bottom * 1.4))",
         "interior capacity is linear in heightMm at fixed diameters — set_capacity solves it exactly, never iterate",

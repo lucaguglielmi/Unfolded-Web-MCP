@@ -136,8 +136,15 @@ mint/claim asymmetry exists only at pairing time.
 ### 4.5 Abuse resistance (why 6 characters is enough)
 
 30 bits is protected by process, not entropy: 15-minute TTL, single use,
-claim rate limits (per-IP: 10 claims/min at the worker; global: PairingDO
-rejects when >100 claims/s). A wrong code is a uniform miss: unknown,
+claim rate limits (per-IP: 10 claims/min; global: PairingDO rejects when
+>100 claims/s — both enforced inside `PairingCore`, the worker only
+forwards the connecting IP). The per-IP gate is checked first and charged
+for every attempt that passes it; the global budget is spent only by
+claims that got through their per-IP gate, so a single flooding address
+exhausts its own minute and nothing else — it cannot lock every other
+claimer out. Addresses leave the per-IP table once their window has slid
+(pruned on the claim path and on the alarm sweep), so the singleton holds
+a minute of addresses, not a history. A wrong code is a uniform miss: unknown,
 expired, already-used, and malformed all answer the same 404, so there is no
 oracle for "exists but expired". Resolution is a hash-map lookup on the
 normalized code, not a byte-wise string compare, so there is no comparison
@@ -361,10 +368,12 @@ JSON text frames, `protocolVersion: 1` in `hello`. Unknown kinds/fields
 ignored (same forgiving posture as share-link parsing).
 
 Client → server (SessionDO socket): `hello {protocolVersion, clientId,
-actor, state?}` — `state` is the tab's design slice, used only for
-first-contact bootstrap so an eagerly created session adopts the minting
-tab's design instead of a default mug (ignored once the session is
-initialized) · `patch {patchId, baseVersion, patches: SharePatches}` ·
+actor, state?}` — `clientId` is at most 64 characters and `actor` is
+`human` or `agent` (anything else closes the socket with 1008: the id is
+stored in the socket's hibernation attachment, which the runtime caps);
+`state` is the tab's design slice, used only for first-contact bootstrap
+so an eagerly created session adopts the minting tab's design instead of
+a default mug (ignored once the session is initialized) · `patch {patchId, baseVersion, patches: SharePatches}` ·
 `mint_code {}` (reply `code`) · `bye {}`.
 
 Server → client: `welcome {state, version, peers}` · `patch {version,

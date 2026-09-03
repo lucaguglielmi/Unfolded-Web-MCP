@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { profilerTool } from "@/profiler/tool"
 import { capacityMl, heightForCapacityMl } from "@/lib/geometry/unroll"
-import { setClayInputSchema, updateFormInputSchema, PRESETS } from "@/lib/model/schemas"
+import { setClayInputSchema, updateFormToolInputSchema, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
 import { capturePreviewImage } from "@/lib/previewCapture"
 import { liveSync } from "@/store/syncClient"
@@ -146,6 +146,35 @@ function toInputSchema(schema: z.ZodType): Record<string, unknown> {
   return json
 }
 
+/**
+ * Each tool's input contract, declared ONCE: the same zod object is
+ * advertised to the host (as JSON Schema) and enforced on the call, so
+ * the bounds an agent reads and the bounds it hits can never drift apart.
+ * update_form and set_clay use the model's own schemas the same way.
+ */
+const PRESET_IDS = Object.keys(PRESETS) as [string, ...string[]]
+const openModelInput = z.object({
+  url: z.string().min(1).describe("Share link URL, or just its query string"),
+})
+const setUnitsInput = z.object({ units: z.enum(["cm", "in"]) })
+const setCapacityInput = z.object({
+  capacityMl: z
+    .number()
+    .min(1)
+    .max(200000)
+    .describe("Target capacity in ml, e.g. 350 for a mug"),
+})
+const exportTemplatesInput = z.object({
+  paperSize: z.enum(["A4", "A3", "Letter"]).optional(),
+})
+const applyPresetInput = z.object({ preset: z.enum(PRESET_IDS) })
+const joinSessionInput = z.object({
+  code: z
+    .string()
+    .min(1)
+    .describe("Code from the potter's other device (case and dashes ignored)"),
+})
+
 /** the one consistent shape for a host-cancelled call */
 function cancelledResult(): ToolResult {
   const message = "Cancelled by the host before completing — no changes were made."
@@ -200,16 +229,12 @@ export function buildTools(): ToolDescriptor[] {
       name: "open_model",
       description:
         "Open a design from an Unfolded share link — the full URL or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Keys: type, height/bottom/top (fired mm), name, shrinkage (%), wall (mm), paper (A4/A3/Letter). Missing keys keep current values; out-of-range values clamp. Returns the full new state." + LINK_RULE,
-      inputSchema: toInputSchema(
-        z.object({
-          url: z.string().min(1).describe("Share link URL, or just its query string"),
-        })
-      ),
+      inputSchema: toInputSchema(openModelInput),
       title: "Open model from link",
       annotations: { title: "Open model from link" },
       execute: (input, options) =>
         run("open_model", options, () => {
-          const { url } = z.object({ url: z.string().min(1) }).parse(input ?? {})
+          const { url } = openModelInput.parse(input ?? {})
           const patches = parseShareParams(url)
           if (!patches.form && !patches.clay && !patches.paperSize) {
             return stateError(
@@ -226,12 +251,14 @@ export function buildTools(): ToolDescriptor[] {
       name: "update_form",
       description:
         "Update any subset of the form: type, tapered, facets, name, and the dimensions in FIRED millimeters (each documented in the schema). Shrinkage is applied to the templates automatically and the potter's 3D preview updates at once. Legacy type values 'cylinder' and 'tapered' are still accepted. Returns the full new state with capacityMl. For a target volume like 'a 350 ml mug', prefer set_capacity — it solves the height exactly." + LINK_RULE,
-      inputSchema: toInputSchema(updateFormInputSchema),
+      inputSchema: toInputSchema(updateFormToolInputSchema),
       title: "Update form dimensions",
       annotations: { title: "Update form dimensions" },
       execute: (input, options) =>
         run("update_form", options, () => {
-          // the store action validates with the same zod schema
+          // the store action normalizes the legacy type values and then
+          // validates with the model's schema — the advertised contract
+          // above admits exactly that set
           useProjectStore.getState().updateForm((input ?? {}) as UpdateFormInput)
           return stateResult("Form updated.")
         }),
@@ -253,16 +280,12 @@ export function buildTools(): ToolDescriptor[] {
       name: "set_units",
       description:
         "Display units: 'cm' (default) or 'in'. Display-only — UI, warnings, and the printed PDF change; tool inputs and outputs stay in millimeters regardless. Remembered in the browser and on share links. Returns the full new state." + LINK_RULE,
-      inputSchema: toInputSchema(
-        z.object({
-          units: z.enum(["cm", "in"]),
-        })
-      ),
+      inputSchema: toInputSchema(setUnitsInput),
       title: "Set measurement units",
       annotations: { title: "Set measurement units" },
       execute: (input, options) =>
         run("set_units", options, () => {
-          const { units } = z.object({ units: z.enum(["cm", "in"]) }).parse(input ?? {})
+          const { units } = setUnitsInput.parse(input ?? {})
           useProjectStore.getState().setUnit(units)
           return stateResult(`Measurement units set to ${units === "in" ? "inches" : "centimeters"}.`)
         }),
@@ -271,22 +294,12 @@ export function buildTools(): ToolDescriptor[] {
       name: "set_capacity",
       description:
         "Set the interior capacity in milliliters. Volume is linear in height, so this solves the exact height for the target — never iterate with update_form. If the height clamps to the buildable 20-600 mm range, the response reports the achievable capacity; adjust the diameters and call again. Returns the full new state." + LINK_RULE,
-      inputSchema: toInputSchema(
-        z.object({
-          capacityMl: z
-            .number()
-            .min(1)
-            .max(200000)
-            .describe("Target capacity in ml, e.g. 350 for a mug"),
-        })
-      ),
+      inputSchema: toInputSchema(setCapacityInput),
       title: "Set capacity",
       annotations: { title: "Set capacity" },
       execute: (input, options) =>
         run("set_capacity", options, () => {
-          const { capacityMl: target } = z
-            .object({ capacityMl: z.number().min(1).max(200000) })
-            .parse(input ?? {})
+          const { capacityMl: target } = setCapacityInput.parse(input ?? {})
           const { form, clay } = useProjectStore.getState()
           const solved = heightForCapacityMl(form, clay, target)
           if (solved === null) {
@@ -357,20 +370,14 @@ export function buildTools(): ToolDescriptor[] {
       description:
         "Export the printable template as a multi-page PDF, downloaded in the potter's browser — remind them to print at 100% scale and check the calibration ruler on page 1. Pages tile the true-scale template with 10 mm glue overlaps. Optionally set paperSize first. Returns the page count and the full new state." +
         LINK_RULE,
-      inputSchema: toInputSchema(
-        z.object({
-          paperSize: z.enum(["A4", "A3", "Letter"]).optional(),
-        })
-      ),
+      inputSchema: toInputSchema(exportTemplatesInput),
       title: "Export printable PDF",
       annotations: { title: "Export printable PDF" },
       execute: async (input, options) => {
         if (options?.signal?.aborted) return cancelledResult()
         useProjectStore.getState().recordAgentCall("export_templates")
         try {
-          const { paperSize } = z
-            .object({ paperSize: z.enum(["A4", "A3", "Letter"]).optional() })
-            .parse(input ?? {})
+          const { paperSize } = exportTemplatesInput.parse(input ?? {})
           if (paperSize) useProjectStore.getState().setPaperSize(paperSize)
           // last safe point: past here the PDF generates and downloads
           if (options?.signal?.aborted) return cancelledResult()
@@ -401,18 +408,12 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "apply_preset",
       description: "Start from a known-good preset (the enum lists them). Overwrites the current form and clay settings (undo_last_change reverts it). Returns the full new state." + LINK_RULE,
-      inputSchema: toInputSchema(
-        z.object({
-          preset: z.enum(Object.keys(PRESETS) as [string, ...string[]]),
-        })
-      ),
+      inputSchema: toInputSchema(applyPresetInput),
       title: "Apply a preset",
       annotations: { title: "Apply a preset" },
       execute: (input, options) =>
         run("apply_preset", options, () => {
-          const { preset } = z
-            .object({ preset: z.enum(Object.keys(PRESETS) as [string, ...string[]]) })
-            .parse(input ?? {})
+          const { preset } = applyPresetInput.parse(input ?? {})
           useProjectStore.getState().applyPreset(preset as keyof typeof PRESETS)
           return stateResult(`Preset '${preset}' applied.`)
         }),
@@ -453,21 +454,14 @@ export function buildTools(): ToolDescriptor[] {
       name: "join_session",
       description:
         "Pair this tab into a live session with the 6-character code from the potter's OTHER device, e.g. 'K7F-3QP'. This tab adopts that session's design (one undo step brings the previous one back); afterwards every edit on any device syncs within about a second. Codes expire in 15 minutes and work once — on failure ask for a fresh one. Returns the full state after joining.",
-      inputSchema: toInputSchema(
-        z.object({
-          code: z
-            .string()
-            .min(1)
-            .describe("Code from the potter's other device (case and dashes ignored)"),
-        })
-      ),
+      inputSchema: toInputSchema(joinSessionInput),
       title: "Join live session",
       annotations: { title: "Join live session" },
       execute: async (input, options) => {
         if (options?.signal?.aborted) return cancelledResult()
         useProjectStore.getState().recordAgentCall("join_session")
         try {
-          const { code: raw } = z.object({ code: z.string().min(1) }).parse(input ?? {})
+          const { code: raw } = joinSessionInput.parse(input ?? {})
           const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, "")
           if (!PAIR_CODE_RE.test(code)) {
             return stateError(

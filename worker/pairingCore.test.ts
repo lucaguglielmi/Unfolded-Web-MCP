@@ -80,6 +80,28 @@ describe("PairingCore", () => {
     expect(core.claim("AAAAAA", "fresh-ip", 1_600)).toEqual({ ok: false, reason: "invalid" })
   })
 
+  it("one flooding address cannot lock everyone else out", () => {
+    const core = new PairingCore()
+    // an attacker sending far more than the global budget from one IP
+    for (let i = 0; i < 500; i++) core.claim("AAAAAA", "flood", 100)
+    // …spent only its own per-minute window; the rest of the world claims on
+    const { code } = core.mint(SID, 100)
+    expect(core.claim(code, "potter", 100)).toEqual({ ok: true, sid: SID })
+    expect(core.claim("AAAAAA", "flood", 100)).toEqual({ ok: false, reason: "rate_limited" })
+  })
+
+  it("forgets addresses once their window has slid, bounding memory", () => {
+    const core = new PairingCore()
+    for (let i = 0; i < 1_000; i++) core.claim("AAAAAA", `ip${i}`, i)
+    expect(core.trackedIps()).toBeGreaterThan(0)
+    // a minute after the last of them, one more claim sweeps them all away
+    core.claim("AAAAAA", "late", 1_000 + 60_000)
+    expect(core.trackedIps()).toBe(1)
+    // the alarm sweep prunes too, for a table that has gone quiet
+    core.sweep(1_000 + 2 * 60_000 + 1)
+    expect(core.trackedIps()).toBe(0)
+  })
+
   it("takes both claim limits as constructor options, defaults unchanged", () => {
     expect(DEFAULT_PER_IP_PER_MINUTE).toBe(10)
     expect(DEFAULT_GLOBAL_PER_SECOND).toBe(100)
@@ -87,8 +109,10 @@ describe("PairingCore", () => {
     expect(core.claim("AAAAAA", "ip1", 0)).toEqual({ ok: false, reason: "invalid" })
     expect(core.claim("AAAAAA", "ip1", 1)).toEqual({ ok: false, reason: "invalid" })
     expect(core.claim("AAAAAA", "ip1", 2)).toEqual({ ok: false, reason: "rate_limited" })
-    // the global cap counts every claim, throttled or not
-    expect(core.claim("AAAAAA", "ip2", 3)).toEqual({ ok: false, reason: "rate_limited" })
+    // the global cap counts only claims that passed their per-IP gate:
+    // ip1's two, so a third address still has one of the three left
+    expect(core.claim("AAAAAA", "ip2", 3)).toEqual({ ok: false, reason: "invalid" })
+    expect(core.claim("AAAAAA", "ip3", 3)).toEqual({ ok: false, reason: "rate_limited" })
     // a raised per-IP limit lets one address claim well past the default
     const roomy = new PairingCore(undefined, undefined, { perIpPerMinute: 1000 })
     for (let i = 0; i < 50; i++) {
