@@ -8,6 +8,12 @@ const out = new URL("../public/webmcp-profiler/demo/", import.meta.url)
 mkdirSync(out, { recursive: true })
 copyFileSync(new URL("dist/webmcp-profiler.iife.js", pkg), new URL("webmcp-profiler.iife.js", out))
 copyFileSync(new URL("dist/testing.js", pkg), new URL("testing.js", out))
+writeFileSync(
+  new URL("demo.js", out),
+  readFileSync(new URL("examples/vanilla/demo.js", pkg), "utf8")
+    .replaceAll("../../dist/webmcp-profiler.iife.js", "./webmcp-profiler.iife.js")
+    .replaceAll("../../dist/testing.js", "./testing.js")
+)
 const html = readFileSync(new URL("examples/vanilla/index.html", pkg), "utf8")
   .replaceAll("../../dist/webmcp-profiler.iife.js", "./webmcp-profiler.iife.js")
   .replaceAll("../../dist/testing.js", "./testing.js")
