@@ -1,6 +1,6 @@
 {
   "name": "webmcp-profiler",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Drop-in performance analyser for WebMCP tool surfaces: per-call spans, payload and token accounting, host-gap ledger, live overlay, an agent-readable report tool, and an agentless bench. Zero dependencies.",
   "license": "MIT",
   "author": "Luca Guglielmi",
@@ -10,7 +10,7 @@
     "url": "git+https://github.com/lucaguglielmi/Unfolded-Web-MCP.git",
     "directory": "packages/webmcp-profiler"
   },
-  "homepage": "https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/packages/webmcp-profiler#readme",
+  "homepage": "https://tryunfolded.com/webmcp-profiler/",
   "bugs": "https://github.com/lucaguglielmi/Unfolded-Web-MCP/issues",
   "keywords": [
     "webmcp",

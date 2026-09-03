@@ -6,6 +6,12 @@ semver as if 0.x were 1.x (a breaking change bumps the minor).
 
 ## [Unreleased]
 
+## [0.2.4]
+
+### Changed
+
+- The package homepage and README now link to the standalone visual guide.
+
 ## [0.2.3]
 
 ### Fixed
