@@ -16,7 +16,8 @@ minted: Where was the code created? {
   shape: diamond
 }
 agent: ChatGPT calls join_session
-enter: Person enters the agent's code in Unfolded
+enter: Person enters the agent's code, or taps the link minted with it
+clipboard: Either one, copied: Unfolded offers a one-tap join
 session: Durable Object keeps the canonical design state
 result: Edits flow both ways in about a second
 
@@ -24,6 +25,9 @@ source -> choice
 choice -> handoff-link: Tap or scan
 choice -> code: Speak or paste
 handoff-link -> browser
+handoff-link -> clipboard: Copied, not tapped
+code -> clipboard: Copied, not typed
+clipboard -> session
 browser -> valid
 valid -> claim-link: Yes
 valid -> copy: No
@@ -58,6 +62,8 @@ minted.style.fill: "#fef3c7"
 minted.style.stroke: "#d97706"
 enter.style.fill: "#dbeafe"
 enter.style.stroke: "#2563eb"
+clipboard.style.fill: "#dbeafe"
+clipboard.style.stroke: "#2563eb"
 session.style.fill: "#e0f2fe"
 session.style.stroke: "#0284c7"
 result.style.fill: "#d1fae5"

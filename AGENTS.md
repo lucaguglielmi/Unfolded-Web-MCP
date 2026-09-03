@@ -34,9 +34,20 @@ npm run lint && npm test && npm run build && npm run e2e      # the gate, always
 npm run build -w webmcp-profiler && npm run docs -w webmcp-profiler   # regenerate README blocks and llms.txt
 npm run live -- https://tryunfolded.com                       # health sweep of a deployment (routes, errors, tools, profiler, demo)
 CHROME_PATH=… npm run live:native -- https://tryunfolded.com   # the same site through a REAL host: Chrome 152+ with WebMCPTesting, driven over DevTools
+npm run diagrams                                              # re-render public/diagrams/*.svg from docs/diagrams/*.d2
 ```
 
 The package's own tests are a subset of the root run, never a substitute.
+
+`npm run diagrams` needs **d2 v0.8.2** — the version the committed SVGs
+were rendered with, and the one that reproduces them byte for byte. Any
+other version rewrites all three files with layout noise that buries the
+change you meant to make, so install that version rather than the latest:
+`curl -fsSL https://github.com/terrastruct/d2/releases/download/v0.8.2/d2-v0.8.2-linux-amd64.tar.gz | tar xz`.
+Edit the `.d2` source and re-render — never hand-edit an SVG, whose class
+names are content hashes. A diagram carrying a tool count or a tool name
+is documentation and goes stale like any other; check them when the tool
+surface moves.
 
 ## Rules that tests enforce
 
