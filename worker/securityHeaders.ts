@@ -3,7 +3,9 @@
  *
  * Evaluated against what the app actually does, not blindly added:
  * - scripts are all same-origin bundles (index.html's theme-init script
- *   moved to /theme-init.js so `script-src 'self'` holds with no hashes);
+ *   moved to /theme-init.js so `script-src 'self'` holds with no hashes),
+ *   plus Cloudflare's Web Analytics beacon, which Cloudflare injects into
+ *   every HTML response and which reports to cloudflareinsights.com;
  * - styles need 'unsafe-inline' (React/three inject inline styles, and
  *   index.html carries the boot-loader style block);
  * - images include data:/blob: (QR data URLs, the preview JPEG snapshot);
@@ -23,11 +25,11 @@ export function securityHeaders(requestUrl: URL): Record<string, string> {
   const host = requestUrl.host
   const csp = [
     "default-src 'self'",
-    "script-src 'self'",
+    "script-src 'self' https://static.cloudflareinsights.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
-    `connect-src 'self' wss://${host} ws://${host}`,
+    `connect-src 'self' wss://${host} ws://${host} https://cloudflareinsights.com`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",

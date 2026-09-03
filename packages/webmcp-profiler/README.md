@@ -323,8 +323,8 @@ The script tag, pinned and integrity-checked:
 
 <!-- gen:sri -->
 ```html
-<script src="https://cdn.jsdelivr.net/npm/webmcp-profiler@0.2.1/dist/webmcp-profiler.iife.js"
-        integrity="sha384-uG/rw4/R9cKLLkQ9+meLGBj6Z3FtmkpJ/GZ6i3R0W/aprPLIiwktnPxAPH6fqGic" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/webmcp-profiler@0.2.2/dist/webmcp-profiler.iife.js"
+        integrity="sha384-jmfiJxdQj8uUSBXqDwA+1HJXO1iqRhF2ZtjYpz1KurkCFBx36DMmX2jhFyLYklDr" crossorigin="anonymous"></script>
 ```
 <!-- /gen:sri -->
 

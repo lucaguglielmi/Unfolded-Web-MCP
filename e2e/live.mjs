@@ -28,7 +28,12 @@ const check = (name, ok, detail = "") => {
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
-const browser = await chromium.launch({ executablePath })
+// sandboxes route egress through a proxy that Chromium does not pick up from
+// the environment on its own; localhost stays direct
+const proxy = process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: "localhost,127.0.0.1" } : undefined
+// TLS-inspecting proxies can reset Chromium's TLS 1.3 handshake; cap at 1.2 only behind a proxy
+const args = proxy ? ["--ssl-version-max=tls1.2"] : []
+const browser = await chromium.launch({ executablePath, proxy, args })
 try {
   // ---------------------------------------------------------------- routes
   for (const route of ROUTES) {
