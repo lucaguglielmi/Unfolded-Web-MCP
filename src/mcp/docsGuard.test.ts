@@ -21,6 +21,7 @@ const AGENT_FACING_COPY = [
   "src/pages/agentManifest.ts",
   "src/components/PairDialog.tsx",
   "src/components/ConnectionHub.tsx",
+  "src/components/ClipboardJoinBanner.tsx",
 ]
 
 /** wording the spec retired — each must name the specific link type now */

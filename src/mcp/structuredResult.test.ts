@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
  * Structured results (contract tool-result/2): every
  * tool keeps its text `content` (compact JSON from contract 2 on) and ADDITIONALLY returns
  * `structuredContent` — `{ ok, message, state?, warnings? }` for the
- * state-reporting tools, the tool's own object (plus ok/message) for the
+ * state-reporting tools (start_pairing adds `liveHandoffUrl` beside them
+ * when its link minted), the tool's own object (plus ok/message) for the
  * rest. This suite drives every tool through success and failure paths
  * and pins the two invariants a host can rely on: `ok` mirrors `!isError`,
  * and a `state` field is byte-for-byte the JSON the text serializes.
@@ -244,6 +245,27 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
     // of any kind — a state snapshot would smuggle designUrl back in
     expect(Object.keys(structured!).sort()).toEqual(["message", "ok"])
     expect(JSON.stringify(structured)).not.toMatch(/https?:\/\/|\?type=/)
+  })
+
+  it("start_pairing: the spoken code and the tappable link, from one call", async () => {
+    // live-handoff-link-spec §8.3's amendment — a code-only answer to
+    // "pair from here" was the bug this closed
+    const { isError, text, structured } = await call("start_pairing")
+    expect(isError).toBe(false)
+    expect(text).toMatch(/K7F-3QP/)
+    expect(structured!.liveHandoffUrl).toMatch(/join=tok_/)
+    expect(text).toContain(structured!.liveHandoffUrl as string)
+    // the code stays the tool's own contract: state rides along as ever
+    expect(structured!.state).toEqual(describeState())
+  })
+
+  it("start_pairing: a failed token mint costs the link, never the pairing", async () => {
+    mintToken.mockResolvedValue(null)
+    const { isError, text, structured } = await call("start_pairing")
+    expect(isError).toBe(false)
+    expect(text).toMatch(/K7F-3QP/)
+    expect("liveHandoffUrl" in structured!).toBe(false)
+    expect(JSON.stringify(structured)).not.toMatch(/join=/)
   })
 
   it("create_live_handoff: the handoff object plus ok/message", async () => {

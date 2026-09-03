@@ -83,7 +83,7 @@ export function buildAgentManifest(): Record<string, unknown> {
         "structuredContent.state, when present, deep-equals the JSON in the text (compact from tool-result/2 on)",
       ],
       shapes: {
-        stateReporting: "describe_project, open_model, update_design, apply_preset, join_session, start_pairing, undo_last_change → { ok, message, state, warnings? }; state carries form, clay, paperSize, units, designUrl, capacityMl, pieces, printedPages, warnings, session {paired, peers}; on failure (validation, failed join, nothing to undo, no pairing service) { ok: false, message, state } with the unchanged state",
+        stateReporting: "describe_project, open_model, update_design, apply_preset, join_session, start_pairing, undo_last_change → { ok, message, state, warnings? }; state carries form, clay, paperSize, units, designUrl, capacityMl, pieces, printedPages, warnings, session {paired, peers}; start_pairing adds liveHandoffUrl beside them when its link minted (the code alone when it did not); on failure (validation, failed join, nothing to undo, no pairing service) { ok: false, message, state } with the unchanged state",
         create_live_handoff: "{ ok, message, liveHandoffUrl, designUrl, expiresAt, expiresInSeconds, singleUse, instruction }; fail-closed: { ok: false, message, state } with no URL field",
         get_template_summary: "{ ok, message, ...template summary }",
         get_preview_image: "image content unchanged; { ok, message, summary }",
@@ -122,7 +122,7 @@ export function buildAgentManifest(): Record<string, unknown> {
     },
     liveSync: {
       summary:
-        "optional cross-device session: any paired tab's edits reach all peers in ~1s. Pairing is by 6-character code (join_session / start_pairing tools, or the Continue dialog behind the header's connection button). Rule: the device that ENTERS a code adopts the minting session's design (one undo step). After joining, no device is special.",
+        "optional cross-device session: any paired tab's edits reach all peers in ~1s. Pairing is by 6-character code or by single-use link, and both tools serve both: start_pairing mints a code AND a liveHandoffUrl for this session, create_live_handoff mints the link alone; the Continue dialog behind the header's connection button shows the same pair (QR + link + code) to the human. A code or live link in the clipboard also raises a one-tap join offer in the app (src/lib/pairingOffer.ts). Rule: the device that ENTERS a code or OPENS a link adopts the minting session's design (one undo step). After joining, no device is special.",
       pairingCode: {
         alphabet: CODE_ALPHABET,
         length: CODE_LENGTH,
@@ -133,7 +133,7 @@ export function buildAgentManifest(): Record<string, unknown> {
         miss: "unknown, expired, and already-used codes are indistinguishable by design",
       },
       joinToken: {
-        what: "the URL-borne sibling of a code, minted on demand by create_live_handoff: liveHandoffUrl carries ?join=<single-use token> — the tab that opens it silently follows YOUR session (both ways) and strips the parameter. Call the tool right before replying with a link and return liveHandoffUrl verbatim; a failed mint yields no link (retry once, then start_pairing).",
+        what: "the URL-borne sibling of a code, minted on demand by create_live_handoff (and alongside the code by start_pairing): liveHandoffUrl carries ?join=<single-use token> — the tab that opens it silently follows YOUR session (both ways) and strips the parameter. Call the tool right before replying with a link and return liveHandoffUrl verbatim. A mint that lost its race with a cold session socket is retried inside the tool, so a reported failure is already the second attempt: yield no link, and offer the potter's own six-character code (join_session) instead.",
         regex: "^[A-Za-z0-9_-]{20,64}$",
         ttlMs: TOKEN_TTL_MS,
         singleUse: true,

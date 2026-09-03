@@ -134,7 +134,7 @@ Registered on `document.modelContext` per the current WebMCP draft (legacy
 | `apply_preset` | Start from a preset (classic mug, tumbler, bud vase, hex planter) |
 | `create_live_handoff` | Mint the single-use live link that continues this design on the potter's own screen, the default link after any edit |
 | `join_session` | Pair this tab into a live cross-device session using the 6-character code from the potter's other device |
-| `start_pairing` | Mint a 6-character code so the potter's other device can join this design's live session |
+| `start_pairing` | Mint a 6-character code and a live link, either of which brings the potter's other device into this session |
 | `undo_last_change` | Revert the last change, whoever made it (up to 50 steps) |
 | `get_perf_report` | The profiler's numbers, readable by the agent; registered only while `?perf=1` armed profiling |
 
@@ -154,16 +154,16 @@ truth about both: a ChatGPT connection is shown only on an explicit agent-minted
 link signal, never inferred from the user agent. One tap on **Open in ChatGPT**
 injects a ready-made prompt with a fresh single-use pairing code into a new chat
 (on phones the link hands off into the ChatGPT app); **Copy prompt** puts the same
-text on the clipboard for any other assistant. The agent opens the site in its own
+text on the clipboard for any other assistant. A pairing code or live link on the
+clipboard raises a one-tap join here. The agent opens the site in its own
 hidden browser, joins with the code, and becomes a live peer: its edits land in
 your tab within about a second, your edits reach it on its next tool call, and
 every change is one undo step for both sides.
 
 Invitations expire in 15 minutes and burn on first use. Sessions are unlisted and
 expire after 30 idle days. The QR printed inside the largest template piece stays
-parameter-only, so a found template grants a copy of the design, never entry to a
-session. For manual testing without an agent, the registered tools are exposed on
-the console as `__unfoldedTools`.
+parameter-only: a found template grants a copy, never a session. Without an agent,
+the registered tools are on the console as `__unfoldedTools`.
 
 ## Share links
 

@@ -114,6 +114,7 @@ try {
         handoff: handoff?.structuredContent?.ok ?? !handoff?.isError,
         handoffMessage: handoff?.content?.[0]?.text?.slice(0, 120) ?? handoff?.error,
         pairingCode: pairing?.structuredContent?.code ?? pairing?.content?.[0]?.text?.match(/[A-HJ-NP-Z2-9]{3}-?[A-HJ-NP-Z2-9]{3}/)?.[0] ?? null,
+        pairingLink: pairing?.structuredContent?.liveHandoffUrl ?? null,
         pairingMessage: pairing?.content?.[0]?.text?.slice(0, 120) ?? pairing?.error,
         perfOk: perf?.structuredContent?.ok === true && Array.isArray(perf.structuredContent.tools),
         perfVersion: perf?.structuredContent?.session?.version,
@@ -133,6 +134,11 @@ try {
     check("update_design (capacity, combined) / get_template_summary / undo: ok", surface.capacityOk && surface.formOk && surface.summaryOk && surface.undoOk)
     check("create_live_handoff: reaches the pairing service", surface.handoff === true, surface.handoffMessage)
     check("start_pairing: mints a code from the worker", !!surface.pairingCode, surface.pairingMessage)
+    check(
+      "start_pairing: mints the tappable link beside it (live-handoff-link-spec §8.3)",
+      /[?&]join=[A-Za-z0-9_-]{20,}/.test(surface.pairingLink ?? ""),
+      surface.pairingLink ?? surface.pairingMessage
+    )
     check("profiler: ?perf=overlay armed, every host call measured", surface.status === "measuring" && surface.spans >= 7, `spans=${surface.spans} phase=${surface.status}`)
     check("profiler: get_perf_report answers with the tools view, format 2, package version", surface.perfOk && surface.perfFormat === "webmcp-perf-report/2" && /^\d+\.\d+\.\d+$/.test(surface.perfVersion ?? ""), `version=${surface.perfVersion}`)
     check("profiler: the report tool is listed as internal and never measured", surface.internal === true && surface.registered === 12)

@@ -323,6 +323,11 @@ after the freeze lifts.
     device: menu → Pair a device → enter this code. That device will adopt
     this design."` plus the full state. The phone tab shows the same code +
     countdown so the potter can read it off either surface.
+  - **since docs/live-handoff-link-spec.md §8.3's amendment:** the tool
+    mints a join token in parallel and reports it too, so one call answers
+    "pair from here" with a spoken code *and* a tappable link —
+    `liveHandoffUrl` rides beside `state` in structuredContent. Only the
+    code is required: a failed token mint costs the link, not the pairing.
 
 Everything else stays: the agent needs no tool to *sync* (transparent under
 the store).

@@ -7,8 +7,9 @@ import { useDesignHref } from "@/lib/useStudioHref"
 
 /**
  * Phone header menu: one button gathering what the narrow header can't fit
- * side by side — the About WebMCP link, the Why Unfolded link, and Share
- * this design. (The audio toggle stays directly in the header.)
+ * side by side — the About WebMCP link, the Why Unfolded link, Share this
+ * design, and Continue on desktop (the pairing dialog, controlled from
+ * here). (The audio toggle stays directly in the header.)
  */
 export function MobileMenu() {
   const [open, setOpen] = useState(false)

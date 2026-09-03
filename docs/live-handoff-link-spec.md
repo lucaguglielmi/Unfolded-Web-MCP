@@ -188,13 +188,17 @@ Failure result:
 - Explain that a live invitation could not be created.
 - Return no liveHandoffUrl, designUrl, fallbackUrl, or other clickable URL.
 - Tell the agent to retry once or ask the user to use a six-character pairing code.
+- Say WHERE the user finds that code, so "send me a code" is not a puzzle.
 - Never degrade silently to a plain design permalink.
 
-Recommended error text:
+Recommended error text (as implemented, after §9.1's two internal attempts):
 
     A live handoff link could not be created because the pairing service is
-    unavailable. No link was generated. Retry once, or use start_pairing to
-    create a six-character code.
+    unavailable. No link was generated. Retry once; if it still fails, don't
+    give up on pairing — ask the potter for their own six-character code
+    instead (it's in their connection button, top right, two dots →
+    Continue on another screen — the code is shown there, tap to copy) and
+    call join_session with it. Or use start_pairing to mint one from this tab.
 
 ## 8. Existing WebMCP tool changes
 
@@ -235,14 +239,16 @@ If added, its description must state that the link does not pair devices and doe
 
 ### 8.3 start_pairing and join_session
 
-No behavioural change.
-
-They remain the fallback when:
+They remain the way in when:
 
 - A link cannot be tapped.
 - The pairing service cannot mint a URL token but can mint a short code.
 - The work already lives on the user's device and the agent must join that session.
 - The user explicitly requests code-based pairing.
+
+**Amendment — start_pairing mints both (implemented).** This section originally said "no behavioural change", which made the code and the link mutually exclusive in practice: a request phrased as pairing ("pair from here", "put this on my desktop") routes to start_pairing, and the potter was then handed a code and no link, even where a link would have minted. The in-app Continue dialog has always shown both together; the tool now matches it. `start_pairing` mints the code and calls `createLiveHandoff()` in parallel, and reports both — the code in its message, `liveHandoffUrl` beside `state` in structuredContent.
+
+The two mints are independent and only the code is required: a failed token mint costs the link, not the pairing, and the tool returns the code alone. A failed code mint is still the tool's failure. This does not weaken §6: the link start_pairing hands out is minted by `createLiveHandoff`, fresh and single-use, and is never a substituted or reconstructed URL.
 
 ## 9. Implementation design
 
@@ -251,6 +257,8 @@ They remain the fallback when:
 create_live_handoff must call liveSync.mintToken() and await the result.
 
 The tool must build liveHandoffUrl only after a non-expired token has been returned. It must not call a synchronous takeJoinToken function that can return null while refill is in progress.
+
+**Amendment — one internal retry (implemented).** A mint waits up to 8 s for this tab's session socket to be live, and the FIRST mint in a tab pays for opening it: an agent's in-app browser on a phone, against a cold Durable Object, can spend the whole budget on the handshake and return null, while the same call seconds later resolves in milliseconds. That is a cold start, not an outage, so the tool attempts the mint twice (`MINT_ATTEMPTS`) before reporting failure — an already-expired token counts as a failed attempt too. The fail-closed contract is unchanged: when no attempt mints, no URL of any kind is returned. Retry advice addressed to the agent is therefore about what to do AFTER two attempts, not a request to call the tool again.
 
 On-demand minting is preferred because:
 

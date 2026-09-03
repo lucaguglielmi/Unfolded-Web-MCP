@@ -30,11 +30,20 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
     mustMention: ["what am i designing", "depends on what is there now", "designurl", "capacityml"],
   },
   {
-    // docs/webmcp-tool-performance-spec.md §6.2: a fresh session is
-    // offered the paired-browser link first, the spoken code second
+    // docs/webmcp-tool-performance-spec.md §6.2 and its amendment: a fresh
+    // session is offered the paired-browser link first and the spoken code
+    // second — but BOTH, even when the link fails, and the code's place in
+    // the UI is named so "send me a code" isn't a puzzle
     prompt: "Connect to tryunfolded.com",
     tool: "describe_project",
-    mustMention: ["session.paired", "paired browser session", "create_live_handoff", "six-character"],
+    mustMention: [
+      "session.paired",
+      "paired browser session",
+      "create_live_handoff",
+      "six-character",
+      "continue on another screen",
+      "even if (1) fails",
+    ],
   },
   {
     prompt: "Make it hold about 350 ml.",
@@ -73,9 +82,12 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
     mustMention: ["code", "adopts"],
   },
   {
+    // live-handoff-link-spec §8.3's amendment: this phrasing routes here,
+    // so the LINK has to be advertised here too — a code-only answer was
+    // the bug ("pair from here" got six characters and nothing to tap)
     prompt: "Put this design on my desktop screen.",
     tool: "start_pairing",
-    mustMention: ["other device", "follows this design"],
+    mustMention: ["other device", "follows this design", "liveHandoffUrl"],
   },
   {
     prompt: "Undo that.",
@@ -122,7 +134,11 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
  * tool-performance spec then merged update_form, set_clay, set_units and
  * set_capacity into update_design and gave describe_project the
  * fresh-session offer (docs/webmcp-tool-performance-spec.md §4, §6),
- * and the budget followed the measured total down again.
+ * and the budget followed the measured total down again. The first live
+ * run of that offer then bought back a few hundred chars, deliberately:
+ * describe_project names where the code lives and says to offer both ways
+ * in even when the link fails, and start_pairing advertises the link it
+ * now mints beside the code (§6.2's amendment).
  */
 const METADATA_BUDGET_CHARS = 9_350
 

@@ -21,7 +21,7 @@ package. Review this inventory on every profiler change:
 - `src/pages/WebMCPPage.tsx` (profiler copy and links)
 - `e2e/run.mjs` (uses `FAKE_HOST_INIT_SCRIPT`; the profiler checks)
 - `e2e/perf.mjs` and `e2e/perf.cases.json` (the bench wrapper and its cases)
-- `README.md` (profiler section; the docs guard caps the README at 2,800 words)
+- `README.md` (profiler section; the docs guard caps the README at 1,800 words — it runs close to the cap, so new prose has to pay for itself)
 - `docs/performance-report.md` (numbers and claims)
 - `.github/workflows/publish-profiler.yml` and `deploy.yml`
 - `docs/webmcp-profiler-spec.md` §12 (what has landed)

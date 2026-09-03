@@ -26,7 +26,15 @@ user's side, one scenario at a time.
     single-use, expires in 15 minutes. Humans mint one from the **Continue
     on another screen** dialog (behind the header's connection button — the
     two status dots); agents mint one
-    with `start_pairing` or enter one with `join_session`.
+    with `start_pairing` or enter one with `join_session`. `start_pairing`
+    mints a join token alongside it and reports both, so an agent asked to
+    "pair from here" offers the code *and* a tappable link — the same pair
+    the Continue dialog shows a human.
+- **Either one, pasted, is a shortcut.** With a code or a live link on the
+  clipboard, the app itself offers the join in one tap — no dialog to find.
+  It never reads the clipboard without permission (a paste needs none; a
+  silent read happens only where the browser already granted one), never
+  joins by itself, and never offers back a code this tab minted.
 - **Who adopts whose design?** The device that *opens the link* or
   *enters the code* adopts the other side's design — as one undo step, so
   it's reversible. Mint on the device whose design you want to keep.
@@ -189,7 +197,9 @@ Two routes, both from the phone's menu → **Continue on desktop**:
 - **Code** — read the code shown beside the QR on the phone, then on the
   desktop open **Continue on another screen** → **Enter a code from
   another screen** and type it in. Same result: desktop adopts the phone,
-  both live.
+  both live. Sent the code to yourself instead of reading it aloud? Copy
+  it and open Unfolded on the desktop: the app spots it on the clipboard
+  and offers the join in one tap, no dialog needed.
 
 Afterwards the pairing is symmetric and durable: close the laptop, edit
 on the phone over lunch, reopen the laptop — it reconnects and catches

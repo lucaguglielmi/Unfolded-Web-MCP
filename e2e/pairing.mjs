@@ -136,7 +136,8 @@ try {
 
   // ---- the agent-side tools (spec flows A and B) ----
   // flow B: the work lives on B ("the phone") — its agent mints via
-  // start_pairing, and A joins B's session by entering the code
+  // start_pairing, which returns a spoken code AND a tappable link
+  // (live-handoff-link-spec §8.3), and A joins B's session with the code
   await b.keyboard.press("Escape")
   await b.evaluate(() => window.__mcpTools.update_design.execute({ name: "Flow B planter" }))
   const mintResult = await b.evaluate(async () => {
@@ -145,6 +146,11 @@ try {
   })
   const toolCode = (mintResult.match(/[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}/) ?? [""])[0]
   check("start_pairing returns a spoken-friendly code", toolCode.length === 7, mintResult.slice(0, 120))
+  check(
+    "start_pairing also returns a tappable link, from the same call",
+    /[?&]join=[A-Za-z0-9_-]{20,}/.test(mintResult),
+    mintResult.slice(0, 240)
+  )
   await openContinue(a)
   await a.click('button:text-is("Enter a code from another screen")')
   await a.fill('input[aria-label="Pairing code from your other device"]', toolCode)

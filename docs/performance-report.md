@@ -104,7 +104,9 @@ ships for that tool in every conversation (UTF-8, from
 `ledger.tools[name].schemaBytes`). `update_form` carries the heaviest
 schema on the surface (1,652 bytes after the trim above; 2,114 in this
 table); the whole 15-tool surface is about 11 KB, the `get_perf_report`
-tool included while profiling is armed. Byte columns
+tool included while profiling is armed. Every tool count in this section
+is the surface as measured on that run — the merge into `update_design`
+has since taken it to eleven, twelve with the profiler's own tool. Byte columns
 across this report are UTF-8 from 0.2 on (0.1 counted UTF-16 units;
 the difference is nil for these ASCII payloads).
 
@@ -172,7 +174,7 @@ What changed, and what it bought:
 | host discovery after a late injection | up to 3 s (1.5 s average), never while hidden | **≤ 500 ms while visible, ≤ 3 s while hidden**, no visibility event needed (§7); the e2e suite's hidden-tab case registers the full set in under 6 s from injection with no event at all |
 | registration of the set | 14 sequential awaits | **one parallel set** — the unit test's 14-tool host at 20 ms per registration finishes in one delay |
 | `/assets/*` in the browser | `max-age=0, must-revalidate` (every chunk revalidated on every load) | **`public, max-age=31556952, immutable`** via `public/_headers` (§8); the HTML entry still revalidates. Checked by `e2e/worker-smoke.mjs` and `e2e/live.mjs` |
-| a fresh ChatGPT session | offered only the pairing code | the snapshot's `session.paired` is a fact, and `describe_project` tells the agent to offer the `create_live_handoff` link as "Open a paired browser session with this chat" first, the code second (§6.2) |
+| a fresh ChatGPT session | offered only the pairing code | the snapshot's `session.paired` is a fact, and `describe_project` tells the agent to offer the `create_live_handoff` link as "Open a paired browser session with this chat" first, the code second — both of them, even when the link fails, and naming where the code is found (§6.2 and its amendment) |
 
 The per-call page compute is unchanged (mutations 2–5 ms p50 including
 React's re-render and the lathe rebuild). Against the ~280 ms the native
@@ -208,8 +210,10 @@ using them. `public/_headers` now marks `/assets/*` immutable for a year
 (the names are content hashes); only the HTML entry revalidates.
 
 Reading: the app shell is fast even throttled — an agent in a fresh
-ChatGPT tab has all 14 tools well under half a second of CPU time (the
-run measured 13; the fourteenth adds ~1 KB of metadata, no code path). The
+ChatGPT tab had all 14 tools of the surface as it then stood (the four
+`update_*`/`set_*` tools have since merged into `update_design`, leaving
+eleven) well under half a second of CPU time (the run measured 13; the
+fourteenth adds ~1 KB of metadata, no code path). The
 2 s LCP on the throttled run is the pot itself appearing, which is the
 inherent price of a real-time 3D preview arriving lazily; the page is
 interactive (sliders, templates, tools) long before.
@@ -294,8 +298,9 @@ pretty-printed and the snapshot carrying two constant fields,
 | tool(s) | `structuredContent` |
 | --- | --- |
 | describe_project, open_model, update_design, apply_preset, join_session, start_pairing, undo_last_change | `{ ok, message, state, warnings? }` — `state` is the same `describeState()` snapshot the text serializes (compact JSON in both from `/2` on: form, clay, paperSize, units, designUrl, capacityMl, pieces, printedPages, warnings, session); `warnings` only when the design has any |
+| start_pairing, additionally | `liveHandoffUrl` beside `state` when its link minted (live-handoff-link-spec §8.3): one call answers with the spoken code and the tappable link. The code alone when the token mint failed — that costs the link, not the pairing |
 | any of the above on failure (validation, failed join, nothing to undo, no pairing service) | `{ ok: false, message, state }` — the unchanged state |
-| create_live_handoff | the handoff object (`liveHandoffUrl`, `designUrl`, `expiresAt`, `expiresInSeconds`, `singleUse`, `instruction`) plus `ok`/`message`; fail-closed: `{ ok: false, message, state }` with no URL field |
+| create_live_handoff | the handoff object (`liveHandoffUrl`, `designUrl`, `expiresAt`, `expiresInSeconds`, `singleUse`, `instruction`) plus `ok`/`message`. A cold mint is retried once inside the tool (§9.1 of that spec) before it reports failure; fail-closed then means exactly `{ ok: false, message }` — no `state`, because a snapshot would smuggle `designUrl` back into a linkless result |
 | get_template_summary | the template summary object plus `ok`/`message` |
 | get_preview_image | image content unchanged; `{ ok, message, summary }` |
 | export_templates | `{ ok, message, pages, paper, rows, cols, state, warnings? }` — the export's own numbers plus the same `state` snapshot as the mutations (paper size is design state, and the text carries the same pretty-printed JSON after the message) |

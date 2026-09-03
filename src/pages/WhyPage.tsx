@@ -55,7 +55,7 @@ const DIGEST: { title: string; body: string }[] = [
   },
   {
     title: "It follows you around",
-    body: "Scan a QR, tap a link your agent hands you, or read a 6-character code aloud — the other screen (no WebMCP needed) follows the same live design within a second, edits flowing both ways.",
+    body: "Scan a QR, tap a link your agent hands you, read a 6-character code aloud, or just copy one and let the app offer the join — the other screen (no WebMCP needed) follows the same live design within a second, edits flowing both ways.",
   },
   {
     title: "The deal",
@@ -98,7 +98,7 @@ const NON_TRIVIAL: { title: string; body: string }[] = [
   },
   {
     title: "Every mutation returns the full new state",
-    body: "so the agent never needs a follow-up read — and every snapshot carries a permanent design link. The return channel is a separate, explicit tool: a page can't push text into a chat, but create_live_handoff mints a single-use live link the agent hands the potter, so the potter's own browser follows the agent's session both ways.",
+    body: "so the agent never needs a follow-up read — and every snapshot carries a permanent design link. The return channel is explicit, never a read: a page can't push text into a chat, but create_live_handoff mints a single-use live link the agent hands the potter (start_pairing mints one too, beside its spoken code), so the potter's own browser follows the agent's session both ways.",
   },
   {
     title: "One call per potter sentence",
@@ -122,7 +122,7 @@ const NON_TRIVIAL: { title: string; body: string }[] = [
   },
   {
     title: "The design doesn't live in one chair",
-    body: "start at the bench, continue in chat, come back months later from the QR printed with the template — a scanned QR, a tapped agent link, or a spoken code pairs any two screens into one live session. Invitations are single-use and short-lived (a used link degrades to a plain design link), so no URL ever carries a durable capability, and the printed QR stays parameter-only.",
+    body: "start at the bench, continue in chat, come back months later from the QR printed with the template — a scanned QR, a tapped agent link, a spoken code, or one simply copied and offered back by the app pairs any two screens into one live session. Invitations are single-use and short-lived (a used link degrades to a plain design link), so no URL ever carries a durable capability, and the printed QR stays parameter-only.",
   },
 ]
 
@@ -353,7 +353,7 @@ const AGENT_MECHANICS: [string, string][] = [
   ["Late injection", "polling every 500 ms for the life of a visible tab, every 3 s while hidden, plus focus/visibility re-checks; the tools register as one parallel set. Any executed tool call flips the app to connected."],
   ["Units contract", "all tool inputs and outputs are millimeters and milliliters; update_design's units field changes only what humans see (UI, warnings, printed PDF, its scale-check bar: 3 cm vs 1 in)."],
   ["State returns", "every mutating tool returns the complete state snapshot: form, clay, paperSize, units, capacityMl, pieces (annotated), printedPages, warnings, designUrl — a permanent permalink, never a session — and session {paired, peers}. The same snapshot rides beside the compact text as structuredContent.state (contract tool-result/2), with ok mirroring !isError."],
-  ["Live handoff", "the return channel is create_live_handoff: it mints liveHandoffUrl — the design parameters plus ?via=chatgpt and a single-use ?join= token — so the tab that opens it follows your session both ways. Fail-closed: no token, no link. The PDF's printed QR is deliberately untagged (paper outlives a chat)."],
+  ["Live handoff", "the return channel is create_live_handoff: it mints liveHandoffUrl — the design parameters plus ?via=chatgpt and a single-use ?join= token — so the tab that opens it follows your session both ways. start_pairing returns the same link beside its spoken code, so one call covers both ways in. Fail-closed: a cold mint is retried inside the tool, and no token still means no link at all. The PDF's printed QR is deliberately untagged (paper outlives a chat)."],
   ["Errors", "invalid input returns isError with per-field zod issues AND the unchanged state (structuredContent: { ok: false, message, state }); out-of-range link values clamp instead of failing."],
   ["Console access", "window.__unfoldedTools exposes every registered tool for manual driving, e.g. __unfoldedTools.update_design.execute({capacityMl: 350})."],
 ]
@@ -392,7 +392,7 @@ function ForAgents() {
               ["Live", `${SITE_URL} (origin-independent; links carry the whole model)`],
               ["Source", "github.com/lucaguglielmi/Unfolded-Web-MCP · MIT"],
               ["Stack", "React 19, TypeScript, zustand, zod, react-three-fiber, jsPDF + svg2pdf, Cloudflare Workers"],
-              ["Verification", "282 unit tests + 32-check Playwright e2e suite gate every deploy in CI"],
+              ["Verification", "449 unit tests + a multi-suite Playwright e2e run gate every deploy in CI"],
             ] as [string, string][]
           ).map(([k, v]) => (
             <div key={k} className="flex items-baseline gap-3">

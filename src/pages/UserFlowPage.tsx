@@ -171,6 +171,8 @@ export function UserFlowPage() {
             QR codes and links are the quickest route between physical screens. The
             six-character code is the conversational route: read it aloud or paste it into
             ChatGPT, which joins through the <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em]">join_session</code> tool.
+            Coming back with either one copied, there is no dialog to find: the app spots a
+            code or a live link on the clipboard and offers the join in one tap.
           </p>
           <Diagram
             src="/diagrams/cross-device.svg"

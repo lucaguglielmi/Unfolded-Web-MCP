@@ -358,6 +358,33 @@ moment a potter has paired before.
    ChatGPT-first scenario and the `/user-flow` page gain that step under
    that label, so the two ends of the flow name each other consistently.
 
+#### Amendment — what the first live run showed (implemented)
+
+The offer landed as written and still failed the potter, in three ways
+worth recording because each one was prose losing to reality:
+
+1. **The link never appeared.** `create_live_handoff` returned nothing and
+   the agent reported it as "blocked by browser permissions". It was not a
+   permission: the first mint in a tab pays for opening the session socket
+   and can spend its whole 8 s budget on the handshake, which is why the
+   same mint succeeded minutes later. Fixed where it belongs — the tool
+   retries once internally (live-handoff-link-spec §9.1) rather than
+   asking the model to.
+2. **The fallback was a dead end.** Told only to "use start_pairing", the
+   agent asked for "a new pairing code" and left the potter to find it.
+   `describe_project` now names the place — connection button, top right →
+   Continue on another screen, tap the code to copy — and says to offer
+   both ways in *even when the link fails*, because a failed (1) is not
+   permission to skip (2).
+3. **"Pair from here" got a code and no link.** That phrasing routes to
+   `start_pairing`, which minted only a code, so the potter never saw a
+   link that would have minted fine. `start_pairing` now mints both
+   (live-handoff-link-spec §8.3).
+
+The lesson generalises past this section: where the host or the model can
+drop a step, put the behaviour in the tool, not in a sentence addressed to
+the agent.
+
 #### Acceptance
 
 - `describeState()` carries `session`; `structuredResult.test.ts` asserts
