@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { profilerTool } from "@/profiler/tool"
 import { capacityMl, heightForCapacityMl } from "@/lib/geometry/unroll"
+import { applyClayPatch, applyFormPatch } from "@/lib/model/applyPatch"
 import { updateDesignInputSchema, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
 import { capturePreviewImage } from "@/lib/previewCapture"
@@ -268,6 +269,26 @@ export function buildTools(): ToolDescriptor[] {
           }
 
           const store = useProjectStore.getState()
+          // The capacity solve runs against the diameters and clay AFTER the
+          // other fields apply, so one call carries the whole sentence — and
+          // its feasibility is settled BEFORE anything is written: a failure
+          // must leave the design exactly as it was (the advertised failure
+          // contract), never with the walls and diameters already committed.
+          // applyFormPatch/applyClayPatch are the store's own pure steps.
+          let solved: number | null = null
+          if (target !== undefined) {
+            const nextForm = hasForm ? applyFormPatch(store.form, formPatch as UpdateFormInput) : store.form
+            const nextClay = hasClay ? applyClayPatch(store.clay, clayPatch) : store.clay
+            solved = heightForCapacityMl(nextForm, nextClay, target)
+            if (solved === null) {
+              return stateError(
+                "The walls close this form's interior entirely — no height can hold anything. " +
+                  "Thin the walls (wallThicknessMm) or widen the form first. Nothing was changed.",
+                "Current state unchanged"
+              )
+            }
+          }
+
           const notes: string[] = []
           // one undo scope for the whole call, however many slices it touches
           store.beginUndoCoalescing()
@@ -281,21 +302,11 @@ export function buildTools(): ToolDescriptor[] {
             if (units) store.setUnit(units)
             if (hasForm || hasClay || paperSize) notes.push("Design updated.")
             if (units) notes.push(`Display units set to ${units === "in" ? "inches" : "centimeters"}.`)
-            if (target !== undefined) {
-              // solved against the diameters and clay AFTER the other
-              // fields applied, so one call carries the whole sentence
-              const { form, clay } = useProjectStore.getState()
-              const solved = heightForCapacityMl(form, clay, target)
-              if (solved === null) {
-                return stateError(
-                  "The walls close this form's interior entirely — no height can hold anything. " +
-                    "Thin the walls (wallThicknessMm) or widen the form first.",
-                  "Current state"
-                )
-              }
+            if (target !== undefined && solved !== null) {
               const clamped = Math.round(Math.min(600, Math.max(20, solved)) * 10) / 10
               store.updateForm({ heightMm: clamped })
-              const achieved = capacityMl(useProjectStore.getState().form, clay)
+              const { form, clay } = useProjectStore.getState()
+              const achieved = capacityMl(form, clay)
               notes.push(
                 Math.abs(clamped - solved) > 0.05
                   ? `Target ${target} ml needs a ${solved.toFixed(0)} mm height — clamped to ${clamped} mm, which holds ~${achieved} ml. Adjust the diameters to get closer.`

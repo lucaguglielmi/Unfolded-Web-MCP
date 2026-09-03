@@ -79,7 +79,8 @@ export const setClayInputSchema = claySettingsSchema.partial()
 export const LEGACY_FORM_TYPES = ["cylinder", "tapered"] as const
 
 /**
- * The update_form tool's advertised contract: the form patch with the
+ * The form half of the update_design tool's advertised contract (and the
+ * base of updateDesignInputSchema below): the form patch with the
  * legacy `type` values admitted, so a host that validates calls against
  * the advertised schema lets them through to normalizeLegacyFormPatch —
  * what is advertised is exactly what is accepted.

@@ -301,8 +301,8 @@ export function firedWallMm(clay: ClaySettings): number {
 /**
  * Effective interior cross-section in mm² — the K in V = K · interiorHeight.
  * Volume is LINEAR in height for every supported shape (the frustum formula's
- * radii/areas don't depend on height), which is what makes set_capacity an
- * exact one-step solve.
+ * radii/areas don't depend on height), which is what makes update_design's
+ * capacityMl an exact one-step solve.
  */
 function interiorSectionMm2(form: FormParams, firedWall: number): number {
   const topOuter = form.tapered ? form.topDiameterMm : form.bottomDiameterMm

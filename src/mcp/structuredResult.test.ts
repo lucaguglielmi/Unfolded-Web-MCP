@@ -165,6 +165,26 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
     expect(back.paperSize).toEqual(before.paperSize)
   })
 
+  it("update_design: an infeasible capacity solve commits nothing — clay and diameters stay as they were", async () => {
+    // walls that close the interior: 15 mm slabs on a 25 mm base. The
+    // solve is checked BEFORE any write, so the failure leaves the design
+    // untouched (the advertised failure contract), not with the thick
+    // walls already committed and synced
+    const before = describeState()
+    const historyBefore = useProjectStore.getState().history.length
+    const { isError, text, structured } = await call("update_design", {
+      wallThicknessMm: 15,
+      bottomDiameterMm: 25,
+      capacityMl: 350,
+    })
+    expect(isError).toBe(true)
+    expect(text).toMatch(/Nothing was changed/)
+    expect(structured).toMatchObject({ ok: false, state: before })
+    expect(describeState()).toEqual(before)
+    // and no undo step was burned
+    expect(useProjectStore.getState().history.length).toBe(historyBefore)
+  })
+
   it("update_design: heightMm and capacityMl together is a validation error with the unchanged state", async () => {
     const before = describeState()
     const { isError, text, structured } = await call("update_design", { heightMm: 100, capacityMl: 300 })
