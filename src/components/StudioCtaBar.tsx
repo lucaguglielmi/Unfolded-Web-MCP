@@ -13,7 +13,7 @@ export function StudioCtaBar() {
     <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/85 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md">
       <a
         href={studioHref}
-        className="group mx-auto flex w-full max-w-3xl items-center justify-center gap-2.5 rounded-full bg-blue-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.015] hover:bg-blue-500 active:scale-[0.99]"
+        className="group mx-auto flex w-full max-w-3xl items-center justify-center gap-2.5 rounded-[6px] bg-blue-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:scale-[1.015] hover:bg-blue-500 active:scale-[0.99]"
       >
         <Shapes className="size-5 transition-transform duration-300 group-hover:-rotate-12 group-hover:scale-110" />
         Open the 3D Studio
