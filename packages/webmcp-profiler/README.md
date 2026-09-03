@@ -9,9 +9,8 @@ tool surfaces. One import, zero dependencies, no framework: it wraps whatever
 `modelContext` registry a host injects, however late, and measures every tool
 call the page serves. It also lets the *agent* read the numbers, through a tool.
 
-For a visual explanation of the architecture, measurements, relay,
-privacy model, current limits, and roadmap, open
-[`index.html`](./index.html) from this package folder.
+**[Open the visual guide →](https://tryunfolded.com/webmcp-profiler/)** —
+architecture, measurements, relay, privacy, limitations, and roadmap.
 
 ## Why
 
@@ -327,8 +326,8 @@ The script tag, pinned and integrity-checked:
 
 <!-- gen:sri -->
 ```html
-<script src="https://cdn.jsdelivr.net/npm/webmcp-profiler@0.2.3/dist/webmcp-profiler.iife.js"
-        integrity="sha384-/nn8SKl53jYeCm2HoR6RlSPp4HyTY1LCFnad7O0olQVarXcMEuK15l4MWV99l2S5" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/webmcp-profiler@0.2.4/dist/webmcp-profiler.iife.js"
+        integrity="sha384-KfuwO+0asTor+ghQmttyA9zpgqMb+UJ4o5ZH7QyvClcXnWpGd8CtwY8hccPF46zQ" crossorigin="anonymous"></script>
 ```
 <!-- /gen:sri -->
 
