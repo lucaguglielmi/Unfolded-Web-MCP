@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers"
-import { oversizedFrame, SessionCore, type SessionSnapshot } from "./sessionCore"
+import { oversizedFrame, parseHello, SessionCore, type SessionSnapshot } from "./sessionCore"
 import type { Env } from "./index"
 
 /**
@@ -95,10 +95,15 @@ export class SessionDO extends DurableObject<Env> {
     const core = await this.loadCore()
     switch (msg.kind) {
       case "hello": {
-        attachment.clientId = typeof msg.clientId === "string" ? msg.clientId : ""
-        attachment.actor = msg.actor === "agent" ? "agent" : "human"
+        const hello = parseHello(msg)
+        if (!hello) {
+          this.fail(ws, "bad hello")
+          return
+        }
+        attachment.clientId = hello.clientId
+        attachment.actor = hello.actor
         ws.serializeAttachment(attachment)
-        const adopted = core.bootstrap(msg.state)
+        const adopted = core.bootstrap(hello.state)
         this.send(ws, {
           kind: "welcome",
           state: core.state,

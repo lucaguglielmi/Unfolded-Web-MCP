@@ -25,6 +25,14 @@ describe("parseShareParams", () => {
     }
   })
 
+  it("accepts a scheme-less link the way people paste it", () => {
+    const patches = parseShareParams("tryunfolded.com/?type=hexagon&height=180#anchor")
+    expect(patches.form).toEqual({ type: "faceted", facets: 6, heightMm: 180 })
+    expect(parseShareParams("www.tryunfolded.com/webmcp?wall=6").clay).toEqual({ wallThicknessMm: 6 })
+    // a scheme-less host with no query carries no parameters — not a crash
+    expect(parseShareParams("tryunfolded.com/")).toEqual({})
+  })
+
   it("maps friendly shape names to faceted forms", () => {
     expect(parseShareParams("type=triangle").form).toEqual({ type: "faceted", facets: 3 })
     expect(parseShareParams("type=octagon").form).toEqual({ type: "faceted", facets: 8 })

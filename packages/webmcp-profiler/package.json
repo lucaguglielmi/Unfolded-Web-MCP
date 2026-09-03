@@ -1,6 +1,6 @@
 {
   "name": "webmcp-profiler",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Drop-in performance analyser for WebMCP tool surfaces: per-call spans, payload and token accounting, host-gap ledger, live overlay, an agent-readable report tool, and an agentless bench. Zero dependencies.",
   "license": "MIT",
   "author": "Luca Guglielmi",

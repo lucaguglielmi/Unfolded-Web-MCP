@@ -6,6 +6,16 @@ semver as if 0.x were 1.x (a breaking change bumps the minor).
 
 ## [Unreleased]
 
+## [0.2.3]
+
+### Fixed
+
+- An unregistered tool's descriptor is handed back with its original
+  `execute` and forgotten, instead of being retained for the life of the
+  page; a site that re-creates its descriptors on every registration (a
+  StrictMode remount, a route change) no longer accumulates one wrapper
+  per registration. A re-registered descriptor is wrapped afresh.
+
 ## [0.2.2]
 
 ### Added

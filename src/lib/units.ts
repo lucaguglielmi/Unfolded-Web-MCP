@@ -10,7 +10,9 @@ export type Unit = "cm" | "in"
 
 export const MM_PER_INCH = 25.4
 
-const trim = (s: string) => s.replace(/\.?0+$/, "")
+/** drop trailing decimal zeros ("10.00" -> "10", "1.50" -> "1.5"); an
+    integer string is left alone — its zeros are significant ("10" stays "10") */
+const trim = (s: string) => (s.includes(".") ? s.replace(/\.?0+$/, "") : s)
 
 /** "28.56 cm" / "11.24 in" — trailing zeros trimmed ("10 cm", not "10.00 cm") */
 export function formatLength(mm: number, unit: Unit): string {

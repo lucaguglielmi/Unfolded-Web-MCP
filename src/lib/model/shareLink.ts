@@ -64,7 +64,12 @@ function toParams(input: string | URLSearchParams): URLSearchParams {
     // full URL (any origin — share links survive domain changes)
     return new URL(s).searchParams
   } catch {
-    return new URLSearchParams(s.startsWith("?") ? s.slice(1) : s)
+    // not an absolute URL: a scheme-less paste ("tryunfolded.com/?type=…",
+    // as people and agents routinely write it), or a bare query with or
+    // without its "?" — the parameters are whatever follows the first "?"
+    const q = s.indexOf("?")
+    const query = q >= 0 ? s.slice(q + 1) : s
+    return new URLSearchParams(query.split("#")[0])
   }
 }
 

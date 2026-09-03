@@ -51,6 +51,33 @@ export function oversizedFrame(message: string, maxBytes: number): boolean {
   return utf8.encode(message).byteLength > maxBytes
 }
 
+/**
+ * The most a client may call itself. Real ids are ~20 chars; the DO keeps
+ * the id in the socket's serialized attachment, which the runtime caps at
+ * 2 KiB, so an unbounded id would make the attachment write throw.
+ */
+export const MAX_CLIENT_ID_CHARS = 64
+
+export interface Hello {
+  clientId: string
+  actor: "human" | "agent"
+  /** the client's design slice for first-contact bootstrap, if it sent one */
+  state: unknown
+}
+
+/**
+ * Validate a `hello` frame (docs/live-sync-spec.md §10, §11): null for
+ * anything that is not a hello this server can honor. Both fields are
+ * optional (a bare hello is the wake probe) but never free-form.
+ */
+export function parseHello(msg: Record<string, unknown>): Hello | null {
+  const clientId = msg.clientId ?? ""
+  if (typeof clientId !== "string" || clientId.length > MAX_CLIENT_ID_CHARS) return null
+  const actor = msg.actor ?? "human"
+  if (actor !== "human" && actor !== "agent") return null
+  return { clientId, actor, state: msg.state }
+}
+
 const DEFAULT_STATE: SessionState = {
   form: PRESETS["classic-mug"],
   clay: DEFAULT_CLAY,

@@ -69,7 +69,7 @@ export const claySettingsSchema = z.object({
     .number()
     .min(2)
     .max(15)
-    .describe("Slab thickness in millimeters (typically 4-6 for mugs)"),
+    .describe("Wet slab thickness in millimeters, as rolled (typically 4-6 for mugs); the only non-fired size — it shrinks with the clay"),
 })
 
 export type FormType = z.infer<typeof formTypeSchema>
@@ -78,6 +78,24 @@ export type ClaySettings = z.infer<typeof claySettingsSchema>
 
 export const updateFormInputSchema = formParamsSchema.partial()
 export const setClayInputSchema = claySettingsSchema.partial()
+
+/** the pre-taper-split `type` vocabulary normalizeLegacyFormPatch still honors */
+export const LEGACY_FORM_TYPES = ["cylinder", "tapered"] as const
+
+/**
+ * The update_form tool's advertised contract: the form patch with the
+ * legacy `type` values admitted, so a host that validates calls against
+ * the advertised schema lets them through to normalizeLegacyFormPatch —
+ * what is advertised is exactly what is accepted.
+ */
+export const updateFormToolInputSchema = updateFormInputSchema.extend({
+  type: z
+    .enum([...formTypeSchema.options, ...LEGACY_FORM_TYPES])
+    .optional()
+    .describe(
+      `${formTypeSchema.description} Legacy values still accepted: 'cylinder' (round, straight) and 'tapered' (round, tapered).`
+    ),
+})
 
 export type UpdateFormInput = z.infer<typeof updateFormInputSchema>
 export type SetClayInput = z.infer<typeof setClayInputSchema>
