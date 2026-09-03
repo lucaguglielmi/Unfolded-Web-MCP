@@ -15,7 +15,7 @@ const scenarios = [
     icon: Bot,
     title: "ChatGPT agent browser",
     status: "Direct WebMCP",
-    body: "ChatGPT opens Unfolded in its internal agent browser. The app registers all 14 tools, so the agent reads and edits the same tab directly.",
+    body: "ChatGPT opens Unfolded in its internal agent browser. The app registers all 11 tools, so the agent reads and edits the same tab directly — and on a fresh session its first reply offers \"Open a paired browser session with this chat\", the link that puts the same design on your own screen.",
     tone: "violet",
   },
   {

@@ -27,26 +27,39 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
   {
     prompt: "What am I designing right now?",
     tool: "describe_project",
-    mustMention: ["call this first", "designurl", "capacityml"],
+    mustMention: ["what am i designing", "depends on what is there now", "designurl", "capacityml"],
+  },
+  {
+    // docs/webmcp-tool-performance-spec.md §6.2: a fresh session is
+    // offered the paired-browser link first, the spoken code second
+    prompt: "Connect to tryunfolded.com",
+    tool: "describe_project",
+    mustMention: ["session.paired", "paired browser session", "create_live_handoff", "six-character"],
   },
   {
     prompt: "Make it hold about 350 ml.",
-    tool: "set_capacity",
-    mustMention: ["milliliters", "solves the exact height"],
+    tool: "update_design",
+    mustMention: ["milliliters", "solves the exact height", "never iterate"],
   },
   {
     prompt: "My stoneware shrinks 13% — adjust my templates.",
-    tool: "set_clay",
+    tool: "update_design",
     mustMention: ["shrinkage"],
   },
   {
     prompt: "Make it a hexagonal planter, 18 cm tall.",
-    tool: "update_form",
+    tool: "update_design",
     mustMention: ["hexagon", "fired", "millimeters"],
   },
   {
+    // §6.1: an absolute edit needs no read first
+    prompt: "Make it 12 cm tall.",
+    tool: "update_design",
+    mustMention: ["one call", "one undo step", "full new state"],
+  },
+  {
     prompt: "Switch to inches.",
-    tool: "set_units",
+    tool: "update_design",
     mustMention: ["display", "millimeters regardless"],
   },
   {
@@ -105,9 +118,13 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
  * 10,474 under an 11,000 budget; the schema-weight trim that followed the
  * first native-host measurement (docs/performance-report.md §1.2) cut
  * property descriptions that restated their own bounds and enums, and
- * descriptions that restated their schemas, down to ~9,030 chars.
+ * descriptions that restated their schemas, down to ~9,030 chars; the
+ * tool-performance spec then merged update_form, set_clay, set_units and
+ * set_capacity into update_design and gave describe_project the
+ * fresh-session offer (docs/webmcp-tool-performance-spec.md §4, §6),
+ * and the budget followed the measured total down again.
  */
-const METADATA_BUDGET_CHARS = 9_500
+const METADATA_BUDGET_CHARS = 9_350
 
 describe("prompt suite — tool selection signals survive metadata trims", () => {
   const tools = buildTools()
@@ -126,17 +143,23 @@ describe("prompt suite — tool selection signals survive metadata trims", () =>
     })
   }
 
+  it("describe_project no longer asks to be called first", () => {
+    // §6.1: the sentence made agents spend a read round trip before
+    // absolute edits whose result carries the same snapshot anyway
+    expect(byName.get("describe_project")!.description.toLowerCase()).not.toContain("call this first")
+  })
+
   it("every tool that creates, edits, or opens a design carries the link rule", () => {
-    const linkTools = ["open_model", "update_form", "set_clay", "set_capacity", "set_units", "apply_preset", "undo_last_change"]
+    const linkTools = ["open_model", "update_design", "apply_preset", "undo_last_change", "export_templates"]
     for (const name of linkTools) {
       expect(byName.get(name)!.description, `${name} must route links to create_live_handoff`).toContain("create_live_handoff")
     }
   })
 
-  it("update_form defers target volumes to set_capacity", () => {
+  it("update_design routes target volumes to capacityMl, never a height loop", () => {
     // the single most valuable routing sentence: without it agents
-    // guess-loop update_form toward a volume the solver answers exactly
-    expect(byName.get("update_form")!.description).toContain("prefer set_capacity")
+    // guess-loop heightMm toward a volume the solver answers exactly
+    expect(metadataOf(byName.get("update_design")!).toLowerCase()).toContain("never iterate")
   })
 
   it("every tool that changes the design promises the full new state", () => {

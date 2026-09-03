@@ -41,12 +41,12 @@ beforeEach(() => {
 describe("designUrl — the permanent link", () => {
   it("never carries a join token or agent tag, whatever the agent status", () => {
     useProjectStore.setState({ agentStatus: "native" })
-    const { designUrl, linkMode, liveHandoffTool } = describeState()
+    const { designUrl, session } = describeState()
     expect(designUrl).not.toContain("join=")
     expect(designUrl).not.toContain("via=")
     expect(designUrl).toContain("type=")
-    expect(linkMode).toBe("independent-copy")
-    expect(liveHandoffTool).toBe("create_live_handoff")
+    // the snapshot reports the session as a fact: this test tab is unpaired and alone
+    expect(session).toEqual({ paired: false, peers: 1 })
   })
 
   it("is the only link in state snapshots — no shareUrl remains", () => {
@@ -125,10 +125,8 @@ describe("no other tool spends a token", () => {
   it("describe_project and every mutation leave mintToken untouched", async () => {
     useProjectStore.setState({ agentStatus: "native" })
     await textOf("describe_project")
-    await textOf("update_form", { heightMm: 140 })
-    await textOf("set_clay", { shrinkagePct: 11 })
-    await textOf("set_capacity", { capacityMl: 300 })
-    await textOf("set_units", { units: "in" })
+    await textOf("update_design", { heightMm: 140, shrinkagePct: 11, units: "in" })
+    await textOf("update_design", { capacityMl: 300 })
     await textOf("apply_preset", { preset: "tumbler" })
     await textOf("open_model", { url: "?type=hexagon&height=150" })
     await textOf("undo_last_change")

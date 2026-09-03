@@ -43,7 +43,7 @@ user's side, one scenario at a time.
 
 | Scenario | Bridge | Who adopts whom |
 | --- | --- | --- |
-| ChatGPT → its in-app browser | tap the agent's latest link (`?join=`) | visible tab adopts the agent's design |
+| ChatGPT → its in-app browser | tap the agent's latest link (`?join=`) — on a fresh session the first reply already offers one, as **Open a paired browser session with this chat** | visible tab adopts the agent's design |
 | ChatGPT → Chrome (WebMCP flag) | open the agent's latest link | Chrome tab adopts the agent's design |
 | ChatGPT → Safari | open the agent's latest link | Safari adopts the agent's design |
 | Chrome → ChatGPT | tap **Open in ChatGPT** (prompt + code injected), or mint a code and tell the agent to join | agent's tab adopts Chrome's design |
@@ -65,7 +65,13 @@ never watch.
 *What actually happens:*
 
 1. You ask the agent to design something ("make me a 400 ml tapered
-   mug"). Its hidden tab connects over WebMCP and calls the tools.
+   mug"). Its hidden tab connects over WebMCP and calls the tools. On a
+   fresh session the agent's very first reply offers you the way in: the
+   snapshot it reads says `session.paired: false`, so it mints a link and
+   labels it **Open a paired browser session with this chat** — tap it and
+   your screen is paired with the conversation before any design work —
+   with the six-character code as the alternative if the design already
+   lives on another device.
 2. When the agent hands you a link it calls `create_live_handoff` first:
    the tab opens a live session and mints a single-use join token on the
    spot, and the agent returns that `liveHandoffUrl` verbatim — its

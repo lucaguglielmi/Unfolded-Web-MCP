@@ -1414,7 +1414,7 @@ The tool is not measured: the descriptor carries a non-enumerable
 appears as a span. It is listed in `ledger.tools` with `internal: true`
 and its schema bytes count, because the host really does ship them.
 
-Unfolded registers it as its fifteenth tool. That makes the manifest's
+Unfolded registers it as its twelfth tool (fifteenth before the tool-performance spec merged four setters into `update_design`). That makes the manifest's
 sentence true ("open a `?perf=1` link, work normally, then read the
 report") and it is the reference integration for the README. When the
 gate is closed the tool is not registered, so an unarmed session

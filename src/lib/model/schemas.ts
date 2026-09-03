@@ -139,3 +139,31 @@ export const DEFAULT_CLAY: ClaySettings = {
   shrinkagePct: 12,
   wallThicknessMm: 5,
 }
+
+/**
+ * The update_design tool's advertised contract, declared once and used
+ * for both the JSON Schema a host reads and the parse the call runs
+ * (docs/webmcp-tool-performance-spec.md §4): the form patch with the
+ * legacy `type` values, the clay settings, the display units, the paper
+ * size, and a target capacity that stands in for heightMm. Every field
+ * optional — any subset of the design changes in one call.
+ */
+export const updateDesignInputSchema = updateFormToolInputSchema.extend({
+  shrinkagePct: claySettingsSchema.shape.shrinkagePct.optional(),
+  wallThicknessMm: claySettingsSchema.shape.wallThicknessMm.optional(),
+  units: z
+    .enum(["cm", "in"])
+    .optional()
+    .describe("Display units for the potter — display only, tool I/O stays in mm"),
+  paperSize: z.enum(["A4", "A3", "Letter"]).optional(),
+  capacityMl: z
+    .number()
+    .min(1)
+    .max(200000)
+    .optional()
+    .describe(
+      "Target capacity in ml, e.g. 350 for a mug — give this INSTEAD of heightMm and the exact height is solved in this call; never iterate"
+    ),
+})
+
+export type UpdateDesignInput = z.infer<typeof updateDesignInputSchema>

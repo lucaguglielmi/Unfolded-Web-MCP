@@ -86,7 +86,7 @@ try {
     page.on("pageerror", (e) => pageErrors.push(String(e).slice(0, 160)))
     await page.addInitScript(FAKE_HOST_INIT_SCRIPT)
     await page.goto(`${BASE}/?perf=overlay`, { waitUntil: "networkidle", timeout: 60_000 })
-    await page.waitForFunction(() => window.__webmcpFakeHost && window.__webmcpFakeHost.tools.size >= 15, undefined, { timeout: 30_000 }).catch(() => undefined)
+    await page.waitForFunction(() => window.__webmcpFakeHost && window.__webmcpFakeHost.tools.size >= 12, undefined, { timeout: 30_000 }).catch(() => undefined)
     await wait(1500)
     const surface = await page.evaluate(async () => {
       const host = window.__webmcpFakeHost
@@ -94,8 +94,8 @@ try {
       const call = (n, i = {}) => host.call(n, i)
       const describe = await call("describe_project")
       const preview = await call("get_preview_image")
-      const capacity = await call("set_capacity", { capacityMl: 350 })
-      const form = await call("update_form", { type: "faceted", facets: 6, heightMm: 120 })
+      const capacity = await call("update_design", { capacityMl: 350 })
+      const form = await call("update_design", { type: "faceted", facets: 6, heightMm: 120, shrinkagePct: 13, units: "in" })
       const summary = await call("get_template_summary")
       const undo = await call("undo_last_change")
       const handoff = await call("create_live_handoff").catch((e) => ({ isError: true, error: String(e) }))
@@ -127,18 +127,32 @@ try {
         overlayLedger: overlay ? overlay.querySelector(".ledger")?.textContent : null,
       }
     })
-    check("tool surface: 15 tools registered on the fake host (get_perf_report included)", surface.names.length === 15 && surface.names.includes("get_perf_report"), surface.names.join(","))
+    check("tool surface: 12 tools registered on the fake host (get_perf_report included)", surface.names.length === 12 && surface.names.includes("get_perf_report"), surface.names.join(","))
     check("describe_project: ok with a state snapshot", surface.describeOk)
     check("get_preview_image: compact image (< 20 KB base64)", surface.previewBytes > 1000 && surface.previewBytes < 20_000, `${surface.previewBytes}B`)
-    check("set_capacity / update_form / get_template_summary / undo: ok", surface.capacityOk && surface.formOk && surface.summaryOk && surface.undoOk)
+    check("update_design (capacity, combined) / get_template_summary / undo: ok", surface.capacityOk && surface.formOk && surface.summaryOk && surface.undoOk)
     check("create_live_handoff: reaches the pairing service", surface.handoff === true, surface.handoffMessage)
     check("start_pairing: mints a code from the worker", !!surface.pairingCode, surface.pairingMessage)
     check("profiler: ?perf=overlay armed, every host call measured", surface.status === "measuring" && surface.spans >= 7, `spans=${surface.spans} phase=${surface.status}`)
     check("profiler: get_perf_report answers with the tools view, format 2, package version", surface.perfOk && surface.perfFormat === "webmcp-perf-report/2" && /^\d+\.\d+\.\d+$/.test(surface.perfVersion ?? ""), `version=${surface.perfVersion}`)
-    check("profiler: the report tool is listed as internal and never measured", surface.internal === true && surface.registered === 15)
+    check("profiler: the report tool is listed as internal and never measured", surface.internal === true && surface.registered === 12)
     check("overlay: rows and the ledger line render", surface.overlayRows >= 5 && /host gaps/.test(surface.overlayLedger ?? ""), `rows=${surface.overlayRows} ledger=${surface.overlayLedger}`)
     check("profiler flow: no page errors", pageErrors.length === 0, pageErrors.join(" | "))
     console.log("\n" + surface.summaryText + "\n")
+    await ctx.close()
+  }
+
+  // ------------------------------------------ browser caching (spec §8)
+  {
+    const ctx = await browser.newContext()
+    const html = await ctx.request.get(`${BASE}/`)
+    const body = await html.text()
+    const asset = body.match(/src="(\/assets\/[^"]+\.js)"/)?.[1]
+    const assetRes = asset ? await ctx.request.get(`${BASE}${asset}`) : null
+    const assetCache = assetRes?.headers()["cache-control"] ?? ""
+    const htmlCache = html.headers()["cache-control"] ?? ""
+    check("caching: fingerprinted /assets/* are immutable for a year", /immutable/.test(assetCache) && /max-age=31\d{6}/.test(assetCache), `${asset} → ${assetCache}`)
+    check("caching: the HTML entry still revalidates", !/immutable/.test(htmlCache), htmlCache)
     await ctx.close()
   }
 

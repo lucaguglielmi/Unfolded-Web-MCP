@@ -1,0 +1,8 @@
+# Vite fingerprints everything under /assets/ (a new build never reuses a
+# name), so browsers may keep those files for a year without asking. The
+# HTML entry keeps the platform default (revalidate every time) — it is
+# what points at the current hashes. Honored by Workers static assets and
+# by `wrangler dev`; the Worker's security-header wrapper leaves
+# Cache-Control alone.
+/assets/*
+  Cache-Control: public, max-age=31556952, immutable

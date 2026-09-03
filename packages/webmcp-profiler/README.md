@@ -364,7 +364,7 @@ on the server and the real one in the browser.
 | host | `modelContext` on | verified | package |
 | --- | --- | --- | --- |
 | the fake host (`webmcp-profiler/testing`) | document, navigator, or window | every unit and end-to-end test | 0.2.0 |
-| Chrome 152 (Chrome for Testing) with `--enable-features=WebMCPTesting` | document | `e2e/native-host.mjs` in this repo drives tryunfolded.com through Chrome's own host over DevTools: 15 tools plus `get_perf_report` invoked and read back | 0.2.2 |
+| Chrome 152 (Chrome for Testing) with `--enable-features=WebMCPTesting` | document | `e2e/native-host.mjs` in this repo drives tryunfolded.com through Chrome's own host over DevTools: the site's tools plus `get_perf_report` invoked and read back | 0.2.2 |
 | Chrome / Edge origin trial | document | not yet verified by the maintainers; rows are added with evidence only | |
 | ChatGPT desktop | document (late injection) | not yet verified | |
 

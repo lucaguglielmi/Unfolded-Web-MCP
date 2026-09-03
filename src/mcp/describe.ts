@@ -10,6 +10,7 @@ import {
 import { countPages, layoutPieces, PAGE_OVERLAP_MM, type PaperSize } from "@/lib/export/svg"
 import { shareUrl } from "@/lib/model/shareLink"
 import type { Unit } from "@/lib/units"
+import { liveSync } from "@/store/syncClient"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
@@ -20,7 +21,10 @@ import { useProjectStore } from "@/store/useProjectStore"
  *
  * Pure: a snapshot never mints, prefetches, or spends a live-session
  * token. The permanent designUrl is the only link here; live handoff
- * links come from create_live_handoff alone (see liveHandoff.ts).
+ * links come from create_live_handoff alone (see liveHandoff.ts). The
+ * `session` field reads the sync client's state — a fact the agent
+ * decides the fresh-session offer on (spec §6.2), never a guess from the
+ * default design — and reading it changes nothing.
  */
 
 /** Structured snapshot returned by read tools and after every mutation. */
@@ -32,14 +36,13 @@ export function describeState(): {
   units: Unit
   /** permanent permalink: reopens an independent copy — never a live session */
   designUrl: string
-  linkMode: "independent-copy"
-  /** the tool that mints a live continuation link, on demand */
-  liveHandoffTool: "create_live_handoff"
   /** approximate fired interior volume in milliliters */
   capacityMl: number
   pieces: string[]
   printedPages: number
   warnings: string[]
+  /** is this tab in a live session, and how many devices are in it (this one included) */
+  session: { paired: boolean; peers: number }
 } {
   const { form, clay, paperSize, unit } = useProjectStore.getState()
   const pieces = buildPieces(form, clay)
@@ -51,12 +54,11 @@ export function describeState(): {
     paperSize,
     units: unit,
     designUrl: shareUrl(form, clay, paperSize, { unit }),
-    linkMode: "independent-copy",
-    liveHandoffTool: "create_live_handoff",
     capacityMl: capacityMl(form, clay),
     pieces: pieces.map((p) => describePiece(p, scale, unit)),
     printedPages: pages.totalPages,
     warnings: formWarnings(form, clay, unit),
+    session: { paired: liveSync.isPaired(), peers: liveSync.peers() },
   }
 }
 

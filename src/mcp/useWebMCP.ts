@@ -1,12 +1,9 @@
 import { useEffect } from "react"
 import { useProjectStore } from "@/store/useProjectStore"
+import { startHostWatch } from "./hostWatch"
 import { getModelContextInfo, type ModelContext, type ToolDescriptor } from "./modelContext"
 import { registerToolSet } from "./register"
 import { buildTools } from "./tools"
-
-const FAST_POLL_MS = 500
-const FAST_WINDOW_MS = 15_000
-const SLOW_POLL_MS = 3_000
 
 /**
  * Registration lifecycle state, module-scoped so it survives React
@@ -26,24 +23,23 @@ let attemptInFlight = false
 /**
  * Registers the app's WebMCP tools and keeps the connection state honest.
  *
- * Hosts differ wildly in WHEN they expose the API: extension shims attach
- * it shortly after load, but in-app agent browsers (e.g. ChatGPT's) may
- * inject document.modelContext only when the person first engages the
- * agent — possibly minutes in. So we never stop watching: poll fast for
- * the first 15s, then keep a slow heartbeat forever (paused while the
- * tab is hidden; focus/visibility re-check immediately). The heartbeat
- * also watches for the HOST REPLACING the registry object: a changed
- * identity aborts the old registration set and registers cleanly against
- * the new context.
+ * The watch (hostWatch.ts) looks for a host every 500 ms for the life of
+ * the tab while visible, every 3 s while hidden, and immediately on
+ * focus/visibility — hosts inject the API at wildly different times,
+ * and the one that matters most (ChatGPT's in-app browser) may do so
+ * minutes in. The heartbeat also watches for the HOST REPLACING the
+ * registry object: a changed identity aborts the old registration set
+ * and registers cleanly against the new context.
  *
- * Registration follows the current draft: every registerTool
- * call is awaited, the whole set is all-or-nothing under one
- * AbortController, and the connection is reported active only after the
- * final registration resolves. Legacy hosts (navigator/window locations,
- * provideContext, void returns) are handled by the compatibility layer
- * in modelContext.ts / register.ts. Independently of all this, the store
- * flips the badge to "native" the moment any tool actually executes
- * (recordAgentCall): a tool call is definitive proof of a connection.
+ * Registration follows the current draft: every registerTool call is
+ * awaited (the whole set in parallel), the set is all-or-nothing under
+ * one AbortController, and the connection is reported active only after
+ * the last registration resolves. Legacy hosts (navigator/window
+ * locations, provideContext, void returns) are handled by the
+ * compatibility layer in modelContext.ts / register.ts. Independently of
+ * all this, the store flips the badge to "native" the moment any tool
+ * actually executes (recordAgentCall): a tool call is definitive proof of
+ * a connection.
  */
 export function useWebMCP(): void {
   const setAgentStatus = useProjectStore((s) => s.setAgentStatus)
@@ -105,35 +101,15 @@ export function useWebMCP(): void {
 
     // No downgrade here: the store already defaults to "unavailable", and a
     // boot-detected "chatgpt" (agent-minted link) state must survive until
-    // direct registration upgrades it to "native". The heartbeat never
-    // stops: before success it hunts for a host; after success it watches
-    // for the host replacing the registry (attempt() is a cheap identity
-    // check in the steady state).
-    const startedAt = performance.now()
-    let timer = window.setInterval(() => {
-      // hidden tabs skip the poll — the visibilitychange recheck below
-      // fires the moment the tab comes back, so nothing is missed
-      if (document.hidden) return
-      void attempt()
-      if (performance.now() - startedAt > FAST_WINDOW_MS) {
-        window.clearInterval(timer)
-        timer = window.setInterval(() => {
-          if (!document.hidden) void attempt()
-        }, SLOW_POLL_MS)
-      }
-    }, FAST_POLL_MS)
-
-    const recheck = () => {
-      void attempt()
-    }
-    document.addEventListener("visibilitychange", recheck)
-    window.addEventListener("focus", recheck)
+    // direct registration upgrades it to "native". The watch never stops:
+    // before success it hunts for a host; after success it watches for the
+    // host replacing the registry (attempt() is a cheap identity check in
+    // the steady state).
+    const stopWatch = startHostWatch({ attempt })
 
     return () => {
       disposed = true
-      window.clearInterval(timer)
-      document.removeEventListener("visibilitychange", recheck)
-      window.removeEventListener("focus", recheck)
+      stopWatch()
       // unmount aborts the registrations exactly once (StrictMode's dev
       // remount simply registers again against the clean host)
       if (active) {

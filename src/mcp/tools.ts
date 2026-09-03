@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { profilerTool } from "@/profiler/tool"
 import { capacityMl, heightForCapacityMl } from "@/lib/geometry/unroll"
-import { setClayInputSchema, updateFormToolInputSchema, PRESETS } from "@/lib/model/schemas"
+import { updateDesignInputSchema, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
 import { capturePreviewImage } from "@/lib/previewCapture"
 import { liveSync } from "@/store/syncClient"
@@ -35,10 +35,7 @@ import {
 export const TOOL_SUMMARIES: { name: string; blurb: string; conditional?: true }[] = [
   { name: "describe_project", blurb: "Read the whole design: form, clay, template pieces, capacity in ml, and its permanent design link." },
   { name: "open_model", blurb: "Open a design from a pasted share link and keep editing it." },
-  { name: "update_form", blurb: "Change shape, taper, facets, height and diameters — fired sizes, in millimeters." },
-  { name: "set_clay", blurb: "Set shrinkage % and slab thickness for the potter's clay body." },
-  { name: "set_units", blurb: "Switch the potter's display units between centimeters and inches — UI and PDF alike." },
-  { name: "set_capacity", blurb: "Solve the height for a target interior volume — 'make it hold 350 ml'." },
+  { name: "update_design", blurb: "Change any part of the design in one call — shape, fired sizes, clay, paper, display units, or a target capacity the height is solved for." },
   { name: "get_template_summary", blurb: "Template layout, per-piece dimensions, and the exact PDF page count." },
   { name: "get_preview_image", blurb: "See the live 3D preview as an image — exactly what the potter sees." },
   { name: "export_templates", blurb: "Generate and download the true-scale, multi-page template PDF." },
@@ -61,12 +58,16 @@ const prettyCode = (code: string) => `${code.slice(0, 3)}-${code.slice(3)}`
 
 type StateSnapshot = ReturnType<typeof describeState>
 
+/** text half of a state result: "<message>\n<compact json>", or the bare
+    json. Compact on purpose (docs/webmcp-tool-performance-spec.md §5): a
+    model reads it as well as pretty-printed, and every byte here is paid
+    on every call */
 function stateText(prefix?: string, state: StateSnapshot = describeState()): string {
-  return (prefix ? `${prefix}\n` : "") + JSON.stringify(state, null, 2)
+  return (prefix ? `${prefix}\n` : "") + JSON.stringify(state)
 }
 
 /**
- * Structured results (contract tool-result/1) ride
+ * Structured results (contract tool-result/2) ride
  * beside the unchanged text content: `ok` mirrors !isError, `message` is
  * the sentence the text opens with, `state` is the same snapshot the text
  * serializes, and `warnings` appears only when the design has any.
@@ -150,19 +151,11 @@ function toInputSchema(schema: z.ZodType): Record<string, unknown> {
  * Each tool's input contract, declared ONCE: the same zod object is
  * advertised to the host (as JSON Schema) and enforced on the call, so
  * the bounds an agent reads and the bounds it hits can never drift apart.
- * update_form and set_clay use the model's own schemas the same way.
+ * update_design's lives with the model (updateDesignInputSchema).
  */
 const PRESET_IDS = Object.keys(PRESETS) as [string, ...string[]]
 const openModelInput = z.object({
   url: z.string().min(1).describe("Share link URL, or just its query string"),
-})
-const setUnitsInput = z.object({ units: z.enum(["cm", "in"]) })
-const setCapacityInput = z.object({
-  capacityMl: z
-    .number()
-    .min(1)
-    .max(200000)
-    .describe("Target capacity in ml, e.g. 350 for a mug"),
 })
 const exportTemplatesInput = z.object({
   paperSize: z.enum(["A4", "A3", "Letter"]).optional(),
@@ -218,7 +211,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "describe_project",
       description:
-        "Get the current design: form (fired mm), clay, the flat template pieces it unrolls into (wet-clay sizes, shrinkage applied), capacityMl, and designUrl — a permanent link to an independent copy, given out only when the potter explicitly asks for a permanent or bookmarkable link (otherwise links come from create_live_handoff). Call this first. The page is live-synced and may change under you: if the browser refuses a call because the page changed, look again and retry.",
+        "Get the current design: form (fired mm), clay, the flat template pieces it unrolls into (wet-clay sizes, shrinkage applied), capacityMl, designUrl — a permanent link to an independent copy, given out only when the potter explicitly asks for a permanent or bookmarkable link (otherwise links come from create_live_handoff) — and session (whether this tab is paired, and with how many devices). Read it when the request depends on what is there now — 'what am I designing?', 'make it taller', 'will this print on one page?' — or when the potter has just connected; an absolute edit ('make it 12 cm tall') can go straight to update_design, which returns this same snapshot. When session.paired is false, offer the potter both ways in, in this order: (1) call create_live_handoff and give them its liveHandoffUrl as a link labelled 'Open a paired browser session with this chat' — one tap opens this design on their screen, paired with this conversation; (2) or, if they already have the design open on another device, ask for its six-character code and call join_session. The page is live-synced and may change under you: if the browser refuses a call because the page changed, look again and retry.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Describe current design",
       annotations: { title: "Describe current design", readOnlyHint: true },
@@ -248,75 +241,71 @@ export function buildTools(): ToolDescriptor[] {
         }),
     },
     {
-      name: "update_form",
+      name: "update_design",
       description:
-        "Update any subset of the form: type, tapered, facets, name, and the dimensions in FIRED millimeters (each documented in the schema). Shrinkage is applied to the templates automatically and the potter's 3D preview updates at once. Legacy type values 'cylinder' and 'tapered' are still accepted. Returns the full new state with capacityMl. For a target volume like 'a 350 ml mug', prefer set_capacity — it solves the height exactly." + LINK_RULE,
-      inputSchema: toInputSchema(updateFormToolInputSchema),
-      title: "Update form dimensions",
-      annotations: { title: "Update form dimensions" },
+        "Change any subset of the design in ONE call: shape (type, tapered, facets, name), the dimensions in FIRED millimeters, clay (shrinkage and wet slab thickness), paperSize, and the potter's display units ('cm' or 'in' — display only; tool inputs and outputs stay in millimeters regardless). For a target volume pass capacityMl (milliliters) instead of heightMm: volume is linear in height, so this solves the exact height — never iterate. Everything applies together as one undo step and the potter's 3D preview updates at once. Legacy type values 'cylinder' and 'tapered' are accepted. Returns the full new state with capacityMl." +
+        LINK_RULE,
+      inputSchema: toInputSchema(updateDesignInputSchema),
+      title: "Update the design",
+      annotations: { title: "Update the design" },
       execute: (input, options) =>
-        run("update_form", options, () => {
-          // the store action normalizes the legacy type values and then
-          // validates with the model's schema — the advertised contract
-          // above admits exactly that set
-          useProjectStore.getState().updateForm((input ?? {}) as UpdateFormInput)
-          return stateResult("Form updated.")
-        }),
-    },
-    {
-      name: "set_clay",
-      description:
-        "Update clay settings (see schema): shrinkage scales the flat templates up, wall thickness shifts the developed mid-surface. Returns the full new state." + LINK_RULE,
-      inputSchema: toInputSchema(setClayInputSchema),
-      title: "Set clay properties",
-      annotations: { title: "Set clay properties" },
-      execute: (input, options) =>
-        run("set_clay", options, () => {
-          useProjectStore.getState().setClay((input ?? {}) as SetClayInput)
-          return stateResult("Clay settings updated.")
-        }),
-    },
-    {
-      name: "set_units",
-      description:
-        "Display units: 'cm' (default) or 'in'. Display-only — UI, warnings, and the printed PDF change; tool inputs and outputs stay in millimeters regardless. Remembered in the browser and on share links. Returns the full new state." + LINK_RULE,
-      inputSchema: toInputSchema(setUnitsInput),
-      title: "Set measurement units",
-      annotations: { title: "Set measurement units" },
-      execute: (input, options) =>
-        run("set_units", options, () => {
-          const { units } = setUnitsInput.parse(input ?? {})
-          useProjectStore.getState().setUnit(units)
-          return stateResult(`Measurement units set to ${units === "in" ? "inches" : "centimeters"}.`)
-        }),
-    },
-    {
-      name: "set_capacity",
-      description:
-        "Set the interior capacity in milliliters. Volume is linear in height, so this solves the exact height for the target — never iterate with update_form. If the height clamps to the buildable 20-600 mm range, the response reports the achievable capacity; adjust the diameters and call again. Returns the full new state." + LINK_RULE,
-      inputSchema: toInputSchema(setCapacityInput),
-      title: "Set capacity",
-      annotations: { title: "Set capacity" },
-      execute: (input, options) =>
-        run("set_capacity", options, () => {
-          const { capacityMl: target } = setCapacityInput.parse(input ?? {})
-          const { form, clay } = useProjectStore.getState()
-          const solved = heightForCapacityMl(form, clay, target)
-          if (solved === null) {
+        run("update_design", options, () => {
+          const parsed = updateDesignInputSchema.parse(input ?? {})
+          const { shrinkagePct, wallThicknessMm, units, paperSize, capacityMl: target, ...formPatch } = parsed
+          if (parsed.heightMm !== undefined && target !== undefined) {
             return stateError(
-              "The walls close this form's interior entirely — no height can hold anything. " +
-                "Thin the walls (set_clay) or widen the form (update_form) first.",
-              "Current state"
+              "Invalid input:\nheightMm and capacityMl: give one or the other — capacityMl solves the height itself.",
+              "Current state unchanged"
             )
           }
-          const clamped = Math.round(Math.min(600, Math.max(20, solved)) * 10) / 10
-          useProjectStore.getState().updateForm({ heightMm: clamped })
-          const achieved = capacityMl(useProjectStore.getState().form, clay)
-          const note =
-            Math.abs(clamped - solved) > 0.05
-              ? `Target ${target} ml needs a ${solved.toFixed(0)} mm height — clamped to ${clamped} mm, which holds ~${achieved} ml. Adjust the diameters to get closer.`
-              : `Height set to ${clamped} mm — the vessel now holds ~${achieved} ml.`
-          return stateResult(note)
+          const clayPatch: SetClayInput = {}
+          if (shrinkagePct !== undefined) clayPatch.shrinkagePct = shrinkagePct
+          if (wallThicknessMm !== undefined) clayPatch.wallThicknessMm = wallThicknessMm
+          const hasForm = Object.values(formPatch).some((v) => v !== undefined)
+          const hasClay = Object.keys(clayPatch).length > 0
+          if (!hasForm && !hasClay && !units && !paperSize && target === undefined) {
+            return stateResult("No changes requested.")
+          }
+
+          const store = useProjectStore.getState()
+          const notes: string[] = []
+          // one undo scope for the whole call, however many slices it touches
+          store.beginUndoCoalescing()
+          try {
+            // the store action normalizes the legacy type values and then
+            // validates with the model's schema — the advertised contract
+            // above admits exactly that set
+            if (hasForm) store.updateForm(formPatch as UpdateFormInput)
+            if (hasClay) store.setClay(clayPatch)
+            if (paperSize) store.setPaperSize(paperSize)
+            if (units) store.setUnit(units)
+            if (hasForm || hasClay || paperSize) notes.push("Design updated.")
+            if (units) notes.push(`Display units set to ${units === "in" ? "inches" : "centimeters"}.`)
+            if (target !== undefined) {
+              // solved against the diameters and clay AFTER the other
+              // fields applied, so one call carries the whole sentence
+              const { form, clay } = useProjectStore.getState()
+              const solved = heightForCapacityMl(form, clay, target)
+              if (solved === null) {
+                return stateError(
+                  "The walls close this form's interior entirely — no height can hold anything. " +
+                    "Thin the walls (wallThicknessMm) or widen the form first.",
+                  "Current state"
+                )
+              }
+              const clamped = Math.round(Math.min(600, Math.max(20, solved)) * 10) / 10
+              store.updateForm({ heightMm: clamped })
+              const achieved = capacityMl(useProjectStore.getState().form, clay)
+              notes.push(
+                Math.abs(clamped - solved) > 0.05
+                  ? `Target ${target} ml needs a ${solved.toFixed(0)} mm height — clamped to ${clamped} mm, which holds ~${achieved} ml. Adjust the diameters to get closer.`
+                  : `Height set to ${clamped} mm — the vessel now holds ~${achieved} ml.`
+              )
+            }
+          } finally {
+            store.endUndoCoalescing()
+          }
+          return stateResult(notes.join(" "))
         }),
     },
     {
@@ -329,7 +318,7 @@ export function buildTools(): ToolDescriptor[] {
       execute: (_input, options) =>
         run("get_template_summary", options, () => {
           const summary = describeTemplates()
-          return textResult(JSON.stringify(summary, null, 2), false, {
+          return textResult(JSON.stringify(summary), false, {
             ok: true,
             message: "Template summary.",
             ...summary,
@@ -439,7 +428,7 @@ export function buildTools(): ToolDescriptor[] {
                 "No link was generated. Retry once, or use start_pairing to create a six-character code."
             )
           }
-          return textResult(JSON.stringify(handoff, null, 2), false, {
+          return textResult(JSON.stringify(handoff), false, {
             ok: true,
             message: "Live handoff link created — return liveHandoffUrl verbatim.",
             ...handoff,

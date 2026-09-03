@@ -35,7 +35,7 @@ export type ToolContent = TextContent | ImageContent
  * `structuredContent` changes incompatibly; the contract is written up in
  * docs/performance-report.md ("Structured results").
  */
-export const TOOL_RESULT_CONTRACT = "tool-result/1"
+export const TOOL_RESULT_CONTRACT = "tool-result/2"
 
 /**
  * The machine-readable half of every tool result. `ok` mirrors

@@ -48,7 +48,7 @@ try {
   const result = await runBench({
     url: BASE,
     cases,
-    allowMutating: ["update_form", "set_clay", "set_capacity", "set_units", "apply_preset", "undo_last_change", "open_model"],
+    allowMutating: ["update_design", "apply_preset", "undo_last_change", "open_model"],
     executablePath,
     overhead: flag("overhead"),
     log: (line) => process.stderr.write(line + "\n"),
