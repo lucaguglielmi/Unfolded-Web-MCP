@@ -9,36 +9,32 @@ import { z } from "zod"
 export const formTypeSchema = z
   .enum(["round", "faceted"])
   .describe(
-    "Wall geometry: 'round' = circular (cylinder; cone frustum when tapered), 'faceted' = prism with `facets` flat sides (pyramid frustum when tapered). Taper is a separate flag — any shape can be straight or tapered."
+    "'round' (a cylinder, or a cone when tapered) or 'faceted' (a prism of `facets` flat sides). Taper is the separate flag."
   )
 
 export const formParamsSchema = z.object({
   type: formTypeSchema,
   tapered: z
     .boolean()
-    .describe(
-      "True: top and bottom sizes differ and topDiameterMm applies. False: straight wall, top mirrors bottomDiameterMm."
-    ),
-  name: z.string().min(1).max(60).describe("Display name of the piece, e.g. 'Classic mug'"),
-  heightMm: z.number().min(20).max(600).describe("Fired height of the wall in millimeters"),
+    .describe("True: rim and base differ and topDiameterMm applies. False: straight wall."),
+  name: z.string().min(1).max(60).describe("Display name, e.g. 'Classic mug'"),
+  heightMm: z.number().min(20).max(600).describe("Fired height, mm"),
   topDiameterMm: z
     .number()
     .min(20)
     .max(500)
-    .describe(
-      "Fired outer size at the rim in millimeters (applies when tapered). For 'faceted' forms, measured across corners."
-    ),
+    .describe("Fired rim size, mm (when tapered); across corners for faceted"),
   bottomDiameterMm: z
     .number()
     .min(20)
     .max(500)
-    .describe("Fired outer size at the base in millimeters. For 'faceted' forms this is measured across corners (the circumscribed circle)."),
+    .describe("Fired base size, mm; across corners for faceted"),
   facets: z
     .number()
     .int()
     .min(3)
     .max(8)
-    .describe("Number of flat sides for type 'faceted' (3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon, 8 = octagon). Ignored for round forms."),
+    .describe("Sides for 'faceted': 3 triangle, 4 square, 5 pentagon, 6 hexagon, 8 octagon; ignored for round"),
 })
 
 /**
@@ -64,12 +60,12 @@ export const claySettingsSchema = z.object({
     .number()
     .min(0)
     .max(25)
-    .describe("Total wet-to-fired shrinkage of the clay body in percent (stoneware is typically 10-13)"),
+    .describe("Total wet-to-fired shrinkage, percent (stoneware typically 10-13)"),
   wallThicknessMm: z
     .number()
     .min(2)
     .max(15)
-    .describe("Slab thickness in millimeters (typically 4-6 for mugs)"),
+    .describe("Slab thickness, mm (typically 4-6 for mugs)"),
 })
 
 export type FormType = z.infer<typeof formTypeSchema>

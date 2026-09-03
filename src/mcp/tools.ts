@@ -189,7 +189,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "describe_project",
       description:
-        "Get the current pottery design: form type and dimensions (fired mm), clay settings, the flat template pieces it unrolls into (wet-clay sizes, shrinkage already applied), capacityMl, and designUrl — a permanent link that reopens an independent copy (no live session; give it out only when the potter explicitly asks for a permanent or bookmarkable link — otherwise links come from create_live_handoff). Call this first to see what the potter is working on. This page is live-synced: it changes on its own when the potter edits on another screen or a device joins or leaves, so if your browser refuses a tool call because the page changed since you last looked, just look again and retry — nothing went wrong.",
+        "Get the current design: form (fired mm), clay, the flat template pieces it unrolls into (wet-clay sizes, shrinkage applied), capacityMl, and designUrl — a permanent link to an independent copy, given out only when the potter explicitly asks for a permanent or bookmarkable link (otherwise links come from create_live_handoff). Call this first. The page is live-synced and may change under you: if the browser refuses a call because the page changed, look again and retry.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Describe current design",
       annotations: { title: "Describe current design", readOnlyHint: true },
@@ -199,7 +199,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "open_model",
       description:
-        "Open a pottery design from an Unfolded share link — the full URL or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Parameters: type (cylinder, tapered, triangle, square, pentagon, hexagon, heptagon, octagon), height/bottom/top (fired mm; a 'top' value implies tapered), name, shrinkage (percent), wall (mm), paper (A4/A3/Letter). Missing parameters keep current values; out-of-range values clamp. Returns the full new state, ready for further edits." + LINK_RULE,
+        "Open a design from an Unfolded share link — the full URL or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Keys: type, height/bottom/top (fired mm), name, shrinkage (%), wall (mm), paper (A4/A3/Letter). Missing keys keep current values; out-of-range values clamp. Returns the full new state." + LINK_RULE,
       inputSchema: toInputSchema(
         z.object({
           url: z.string().min(1).describe("Share link URL, or just its query string"),
@@ -225,7 +225,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "update_form",
       description:
-        "Update any subset of the pottery form's fields — each property documents itself in the input schema (type round/faceted, the independent tapered flag, facets, name, and the mm dimensions). Legacy type values 'cylinder' and 'tapered' are still accepted. Dimensions are FIRED millimeters; shrinkage compensation is applied to the templates automatically, and the potter's 3D preview updates immediately. Returns the full new state including capacityMl. For a target volume like 'a 350 ml mug', prefer set_capacity — it solves the height exactly in one call." + LINK_RULE,
+        "Update any subset of the form: type, tapered, facets, name, and the dimensions in FIRED millimeters (each documented in the schema). Shrinkage is applied to the templates automatically and the potter's 3D preview updates at once. Legacy type values 'cylinder' and 'tapered' are still accepted. Returns the full new state with capacityMl. For a target volume like 'a 350 ml mug', prefer set_capacity — it solves the height exactly." + LINK_RULE,
       inputSchema: toInputSchema(updateFormInputSchema),
       title: "Update form dimensions",
       annotations: { title: "Update form dimensions" },
@@ -239,7 +239,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "set_clay",
       description:
-        "Update clay settings: shrinkagePct (total wet-to-fired shrinkage, e.g. 12 for a typical stoneware), wallThicknessMm (slab thickness). These change how the flat templates are computed (shrinkage scales them up; wall thickness shifts the developed mid-surface). Returns the full new state." + LINK_RULE,
+        "Update clay settings (see schema): shrinkage scales the flat templates up, wall thickness shifts the developed mid-surface. Returns the full new state." + LINK_RULE,
       inputSchema: toInputSchema(setClayInputSchema),
       title: "Set clay properties",
       annotations: { title: "Set clay properties" },
@@ -252,10 +252,10 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "set_units",
       description:
-        "Set the potter's preferred display units: 'cm' (default) or 'in'. Display-only — it changes every human-facing measurement (UI, warnings, and the printed PDF with its scale-check bar); tool inputs and outputs stay in millimeters regardless. Remembered in the browser and on share links. Returns the full new state." + LINK_RULE,
+        "Display units: 'cm' (default) or 'in'. Display-only — UI, warnings, and the printed PDF change; tool inputs and outputs stay in millimeters regardless. Remembered in the browser and on share links. Returns the full new state." + LINK_RULE,
       inputSchema: toInputSchema(
         z.object({
-          units: z.enum(["cm", "in"]).describe("Preferred display units: 'cm' or 'in'"),
+          units: z.enum(["cm", "in"]),
         })
       ),
       title: "Set measurement units",
@@ -270,14 +270,14 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "set_capacity",
       description:
-        "Set the vessel's interior capacity in milliliters. Volume is linear in height, so this solves the exact height for the target — never iterate with update_form. If the height clamps at the buildable 20-600 mm range the response reports the achievable capacity; adjust the diameters and call again. Returns the full new state." + LINK_RULE,
+        "Set the interior capacity in milliliters. Volume is linear in height, so this solves the exact height for the target — never iterate with update_form. If the height clamps to the buildable 20-600 mm range, the response reports the achievable capacity; adjust the diameters and call again. Returns the full new state." + LINK_RULE,
       inputSchema: toInputSchema(
         z.object({
           capacityMl: z
             .number()
             .min(1)
             .max(200000)
-            .describe("Target fired interior capacity in milliliters, e.g. 350 for a mug"),
+            .describe("Target capacity in ml, e.g. 350 for a mug"),
         })
       ),
       title: "Set capacity",
@@ -309,7 +309,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "get_template_summary",
       description:
-        "Get the printable template details: each flat piece with wet-clay dimensions and assembly notes, the overall layout size, glue overlap, and exactly how many pages the PDF will have at the current paper size (A4, A3, or Letter). Read-only.",
+        "Printable template details: each flat piece with wet-clay dimensions and assembly notes, the layout size, glue overlap, and exactly how many PDF pages at the current paper size (A4, A3, or Letter). Read-only.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Template summary",
       annotations: { title: "Template summary", readOnlyHint: true },
@@ -326,7 +326,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "get_preview_image",
       description:
-        "See what the potter sees: a compact JPEG snapshot of the live 3D preview, deliberately small so it costs little context. Use it to visually confirm a change. If the canvas can't be captured here, a text description is returned instead. Read-only.",
+        "See what the potter sees: a compact JPEG of the live 3D preview, small enough to cost little context. Use it to confirm a change visually. If the canvas can't be captured, a text description is returned instead. Read-only.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "See the 3D preview",
       annotations: { title: "See the 3D preview", readOnlyHint: true },
@@ -355,11 +355,11 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "export_templates",
       description:
-        "Export the printable template as a multi-page PDF and download it in the potter's browser — remind them to print at 100% scale and check the calibration ruler on page 1. Pages tile the true-scale template with 10 mm glue overlaps. Optionally set paperSize ('A4', 'A3', or 'Letter') first. Returns the page count and the full new state." +
+        "Export the printable template as a multi-page PDF, downloaded in the potter's browser — remind them to print at 100% scale and check the calibration ruler on page 1. Pages tile the true-scale template with 10 mm glue overlaps. Optionally set paperSize first. Returns the page count and the full new state." +
         LINK_RULE,
       inputSchema: toInputSchema(
         z.object({
-          paperSize: z.enum(["A4", "A3", "Letter"]).optional().describe("Paper size for the printout"),
+          paperSize: z.enum(["A4", "A3", "Letter"]).optional(),
         })
       ),
       title: "Export printable PDF",
@@ -400,10 +400,10 @@ export function buildTools(): ToolDescriptor[] {
     },
     {
       name: "apply_preset",
-      description: `Start from a known-good preset design. Available presets: ${Object.keys(PRESETS).join(", ")}. Overwrites the current form and clay settings (undo_last_change reverts it). Returns the full new state.` + LINK_RULE,
+      description: "Start from a known-good preset (the enum lists them). Overwrites the current form and clay settings (undo_last_change reverts it). Returns the full new state." + LINK_RULE,
       inputSchema: toInputSchema(
         z.object({
-          preset: z.enum(Object.keys(PRESETS) as [string, ...string[]]).describe("Preset id"),
+          preset: z.enum(Object.keys(PRESETS) as [string, ...string[]]),
         })
       ),
       title: "Apply a preset",
@@ -420,7 +420,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "create_live_handoff",
       description:
-        "Create a fresh, single-use link that lets the potter continue this exact design in the same live session on another screen — edits then flow both ways, and their changes show in your next read. This is the DEFAULT link tool: call it immediately before returning any Unfolded link — after creating, editing, previewing, or opening a design, and for 'send me the link', 'show me', 'open it', or 'continue in the browser'. Return liveHandoffUrl verbatim: never the current page or address-bar URL, a previously returned link, or a reconstructed one. Skip it only when the potter explicitly asks for a permanent, bookmarkable, printable, or independent-copy link (that is designUrl). The invitation expires after 15 minutes and works once. On failure no link exists: retry once, then offer start_pairing.",
+        "Create a fresh, single-use link that continues this exact design in the same live session on another screen — edits then flow both ways and show in your next read. This is the DEFAULT link tool: call it immediately before returning any Unfolded link — after creating, editing, previewing, or opening a design, and for 'send me the link', 'show me', 'open it', or 'continue in the browser'. Return liveHandoffUrl verbatim: never the current page or address-bar URL, an earlier link, or a reconstructed one. Skip it only when the potter explicitly asks for a permanent, bookmarkable, printable, or independent-copy link (that is designUrl). Expires after 15 minutes and works once. On failure no link exists: retry once, then offer start_pairing.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Create live handoff link",
       annotations: { title: "Create live handoff link" },
@@ -452,13 +452,13 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "join_session",
       description:
-        "Pair this tab into a live cross-device session using the 6-character code from the potter's OTHER device, e.g. 'K7F-3QP'. This tab adopts that session's design (one undo step brings the previous one back); afterwards every edit on any device syncs live within about a second. Codes expire in 15 minutes and work once — on failure ask for a fresh one. Returns the full state after joining.",
+        "Pair this tab into a live session with the 6-character code from the potter's OTHER device, e.g. 'K7F-3QP'. This tab adopts that session's design (one undo step brings the previous one back); afterwards every edit on any device syncs within about a second. Codes expire in 15 minutes and work once — on failure ask for a fresh one. Returns the full state after joining.",
       inputSchema: toInputSchema(
         z.object({
           code: z
             .string()
             .min(1)
-            .describe("6-character code from the potter's other device, e.g. 'K7F-3QP' (case/dashes ignored)"),
+            .describe("Code from the potter's other device (case and dashes ignored)"),
         })
       ),
       title: "Join live session",
@@ -505,7 +505,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "start_pairing",
       description:
-        "Mint a 6-character pairing code for THIS tab's live session and tell it to the potter. Entered on their other device (connection button → Continue on another screen), that device then FOLLOWS this design — use this when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop'. Valid 15 minutes, one use; both devices stay live peers afterwards. Returns the full state.",
+        "Mint a 6-character pairing code for THIS tab's session and tell it to the potter. Entered on their other device (connection button → Continue on another screen), that device then FOLLOWS this design — use it when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop'. Valid 15 minutes, one use; both devices stay live peers. Returns the full state.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Start device pairing",
       annotations: { title: "Start device pairing" },
@@ -538,7 +538,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "undo_last_change",
       description:
-        "Undo the most recent change to the design (form, clay, or paper size) — whether it was made by you or by the potter in the UI. Rapid consecutive changes (like a slider drag, or opening a link) count as one step; up to 50 steps are kept. Returns the full state after undoing." + LINK_RULE,
+        "Undo the most recent change to the design (form, clay, or paper size), whether made by you or by the potter in the UI. Rapid consecutive changes (a slider drag, opening a link) count as one step; 50 steps are kept. Returns the full state after undoing." + LINK_RULE,
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Undo last change",
       annotations: { title: "Undo last change" },

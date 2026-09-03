@@ -101,10 +101,13 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
  * balloon. Raising this number is a deliberate decision, not a fix. History:
  * the 9.1 trim cut 11,360 → 9,128 chars under a 9,800 budget; the fourteenth
  * tool (create_live_handoff, with the one-sentence link rule on every
- * editing tool — docs/live-handoff-link-spec.md) then raised it, on
- * purpose, to the figure below — still under the pre-trim baseline.
+ * editing tool — docs/live-handoff-link-spec.md) raised it, on purpose, to
+ * 10,474 under an 11,000 budget; the schema-weight trim that followed the
+ * first native-host measurement (docs/performance-report.md §1.2) cut
+ * property descriptions that restated their own bounds and enums, and
+ * descriptions that restated their schemas, down to ~9,030 chars.
  */
-const METADATA_BUDGET_CHARS = 11_000
+const METADATA_BUDGET_CHARS = 9_500
 
 describe("prompt suite — tool selection signals survive metadata trims", () => {
   const tools = buildTools()

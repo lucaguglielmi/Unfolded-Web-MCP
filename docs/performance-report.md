@@ -59,6 +59,15 @@ one-sentence link rule it adds to every editing tool
 baseline. The budget test moved with it, from 9,800 to 11,000 chars, so
 it keeps catching quiet regrowth without failing the deliberate one.
 
+*Update, after the native-host measurement (§1.2):* the schema-weight
+trim. Property descriptions that restated their own JSON-schema bounds
+and enums, and tool descriptions that restated their schemas, were cut;
+every phrase the prompt suite protects survived unchanged. Discovery
+metadata is now **9,029 chars (~2,260 tokens)**, down 13.8% from 10,474,
+and the budget test follows it down to 9,500. `update_form`, the
+heaviest descriptor, went from 2,114 to 1,652 bytes; what remains there
+is the seven properties' types and bounds, which are the accuracy.
+
 **Verdict: the tool harness is not slow.** Every page-side number is two
 to three orders of magnitude below one model round trip. The recurring
 costs an agent conversation actually pays are metadata (~2.3 K tokens
@@ -93,8 +102,9 @@ get_preview_image           15     1.2     1.5     5.2     5.2         7378     
 The `schema-bytes` column is new in 0.2: the descriptor bytes the host
 ships for that tool in every conversation (UTF-8, from
 `ledger.tools[name].schemaBytes`). `update_form` carries the heaviest
-schema on the surface; the whole 15-tool surface is about 12 KB, the
-`get_perf_report` tool included while profiling is armed. Byte columns
+schema on the surface (1,652 bytes after the trim above; 2,114 in this
+table); the whole 15-tool surface is about 11 KB, the `get_perf_report`
+tool included while profiling is armed. Byte columns
 across this report are UTF-8 from 0.2 on (0.1 counted UTF-16 units;
 the difference is nil for these ASCII payloads).
 
