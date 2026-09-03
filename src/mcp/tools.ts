@@ -212,7 +212,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "describe_project",
       description:
-        "Get the current design: form (fired mm), clay, the flat template pieces it unrolls into (wet-clay sizes, shrinkage applied), capacityMl, designUrl — a permanent link to an independent copy, given out only when the potter explicitly asks for a permanent or bookmarkable link (otherwise links come from create_live_handoff) — and session (whether this tab is paired, and with how many devices). Read it when the request depends on what is there now — 'what am I designing?', 'make it taller', 'will this print on one page?' — or when the potter has just connected; an absolute edit ('make it 12 cm tall') can go straight to update_design, which returns this same snapshot. When session.paired is false, offer the potter both ways in, in this order: (1) call create_live_handoff and give them its liveHandoffUrl as a link labelled 'Open a paired browser session with this chat' — one tap opens this design on their screen, paired with this conversation; (2) or, if they already have the design open on another device, ask for its six-character code and call join_session. The page is live-synced and may change under you: if the browser refuses a call because the page changed, look again and retry.",
+        "Get the current design: form (fired mm), clay, the flat template pieces it unrolls into (wet-clay sizes, shrinkage applied), capacityMl, designUrl — a permanent link to an independent copy, given out only when the potter explicitly asks for a permanent or bookmarkable link (otherwise links come from create_live_handoff) — and session (whether this tab is paired, and with how many devices). Read it when the request depends on what is there now — 'what am I designing?', 'make it taller', 'will this print on one page?' — or when the potter has just connected; an absolute edit ('make it 12 cm tall') can go straight to update_design, which returns this same snapshot. When session.paired is false, offer the potter both ways in, in this order: (1) call create_live_handoff and give them its liveHandoffUrl as a link labelled 'Open a paired browser session with this chat' — one tap opens this design on their screen, paired with this conversation; (2) or, if they already have the design open on another device, ask for its six-character code — it's in the connection button, top right (two dots) → Continue on another screen, tap the code to copy it — and call join_session. Always offer both, even if (1) fails: a blocked or failed create_live_handoff call is never the last word, fall back to (2) and still give the potter a way in. The page is live-synced and may change under you: if the browser refuses a call because the page changed, look again and retry.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Describe current design",
       annotations: { title: "Describe current design", readOnlyHint: true },
@@ -436,7 +436,10 @@ export function buildTools(): ToolDescriptor[] {
             // fail closed — no fallback URL of any kind (spec §7)
             return linklessError(
               "A live handoff link could not be created because the pairing service is unavailable. " +
-                "No link was generated. Retry once, or use start_pairing to create a six-character code."
+                "No link was generated. Retry once; if it still fails, don't give up on pairing — ask the potter for " +
+                "their own six-character code instead (it's in their connection button, top right, two dots → " +
+                "Continue on another screen — the code is shown there, tap to copy) and call join_session with it. " +
+                "Or use start_pairing to mint one from this tab."
             )
           }
           return textResult(JSON.stringify(handoff), false, {
@@ -446,7 +449,12 @@ export function buildTools(): ToolDescriptor[] {
           })
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          return linklessError(`A live handoff link could not be created (${message}). No link was generated. Retry once, or use start_pairing.`)
+          return linklessError(
+            `A live handoff link could not be created (${message}). No link was generated. Retry once; if it still ` +
+              "fails, ask the potter for their own six-character code instead (connection button, top right, two dots " +
+              "→ Continue on another screen — tap the code to copy it) and call join_session with it, or use " +
+              "start_pairing to mint one from this tab."
+          )
         }
       },
     },
@@ -520,7 +528,8 @@ export function buildTools(): ToolDescriptor[] {
           }
           return stateResult(
             `Pairing code: ${prettyCode(minted.code)} — valid 15 minutes, one use. ` +
-              "On the other device: the connection button (two dots in the header) → Continue on another screen → enter this code. " +
+              "On the other device: the connection button (two dots in the header) → Continue on another screen → " +
+              "Enter a code from another screen → type this code. " +
               "That device will adopt this design; afterwards edits sync both ways."
           )
         } catch (error) {
