@@ -1,6 +1,6 @@
 // Copies the package's example page and the two built files it loads into
 // public/webmcp-profiler/demo/, so the site hosts the zero-install demo the
-// package README points at (docs/webmcp-profiler-0.2-spec.md §20.2).
+// package README points at (docs/webmcp-profiler-spec.md §2).
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 
 const pkg = new URL("../packages/webmcp-profiler/", import.meta.url)

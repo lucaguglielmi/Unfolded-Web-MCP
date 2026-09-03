@@ -33,7 +33,7 @@ export type ToolContent = TextContent | ImageContent
 /**
  * Result contract version. Bump when the shape of
  * `structuredContent` changes incompatibly; the contract is written up in
- * docs/performance-report.md ("Structured results").
+ * docs/webmcp-tool-performance-spec.md §5.
  */
 export const TOOL_RESULT_CONTRACT = "tool-result/2"
 

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest"
 
 /**
  * The app reaches the profiler only through its public entries
- * (docs/webmcp-profiler-0.2-spec.md §2.1 item 4), so the day the package
+ * (docs/webmcp-profiler-spec.md §2), so the day the package
  * moves to its own repository the alias becomes the npm name with no
  * other change.
  */

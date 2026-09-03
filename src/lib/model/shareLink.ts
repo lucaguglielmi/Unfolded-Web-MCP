@@ -195,7 +195,7 @@ export interface ShareUrlOptions {
    * Attach a single-use live-session join token (?join=…). The opening tab
    * claims it, follows the session, and strips the parameter; a claimed or
    * expired token degrades to a plain design link. Never the session id —
-   * see docs/live-sync-spec.md v3 for the amended privacy rule. Only the
+   * see docs/live-sync-spec.md §6 for the privacy rule. Only the
    * Continue dialog and create_live_handoff ever set this: a permanent
    * design link (designUrl, the address bar, the printed QR) never does.
    */

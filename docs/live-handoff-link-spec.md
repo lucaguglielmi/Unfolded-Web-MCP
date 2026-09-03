@@ -1,577 +1,246 @@
-# Reliable ChatGPT Live Handoff Links
+# Live handoff link specification
 
-Status: Implemented — see §15 "Implementation notes"  
-Scope: Normative for link selection and the create_live_handoff contract  
-Repository: Unfolded WebMCP
+Status: implemented
 
-## 1. Summary
+Baseline: current main implementation at 1a2995d
 
-Unfolded needs two deliberately different URL contracts:
+Last verified: 2026-09-03 against src/mcp/liveHandoff.ts,
+src/mcp/tools.ts, the pairing UI, and the live-handoff tests
 
-1. A permanent design permalink that reopens an independent snapshot.
-2. A temporary live handoff link that joins the recipient to the agent-driven tab's live session.
+This document defines the agent-facing distinction between a permanent
+design URL and a live continuation URL. It is intentionally short: session
+transport details belong in live-sync-spec.md.
 
-The current implementation supports both behaviours, but the agent-facing field is named shareUrl and the browser address bar contains a different, non-paired URL. This creates an avoidable ambiguity: an agent can receive the correct tokenised shareUrl, then replace it with window.location.href or another address-bar URL when replying.
+## 1. The problem
 
-This specification replaces that ambiguous contract with an explicit create_live_handoff WebMCP tool. The tool mints a fresh single-use token on demand, fails closed when no token can be created, and returns a clearly named liveHandoffUrl that the agent is instructed to reproduce verbatim.
+An agent often edits a design in a hidden browser tab while the potter is
+looking at another tab. Returning the address-bar URL opens the right
+parameters but does not join the second tab to the agent's session. The
+agent must therefore return a link that both opens the design and carries a
+one-time invitation.
 
-Permanent design links remain necessary for bookmarks, printed QR codes, durable sharing, and independent copies. They must remain token-free.
+The two link types have different jobs and must never be substituted for
+each other.
 
-Default ChatGPT rule: whenever ChatGPT creates, edits, previews, or opens a design and then gives the user a link, that newly created chat link must be a fresh live handoff link. A permanent design link may be sent only when the user explicitly asks for a durable, bookmarkable, printable, archival, or independent-copy link. If the request is ambiguous, ChatGPT must choose live handoff so the user can continue in the browser.
+## 2. Link types
 
-## 2. Incident being addressed
+| Link | Contains | Opens | Capability |
+| --- | --- | --- | --- |
+| designUrl | design parameters and display units | an independent copy of the design | none |
+| liveHandoffUrl | the same parameters, via=chatgpt, and join token | a live peer of the minting tab | one claim, 15 minutes |
+| Continue invitation | the same parameters and join token | a live peer of the minting tab | one claim, 15 minutes |
 
-Observed sequence:
+designUrl is used for an explicit permanent, bookmarkable, printable, or
+independent-copy request. It appears in state snapshots and is safe to put
+in the address bar or the printed PDF QR.
 
-1. A WebMCP mutation returned the current design and a shareUrl containing via=chatgpt and join=<token>.
-2. The agent subsequently read the browser's address-bar URL.
-3. The address bar correctly contained only the permanent design parameters.
-4. The agent sent that permanent URL to the user.
-5. The user's browser opened the right shape but did not join the agent tab's session.
-6. Changes made by the user therefore did not reach the agent's next describe_project call.
+liveHandoffUrl is the agent-facing default continuation link. It is created
+on demand by create_live_handoff or returned optionally by start_pairing and
+must be returned verbatim. The human Continue dialog creates a separate
+Continue invitation with the same join-token capability but without
+via=chatgpt, because it is not an agent-provenance link.
 
-The live-sync backend and join-token claim path worked correctly. The failure was caused by two valid URL sources with insufficiently distinct agent-facing semantics.
+Neither URL contains a session id. The live token is a short-lived bearer
+capability and is removed from the address bar after the opening tab
+attempts to claim it.
 
-## 3. Goals
+## 3. Required selection
 
-- Make the correct live-continuation URL unmistakable to an agent.
-- Guarantee that every successful live handoff result contains a valid join token.
-- Never silently substitute a permanent design link when live handoff creation fails.
-- Keep permanent links safe, durable, repeatable, and independent of a live session.
-- Keep join tokens out of the address bar after they are claimed.
-- Preserve the existing security model: single-use capability, fifteen-minute TTL, no session ID in URLs.
-- Provide deterministic tests for the complete agent-to-human-to-agent round trip.
-- Make product copy and technical documentation accurately describe the two URL types.
+Use create_live_handoff when the agent is about to give the potter an
+Unfolded link after creating, editing, previewing, or opening a design, or
+when the potter asks to see, open, or continue the design in a browser.
 
-## 4. Non-goals
+Use the permanent designUrl only when the potter explicitly asks for a
+bookmarkable, printable, permanent, or independent-copy link.
 
-- Guaranteeing arbitrary prose generated by every possible model or host. The page cannot control links a host constructs independently of WebMCP.
-- Making live invitation links permanent or reusable.
-- Putting a session ID in a URL.
-- Automatically pairing every visitor who opens a normal design link.
-- Requiring accounts or identity.
-- Changing the existing bidirectional live-sync protocol.
-- Changing printed template QR codes into live capabilities.
+Never return:
 
-## 5. URL taxonomy
+- the current address-bar URL as a live invitation;
+- a link from an earlier tool call when a newer one was requested;
+- a reconstructed URL with a guessed or copied token;
+- a permanent design URL as if it were live.
 
-### 5.1 Design permalink
+If the agent needs both a live continuation and a permanent copy, return
+the two fields with their meanings labelled.
 
-Canonical field name: designUrl
+## 4. create_live_handoff
 
-Properties:
+### 4.1 Input and success result
 
-- Contains all parameters needed to reopen the current design.
-- Contains no join token and no live-session identifier.
-- May be bookmarked, printed, copied repeatedly, and opened months later.
-- Opens an independent copy of the design.
-- Remains the address-bar URL.
-- Remains the URL encoded in exported-template QR codes.
-- Works when the pairing backend is unavailable.
-- May be returned only when the user explicitly asks to save, bookmark, archive, print, or share an independent copy.
-
-Example:
-
-    https://tryunfolded.com/?type=tapered&height=500&bottom=240&top=300&name=Giant+tumbler&shrinkage=12&wall=6&paper=A4&units=cm
-
-### 5.2 Live handoff link
-
-Canonical field name: liveHandoffUrl
-
-Properties:
-
-- Contains the same design snapshot parameters as designUrl.
-- Contains via=chatgpt.
-- Contains a single-use join token.
-- Expires fifteen minutes after minting.
-- Causes the opening tab to claim and follow the originating live session.
-- Falls back to opening the encoded design snapshot if the token is expired or already used.
-- Is intended for immediate continuation on another screen.
-- Must be reproduced verbatim by the agent.
-- Must never be reconstructed from window.location.href.
-
-Example:
-
-    https://tryunfolded.com/?type=tapered&height=500&bottom=240&top=300&name=Giant+tumbler&shrinkage=12&wall=6&paper=A4&units=cm&via=chatgpt&join=<single-use-token>
-
-## 6. Agent-output guarantee boundary
-
-Unfolded cannot technically prevent a model or host from inventing or substituting another URL in chat. It can, however, provide one unambiguous tool that is the only supported way to create a live continuation link.
-
-### 6.1 Mandatory ChatGPT link-selection policy
-
-ChatGPT must choose the link from the user's intended next action, using the following rules:
-
-| User intent or wording | Required link |
-| --- | --- |
-| Creates or changes a design and expects a result link | Fresh liveHandoffUrl |
-| "Send me the link", "show me", "open it", "let me continue", or equivalent after design work | Fresh liveHandoffUrl |
-| Wants to continue in a normal browser or on another screen | Fresh liveHandoffUrl |
-| Wants ChatGPT to observe subsequent browser edits | Fresh liveHandoffUrl |
-| Requests another link after an earlier invitation was used or may have expired | Newly minted liveHandoffUrl |
-| Explicitly asks for a bookmark, permanent link, archive, printed QR, or independent copy | designUrl |
-| Explicitly wants to share a non-collaborative copy with another person | designUrl |
-| Intent is unclear | Fresh liveHandoffUrl |
-
-Mandatory behaviour:
-
-- Live continuation is the default for every newly created link in a design conversation.
-- ChatGPT must call create_live_handoff after the final design mutation, immediately before composing its response.
-- ChatGPT must return liveHandoffUrl exactly as supplied by the tool.
-- ChatGPT must not obtain the response link from window.location.href, tab.url(), the address bar, browser history, or by reconstructing query parameters.
-- ChatGPT must not reuse a previous liveHandoffUrl because tokens are single-use and time-limited.
-- ChatGPT must not send designUrl merely because it is easier to verify or because live token creation failed.
-- If create_live_handoff fails, ChatGPT must send no replacement URL. It should retry once, then offer start_pairing and a six-character code.
-- ChatGPT may return designUrl only when the user's wording clearly selects one of the permanent-link purposes in the table.
-
-The same rules apply whether the design was created entirely by WebMCP, changed through the visible UI, opened from a preset, or loaded from an existing design URL.
-
-### 6.2 Enforceable product contract
-
-The enforceable contract is:
-
-- Every successful create_live_handoff call returns a tokenised liveHandoffUrl.
-- No create_live_handoff failure returns any URL.
-- All WebMCP descriptions tell the agent to use that tool immediately before sending a continuation link.
-- No generic field named shareUrl remains in agent-facing state.
-- Permanent URLs are explicitly labelled non-live.
-
-This is the strongest guarantee available without control of the chat renderer.
-
-## 7. New WebMCP tool
-
-Name: create_live_handoff
-
-Title: Create live handoff link
-
-Annotations:
-
-- Must not use readOnlyHint.
-- The tool creates a temporary capability and may create a live session.
-
-Input schema:
+The tool takes no input. It mints a fresh token for the current session,
+then builds both URLs from the design after the mint resolves. The text
+content serializes the handoff object with exactly these fields:
 
     {
-      "type": "object",
-      "properties": {},
-      "additionalProperties": false
+      liveHandoffUrl,
+      designUrl,
+      expiresAt,
+      expiresInSeconds,
+      singleUse: true,
+      instruction
     }
 
-Description:
+The structuredContent result adds ok true and message beside those same
+handoff fields.
 
-    Create a fresh, single-use link that lets the potter continue this exact design
-    in the same live session on another screen. This is the DEFAULT link tool after
-    ChatGPT creates, edits, previews, or opens a design. Call it immediately before
-    returning any Unfolded link for requests such as "send me the link", "show me",
-    "open it", or "continue in the browser". Return liveHandoffUrl verbatim. Never
-    replace it with the current page URL, browser address-bar URL, a previously
-    returned link, or a reconstructed URL. Skip this tool only when the user
-    explicitly requests a permanent, bookmarkable, printable, archival, or
-    independent-copy link. The invitation expires after fifteen minutes and works once.
+liveHandoffUrl contains via=chatgpt and join. designUrl contains neither.
+The expiresAt value is epoch milliseconds. expiresInSeconds is the rounded
+remaining lifetime at result construction.
 
-Successful result:
+The instruction field says to return liveHandoffUrl verbatim, not the
+address-bar URL, and to use designUrl only for an explicitly permanent or
+independent-copy request.
+
+### 4.2 Minting and retry
+
+The tool waits for the session connection needed to mint. It attempts the
+mint twice, including when the first attempt returns no token or an already
+expired token. The retry absorbs a cold session Durable Object without
+making the potter wait for a second agent turn.
+
+After the mint succeeds, the tool reads the current store and builds both
+URLs. A concurrent edit that is visible before that read is therefore
+included in the returned design.
+
+## 5. Fail-closed result
+
+If both mint attempts fail, or the tool is cancelled, no URL is returned.
+In particular, a failure does not include designUrl, the address-bar URL,
+the session id, or an earlier invitation.
+
+The structured failure shape is exactly:
 
     {
-      "liveHandoffUrl": "https://tryunfolded.com/?...&via=chatgpt&join=...",
-      "designUrl": "https://tryunfolded.com/?...",
-      "expiresAt": 1788273000000,
-      "expiresInSeconds": 900,
-      "singleUse": true,
-      "instruction": "Return liveHandoffUrl verbatim as the default link after creating or editing. Do not use the browser address-bar URL. Use designUrl only for an explicitly requested permanent or independent copy."
+      ok: false,
+      message
     }
 
-The result may continue to be encoded as JSON text while the local WebMCP compatibility layer supports only text and image content. If structured result content becomes supported by the adopted WebMCP draft, this object should also be exposed structurally.
+The failure text may tell the agent to retry, ask the potter for the
+potter's own six-character code, or use start_pairing. It must not contain
+an HTTP URL or a parameter-only design URL.
 
-Failure result:
+Cancellation also returns ok false and a cancellation message. A token
+that happened to be minted before cancellation is left to expire; it is
+never exposed as a successful result.
 
-- isError must be true.
-- Explain that a live invitation could not be created.
-- Return no liveHandoffUrl, designUrl, fallbackUrl, or other clickable URL.
-- Tell the agent to retry once or ask the user to use a six-character pairing code.
-- Say WHERE the user finds that code, so "send me a code" is not a puzzle.
-- Never degrade silently to a plain design permalink.
+## 6. State snapshots
 
-Recommended error text (as implemented, after §9.1's two internal attempts):
+Every state-reporting result carries designUrl as the permanent link. A
+state read does not mint a token and does not expose liveHandoffUrl.
 
-    A live handoff link could not be created because the pairing service is
-    unavailable. No link was generated. Retry once; if it still fails, don't
-    give up on pairing — ask the potter for their own six-character code
-    instead (it's in their connection button, top right, two dots →
-    Continue on another screen — the code is shown there, tap to copy) and
-    call join_session with it. Or use start_pairing to mint one from this tab.
-
-## 8. Existing WebMCP tool changes
-
-### 8.1 describe_project and mutation results
-
-The current shareUrl field must be removed or deprecated and replaced with:
+The current state shape includes:
 
     {
-      "designUrl": "https://tryunfolded.com/?...",
-      "session": { "paired": false, "peers": 1 }
+      form,
+      clay,
+      paperSize,
+      units,
+      designUrl,
+      capacityMl,
+      pieces,
+      printedPages,
+      warnings,
+      session: { paired, peers }
     }
 
-(The `linkMode` and `liveHandoffTool` constants that first replaced it
-were retired with contract `tool-result/2` — their meaning lives in
-`describe_project`'s description and the manifest; `session` is the
-fact the fresh-session offer is decided on. See
-docs/webmcp-tool-performance-spec.md §5 and §6.2.)
+The exact values are produced by describeState. The snapshot is a fact
+about the current tab; session.paired says whether it holds a session and
+peers is the last server-reported socket count.
 
-These results must not mint, prefetch, take, or consume a join token.
+## 7. Pairing tools and UI
 
-Every mutation tool description should include the shared instruction:
+### 7.1 start_pairing
 
-    After creating, editing, previewing, or opening a design, any link ChatGPT
-    gives the potter MUST come from create_live_handoff. Call it after the final
-    edit and return liveHandoffUrl unchanged. Generic requests such as "send me
-    the link", "show me", and "open it" mean live handoff. Use designUrl only
-    when the potter explicitly asks for a permanent, bookmarkable, printable,
-    archival, or independent copy. Never use the browser address-bar URL as a
-    substitute for a live handoff.
+start_pairing mints a six-character code and a live handoff token in
+parallel for the current session. It returns the full state and includes
+liveHandoffUrl in the structured result when the token mint succeeds. A
+successful code mint still succeeds if the link mint fails, so the code
+route remains available.
 
-describe_project remains genuinely read-only after token creation is removed from describeState.
+The code is six characters, read-aloud friendly, single-use, and valid for
+15 minutes. The other device adopts this tab's current design when it
+claims either invitation.
 
-### 8.2 get_design_permalink
+### 7.2 join_session
 
-A separate get_design_permalink tool is optional because describe_project already returns designUrl. Add it only if user testing shows a clear need for an explicit permanent-sharing action.
+join_session accepts the six-character code from another device, ignoring
+case, whitespace, and separators. It waits for the first sync snapshot
+before returning the adopted state. An invalid or expired code leaves the
+current state unchanged; a retryable service failure says to try again.
 
-If added, its description must state that the link does not pair devices and does not grant live editing access.
+Opening a liveHandoffUrl uses the URL boot path rather than
+join_session. Both paths claim the same type of server-side single-use
+credential and join the same session.
 
-### 8.3 start_pairing and join_session
+### 7.3 Human Continue dialog
 
-They remain the way in when:
+The connection control opens Continue on another screen. The dialog mints
+and displays a QR, a copyable Continue invitation, and the six-character
+code together. The invitation has a join token but no via=chatgpt marker.
+Code entry is behind the join toggle. Once a second peer is confirmed, the
+invitation display is cleared.
 
-- A link cannot be tapped.
-- The pairing service cannot mint a URL token but can mint a short code.
-- The work already lives on the user's device and the agent must join that session.
-- The user explicitly requests code-based pairing.
+The app may recognize a pasted or copied code or live link and offer a
+one-tap join. It never joins automatically and never offers back a
+credential minted by the same tab.
 
-**Amendment — start_pairing mints both (implemented).** This section originally said "no behavioural change", which made the code and the link mutually exclusive in practice: a request phrased as pairing ("pair from here", "put this on my desktop") routes to start_pairing, and the potter was then handed a code and no link, even where a link would have minted. The in-app Continue dialog has always shown both together; the tool now matches it. `start_pairing` mints the code and calls `createLiveHandoff()` in parallel, and reports both — the code in its message, `liveHandoffUrl` beside `state` in structuredContent.
+## 8. URL construction rules
 
-The two mints are independent and only the code is required: a failed token mint costs the link, not the pairing, and the tool returns the code alone. A failed code mint is still the tool's failure. This does not weaken §6: the link start_pairing hands out is minted by `createLiveHandoff`, fresh and single-use, and is never a substituted or reconstructed URL.
+The URL path is the studio root. Model parameters are generated by the
+same serializer used for permanent design links, including form, fired
+dimensions, clay settings, paper size, and display units.
 
-## 9. Implementation design
+Only live handoff construction or the Continue dialog may add join. Only
+agent handoff construction may add via=chatgpt. The address bar and PDF QR
+are always parameter-only. A token is never copied into a state snapshot.
 
-### 9.1 Token minting
+When a live link is opened, the tab first hydrates the parameter snapshot,
+marks any via=chatgpt provenance, removes join from the visible URL, and
+then attempts the claim. A successful claim makes the session snapshot
+canonical; a failed claim leaves the parameter snapshot as a usable design
+URL with no live capability.
 
-create_live_handoff must call liveSync.mintToken() and await the result.
+## 9. Reliability
 
-The tool must build liveHandoffUrl only after a non-expired token has been returned. It must not call a synchronous takeJoinToken function that can return null while refill is in progress.
+### 9.1 Cold starts and retry
 
-**Amendment — one internal retry (implemented).** A mint waits up to 8 s for this tab's session socket to be live, and the FIRST mint in a tab pays for opening it: an agent's in-app browser on a phone, against a cold Durable Object, can spend the whole budget on the handshake and return null, while the same call seconds later resolves in milliseconds. That is a cold start, not an outage, so the tool attempts the mint twice (`MINT_ATTEMPTS`) before reporting failure — an already-expired token counts as a failed attempt too. The fail-closed contract is unchanged: when no attempt mints, no URL of any kind is returned. Retry advice addressed to the agent is therefore about what to do AFTER two attempts, not a request to call the tool again.
+A first mint can race the session socket opening. create_live_handoff
+absorbs this with its two-attempt policy and an 8-second sync wait per mint
+operation. A genuine outage still ends in the fail-closed shape after the
+second attempt.
 
-On-demand minting is preferred because:
+### 9.2 No hidden fallback
 
-- Tokens are created only when an agent actually needs to send a link.
-- describe_project becomes truly read-only.
-- Mutations no longer create unused capabilities.
-- The tool can report failure instead of silently falling back.
+A permanent URL is not a fallback for a failed live mint. The user-visible
+choice is an explicit retry, a code supplied by the other device, or
+start_pairing. This preserves the meaning of a link: if the agent presents
+it as live, opening it must have a chance to pair.
 
-If latency later justifies prefetching, prefetch may be an internal optimisation only. The public tool must still await either a ready prefetched token or a newly minted token and must retain the fail-closed contract.
+## 10. Documentation and generated surfaces
 
-### 9.2 State serialisation
+The same distinction is repeated in the WebMCP tool descriptions, the
+agent manifest, the WebMCP explainer page, and the user-flow guide. These
+surfaces must use the current field names designUrl and liveHandoffUrl.
 
-Split current URL generation into two explicit functions:
+The docs guard checks that agent-facing copy mentions the handoff tools,
+does not resurrect the retired share-link field, and does not advertise a
+live capability in a permanent URL.
 
-- describeDesignState(): pure state plus designUrl.
-- createLiveHandoff(): asynchronous capability creation plus liveHandoffUrl.
+## 11. Acceptance and tests
 
-The pure state serializer must never import agentContinuity or consume a token.
+The contract is satisfied when:
 
-### 9.3 Address-bar behaviour
+1. a successful create_live_handoff result contains one fresh live URL and
+   one permanent design URL;
+2. a successful live URL includes via=chatgpt and one join token;
+3. state reads contain only the permanent link;
+4. a failed or cancelled handoff contains no URL at all;
+5. start_pairing returns a usable code even when its optional link mint
+   fails;
+6. the opening device adopts the minting session's design and then syncs
+   both ways;
+7. two consecutive handoff calls use distinct credentials.
 
-Keep the current address-bar design:
-
-- Design edits update only permanent design parameters.
-- via=chatgpt may be retained only if needed for truthful UI context, but it must not imply pairing by itself.
-- join must be removed immediately after an opening tab reads it.
-- startShareLinkSync must never mint or preserve a join token.
-
-Do not put fresh join tokens into the originating agent tab's address bar. Doing so would expose a live capability to history, copying, reloads, referrers, screenshots, and unrelated browser-link verification.
-
-### 9.4 Claim behaviour
-
-Existing behaviour remains:
-
-1. Opening tab applies the design snapshot.
-2. Opening tab reads the join token.
-3. Opening tab removes join from the visible URL.
-4. Opening tab claims the token.
-5. On success it adopts the live session state.
-6. On expired, burned, or invalid token it remains an independent design copy.
-
-The user-facing UI should report whether live pairing succeeded rather than implying that via=chatgpt alone means live synchronisation.
-
-## 10. Documentation rewrite plan
-
-The implementation is not complete until every public explanation uses the new two-link model. Documentation should prove the engineering depth quickly, not repeat the same architecture in several places.
-
-### 10.1 Documentation hierarchy
-
-Give each surface one job:
-
-| Surface | Purpose |
-| --- | --- |
-| README.md | Fast reader-facing overview, evidence, example prompts, and verification commands |
-| /webmcp | Live user and evaluator guide: connection state, tool list, and prompts |
-| /why | Short product story: the pottery problem, why an agent helps, and physical output |
-| docs/live-handoff-link-spec.md | Normative link-selection and handoff contract |
-| docs/live-sync-spec.md | Live-sync protocol, security, recovery, and backend design |
-| docs/user-flow.md | Detailed end-to-end human and agent journeys |
-| Source comments and tests | Implementation truth; do not reproduce them paragraph-for-paragraph in prose |
-
-Link down to detail instead of duplicating it. When two documents make the same technical claim, one must be named as the source of truth and the other must summarise and link.
-
-### 10.2 README rewrite
-
-Target: no more than about 1,200 words excluding commands and the tool table.
-
-> **Done.** The rewrite landed at roughly 1,400 prose words (about 1,700
-> whole-file); `docsGuard.test.ts` now pins an 1,800-word whole-file
-> ceiling. The structure below shipped as recommended, with "Verify in
-> 60 seconds" as the quick-start heading and a closing "Deeper reading"
-> list in place of scattered links.
-
-Recommended order:
-
-1. One-sentence product pitch, live link, guide link, repository status badges.
-2. One screenshot.
-3. Why it matters: the manual pottery-template problem in no more than two short paragraphs.
-4. Verify in 60 seconds: three prompts and the visible result of each.
-5. Under the hood: six or seven evidence-led bullets.
-6. Compact WebMCP tool table, including create_live_handoff.
-7. Local verification commands.
-8. Links to deeper architecture, sync, profiler, and geometry documents.
-9. License.
-
-The under-the-hood bullets should showcase work that materially affects correctness:
-
-- Current-draft WebMCP registration with lifecycle recovery and legacy-host adapters.
-- Zod-validated tool contracts, cancellation handling, truthful annotations, and graceful errors.
-- Closed-form capacity solving and pottery-specific geometry corrections.
-- True-scale tiled PDF export with overlap, registration marks, and calibration ruler.
-- Bidirectional Durable Object sessions, single-use links/codes, reconnect, and offline convergence.
-- Explicit designUrl versus liveHandoffUrl semantics.
-- The built-in WebMCP profiler and the payload reduction it produced.
-- Unit, browser, Worker, and pairing regression coverage.
-
-Use concrete evidence and links to code or tests. Avoid adjectives such as robust, powerful, seamless, innovative, comprehensive, and cutting-edge unless followed by a measurable fact.
-
-Do not narrate every implementation decision in the README. Move protocol detail, compatibility history, security reasoning, and edge-case behaviour to the technical documents.
-
-Avoid hardcoded test counts because they become stale. Use commands and suite names, or generate the count automatically in CI if an exact figure is important.
-
-### 10.3 README statements that must change
-
-| Current or likely wording | Problem | Required replacement |
-| --- | --- | --- |
-| "Thirteen tools" | Becomes incorrect after create_live_handoff | Use the tested current count or avoid spelling out the count |
-| "Every state snapshot carries shareUrl" | shareUrl is removed and state reads become pure | State returns designUrl; live links come only from create_live_handoff |
-| "Every link the agent hands you is live" | Overbroad and not enforceable for arbitrary links | Newly created conversational result links default to liveHandoffUrl; permanent links require explicit intent |
-| "Connected via ChatGPT" means paired | via=chatgpt proves provenance, not successful live sync | Label it "Opened from ChatGPT"; show pairing only from confirmed live-sync state |
-| "Human and agent share one live session" for direct WebMCP | Confuses same-tab state with cross-device pairing | Say they edit the same in-tab store; live session means confirmed cross-device sync |
-| "No URL ever carries a live capability" | False for temporary handoff URLs | No URL carries a session ID or durable access; live handoff URLs carry a fifteen-minute single-use token |
-| "Design parameters are the only thing that leaves the device" | Omits coarse presence and session protocol metadata | The synced payload is the design slice plus minimal session/version/presence metadata |
-| "set_capacity iterates until it matches" | Incorrect; it uses a closed-form solution | set_capacity solves height directly and clamps only at build limits |
-| "share link" without a qualifier | Ambiguous | Say design permalink or live handoff link every time |
-| Exact unit-test count | Drifts whenever tests change | Name the suites, or automate the count |
-
-### 10.4 Verify in 60 seconds
-
-The README demo should show the entire human-agent loop, not just individual tools:
-
-1. Ask ChatGPT to create or resize a vessel.
-2. Ask it to show the preview or explain the printable pieces.
-3. ChatGPT calls create_live_handoff and returns the exact liveHandoffUrl.
-4. Open the link in the normal browser and change a dimension.
-5. Ask ChatGPT what changed; describe_project reads the browser edit through live sync.
-6. Export the true-scale PDF.
-
-Keep this to six short numbered lines. Link to /webmcp for more prompts.
-
-The proof points immediately following the demo should be factual:
-
-- Same validated store actions power UI and agent edits.
-- A single-use token moves the work from ChatGPT's agent tab to a normal browser.
-- Edits flow in both directions and recover after disconnects.
-- Geometry, shrinkage, page tiling, and capacity are deterministic rather than model-generated.
-- Real-browser and Worker tests cover the handoff and sync path.
-
-### 10.5 /webmcp page
-
-This is the detailed evaluator guide and may be longer than the README, but it must remain scannable.
-
-Update it to:
-
-- Add create_live_handoff to the generated tool list and prompt examples.
-- Explain the default ChatGPT link-selection rule in one short callout.
-- Show design permalink versus live handoff link in a two-row table.
-- Distinguish agent connection, ChatGPT provenance, and confirmed device pairing.
-- Show the six-character code only as the fallback or reverse-direction flow.
-- State the fifteen-minute link TTL and fifteen-minute code TTL once.
-- Link to the live-handoff and live-sync specs instead of reproducing protocol details.
-- Remove any old shareUrl terminology.
-
-### 10.6 /why page
-
-Keep /why focused on the product story:
-
-- Manual cardboard templates and the cost of sizing mistakes.
-- Human judgement plus deterministic geometry.
-- One example that starts in conversation, continues in the browser, and ends as a physical template.
-- A short note that permanent QR links reopen independent copies months later.
-
-Do not put tool schemas, registration compatibility, Durable Object internals, or token-selection rules here. Link to /webmcp and the repository.
-
-### 10.7 Technical documentation cleanup
-
-Update docs/live-sync-spec.md so it no longer mixes v2 code-only pairing decisions with the implemented v3 URL-token flow.
-
-Required corrections:
-
-- Change the title and status to the implemented version.
-- Remove statements that agent URLs are always inert.
-- Replace "no URL is ever a live capability" with the temporary-versus-durable distinction.
-- Describe fifteen-minute single-use URL tokens and fifteen-minute codes separately.
-- State that join is stripped from the address bar after it is read.
-- Name create_live_handoff as the agent's outbound handoff path.
-- Keep design permalink and printed QR behaviour explicitly token-free.
-- Preserve the security reasoning, but remove superseded alternatives and historical debate from the main path. Move history to a short decisions appendix if still useful.
-
-Review docs/user-flow.md, README.md, /webmcp, /why, PairDialog copy, tool descriptions, and comments for these obsolete terms:
-
-- shareUrl
-- every link
-- no URL
-- Connected via ChatGPT
-- thirteen tools
-- agent-minted link
-
-Each occurrence must either be migrated to the new terminology or retained only in clearly labelled historical context.
-
-### 10.8 Documentation quality gate
-
-Add a small CI or unit-test guard that checks:
-
-- README tool names match TOOL_SUMMARIES.
-- create_live_handoff appears in README and /webmcp.
-- Removed agent-facing shareUrl terminology does not return.
-- The phrases "every link the agent hands you is live" and "no URL is ever a live capability" do not appear in current documentation.
-- designUrl and liveHandoffUrl are both defined.
-- README stays below the agreed word budget.
-- All relative documentation links resolve.
-
-Documentation should be updated in the same implementation commit as the tool contract, or in an immediately following commit before deployment. Do not ship code and knowingly contradictory public copy.
-
-## 11. Testing requirements
-
-### 11.1 Unit tests
-
-Add tests proving:
-
-- designUrl never contains join.
-- create_live_handoff success always contains both via=chatgpt and join.
-- create_live_handoff returns the current design parameters.
-- create_live_handoff awaits token minting.
-- token mint failure returns isError and no URL.
-- describe_project does not call mintToken.
-- mutation tools do not call mintToken.
-- two successful handoff calls receive distinct tokens.
-- the live-handoff tool has no readOnlyHint.
-
-### 11.2 Tool-contract tests
-
-Update the independent expected-tool list and TOOL_SUMMARIES contract.
-
-Assert the exact result keys:
-
-- liveHandoffUrl
-- designUrl
-- expiresAt
-- expiresInSeconds
-- singleUse
-- instruction
-
-Assert that the generic shareUrl key is absent after the deprecation period.
-
-### 11.3 End-to-end tests
-
-Add a complete incident-regression scenario:
-
-1. Agent context creates a distinctive design.
-2. Agent calls create_live_handoff.
-3. Test asserts that liveHandoffUrl contains join.
-4. A separate human browser opens that exact result.
-5. The opening browser strips join from its address bar.
-6. Human browser edits the shape.
-7. Agent calls describe_project.
-8. Agent sees the human edit.
-
-Also test:
-
-- Opening designUrl produces an independent copy and does not sync edits.
-- Reopening a burned liveHandoffUrl opens the snapshot but does not pair.
-- Opening an expired liveHandoffUrl opens the snapshot but does not pair.
-- Pairing-backend failure never yields a clickable fallback from create_live_handoff.
-- The permanent template QR remains token-free.
-- Two independently minted live handoff links can each add one device to the same session.
-
-### 11.4 Documentation assertions
-
-Where practical, add a lightweight test or repository search gate preventing these obsolete claims:
-
-- every link is live
-- no URL is ever a live capability
-- agent shareUrl is always tokenised
-
-The final wording must name the specific link type.
-
-## 12. Migration plan
-
-1. Add create_live_handoff and its tests.
-2. Change describeState to return designUrl and stop consuming tokens.
-3. Add the shared final-link instruction to relevant tool descriptions.
-4. Update TOOL_SUMMARIES, the WebMCP manifest page, README, and user-facing pairing copy.
-5. Update E2E coverage with the incident-regression scenario.
-6. Deprecate shareUrl for one release if compatibility is required.
-7. Remove shareUrl and unused agentContinuity token-prefetch code.
-8. Reconcile docs/live-sync-spec.md with the implemented token model.
-
-If backward compatibility is unnecessary for the current build, steps 6 and 7 may happen together.
-
-## 13. Acceptance criteria
-
-The work is complete when all of the following are true:
-
-- A successful create_live_handoff result always contains a fresh single-use join token.
-- A failed create_live_handoff result contains no link.
-- The live handoff tool instructs the agent to reproduce liveHandoffUrl verbatim.
-- describe_project and mutation tools no longer consume tokens.
-- The address bar remains a token-free permanent design link.
-- Opening liveHandoffUrl pairs two tabs and synchronises edits both ways.
-- Opening designUrl never pairs tabs.
-- Expired or burned handoff links degrade safely to an independent snapshot.
-- Printed QR codes remain permanent and token-free.
-- Product copy no longer claims that every arbitrary link is live.
-- Tool descriptions state that every newly created conversational result link defaults to liveHandoffUrl.
-- Generic requests such as "send me the link", "show me", and "open it" result in a newly minted liveHandoffUrl.
-- designUrl is returned only for an explicit permanent, bookmarkable, printable, archival, or independent-copy request.
-- A failed live handoff never causes ChatGPT to substitute designUrl or the address-bar URL.
-- The stale live-sync documentation is reconciled.
-- Unit, contract, and full-stack pairing tests pass.
-
-## 14. Product decision
-
-Keep both link types.
-
-> **Review after public launch.** The link rule costs a second tool
-> call on every edit turn. What to measure and the candidate change (a
-> `liveHandoffUrl` inside mutation results when the tab is already
-> paired) are recorded in docs/webmcp-tool-performance-spec.md §9; the
-> rule stays as written here until those numbers say otherwise.
-
-For conversational creation, ChatGPT must finish with create_live_handoff whenever it gives the user a newly created result link. This includes generic requests to send, show, open, or continue with the design. The default is always a fresh paired link so the user can edit in the browser and ChatGPT can observe those edits.
-
-For archiving, printing, bookmarking, or sharing an explicitly independent non-collaborative copy, the permanent designUrl is correct. ChatGPT must choose it only when the user clearly asks for one of those purposes. Ambiguity resolves to live handoff.
-
-The distinction must be expressed through separate names, separate actions, tool descriptions, and the explicit selection table in this specification—not inferred from query parameters by the agent.
+The tests live in src/mcp/liveHandoff.test.ts and
+src/mcp/structuredResult.test.ts, with UI and Worker coverage in the
+corresponding pairing and end-to-end suites.

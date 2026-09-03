@@ -20,7 +20,7 @@ describe("README", () => {
     expect(output.trim()).toBe("")
   }, 60_000)
 
-  it("keeps the section order of the 0.2 spec §10.1", () => {
+  it("keeps the package README section order", () => {
     const headings = [...read(`${pkg}README.md`).matchAll(/^## (.+)$/gm)].map((m) => m[1])
     const expected = [
       "Why",

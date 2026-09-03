@@ -23,7 +23,7 @@ import { useProjectStore } from "@/store/useProjectStore"
  * token. The permanent designUrl is the only link here; live handoff
  * links come from create_live_handoff alone (see liveHandoff.ts). The
  * `session` field reads the sync client's state — a fact the agent
- * decides the fresh-session offer on (spec §6.2), never a guess from the
+ * decides the fresh-session offer on (tool-performance spec §6.1), never a guess from the
  * default design — and reading it changes nothing.
  */
 

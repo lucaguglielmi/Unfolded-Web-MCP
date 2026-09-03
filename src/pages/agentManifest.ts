@@ -62,7 +62,7 @@ export function buildAgentManifest(): Record<string, unknown> {
         "straight forms mirror topDiameterMm = bottomDiameterMm; turning taper on without an explicit top flares it to min(300, round(bottom * 1.4))",
         "interior capacity is linear in heightMm at fixed diameters — update_design with capacityMl solves it exactly (after any diameters or clay in the same call apply), never iterate",
         "every mutating tool returns the full new state (form, clay, paperSize, units, capacityMl, pieces, printedPages, warnings, designUrl, session) — snapshots are pure and never spend a live token; session.paired false means a fresh tab: offer the create_live_handoff link ('Open a paired browser session with this chat') first, the six-character code second",
-        "designUrl is a permanent permalink (independent copy, no session); liveHandoffUrl exists only as create_live_handoff output and is the default link to hand the potter after any edit",
+        "designUrl is a permanent permalink (independent copy, no session); liveHandoffUrl is the agent-facing default link from create_live_handoff or start_pairing, while the human Continue dialog uses a separate join-only invitation",
         "invalid input returns isError text with per-field issues AND the unchanged state",
         `every result also carries structuredContent (contract ${TOOL_RESULT_CONTRACT}): ok mirrors !isError, message opens the text, and state — when present — deep-equals the JSON the text serializes`,
       ],
@@ -84,7 +84,7 @@ export function buildAgentManifest(): Record<string, unknown> {
       ],
       shapes: {
         stateReporting: "describe_project, open_model, update_design, apply_preset, join_session, start_pairing, undo_last_change → { ok, message, state, warnings? }; state carries form, clay, paperSize, units, designUrl, capacityMl, pieces, printedPages, warnings, session {paired, peers}; start_pairing adds liveHandoffUrl beside them when its link minted (the code alone when it did not); on failure (validation, failed join, nothing to undo, no pairing service) { ok: false, message, state } with the unchanged state",
-        create_live_handoff: "{ ok, message, liveHandoffUrl, designUrl, expiresAt, expiresInSeconds, singleUse, instruction }; fail-closed: { ok: false, message, state } with no URL field",
+        create_live_handoff: "{ ok, message, liveHandoffUrl, designUrl, expiresAt, expiresInSeconds, singleUse, instruction }; fail-closed: { ok: false, message } with no state or URL field",
         get_template_summary: "{ ok, message, ...template summary }",
         get_preview_image: "image content unchanged; { ok, message, summary }",
         export_templates: "{ ok, message, pages, paper, rows, cols, state, warnings? }",
@@ -141,7 +141,7 @@ export function buildAgentManifest(): Record<string, unknown> {
       },
       transport: {
         endpoint: "wss://<origin>/api/session/{sid}/ws",
-        claim: "POST /api/pair/claim {code} -> {ok, sid} | 404 {ok, retryable}",
+        claim: "POST /api/pair/claim {code: <six-character code or join token>} -> {ok, sid} | 404 {ok, retryable}",
         protocolVersion: SYNC_PROTOCOL_VERSION,
         clientToServer: {
           hello: { protocolVersion: "number", clientId: "string", actor: "'human'|'agent'", state: "DesignSlice? (first-contact bootstrap only)" },
@@ -169,7 +169,7 @@ export function buildAgentManifest(): Record<string, unknown> {
       ],
       storageKey: SESSION_STORAGE_KEY,
     },
-    // the package describes itself (docs/webmcp-profiler-0.2-spec.md §18.1);
+    // the package describes itself (docs/webmcp-profiler-spec.md §9);
     // only profilerNotes is written by hand
     profiler: describeProfiler({}, "get_perf_report"),
     profilerNotes: {

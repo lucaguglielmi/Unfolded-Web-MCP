@@ -36,7 +36,7 @@ export function cryptoGlyphIndices(count: number): number[] {
 }
 
 /**
- * Join tokens: the URL-borne sibling of a code (docs/live-sync-spec.md v3).
+ * Join tokens: the URL-borne sibling of a code (docs/live-sync-spec.md §4.2).
  * 24 crypto-random bytes as base64url (~128 bits — guessing is void, so no
  * process protections needed beyond the shared rate limits), the same
  * 15-minute TTL as codes (both raised: codes from 5 minutes, tokens

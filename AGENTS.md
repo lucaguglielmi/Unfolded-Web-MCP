@@ -24,7 +24,7 @@ package. Review this inventory on every profiler change:
 - `README.md` (profiler section; the docs guard caps the README at 1,800 words — it runs close to the cap, so new prose has to pay for itself)
 - `docs/performance-report.md` (numbers and claims)
 - `.github/workflows/publish-profiler.yml` and `deploy.yml`
-- `docs/webmcp-profiler-spec.md` §12 (what has landed)
+- `docs/webmcp-profiler-spec.md` §12 (roadmap and non-goals; shipped behavior is in §§2–11)
 
 ## Commands
 
@@ -64,11 +64,16 @@ surface moves.
 
 ## Specs
 
-`docs/README.md` indexes every document. A spec carries a status line
-with its baseline commit and a "Changes since first draft" paragraph;
-amendments go into git history, not dated blockquotes. The long-range
-`docs/webmcp-profiler-spec.md` §12 is the single source of truth for what
-has landed; when something lands, §12 gains a line.
+`docs/README.md` indexes every document.
+Current specs carry `Status`, `Baseline`, and `Last verified` metadata.
+Current behavior belongs in `docs/live-sync-spec.md`,
+`docs/live-handoff-link-spec.md`, `docs/webmcp-tool-performance-spec.md`,
+and `docs/webmcp-profiler-spec.md`.
+`docs/performance-report.md` contains dated measurements;
+`docs/webmcp-profiler-0.2-spec.md` contains release history. Neither is
+a source of new requirements.
+Do not add new implementation details to retrospective reports or release
+records.
 
 ## Releasing the package
 

@@ -1,6 +1,6 @@
 /**
  * The host watch: how often the page looks for a WebMCP registry
- * (docs/webmcp-tool-performance-spec.md §7). Hosts differ wildly in WHEN
+ * (docs/webmcp-tool-performance-spec.md §9). Hosts differ wildly in WHEN
  * they expose the API — extension shims shortly after load, in-app agent
  * browsers (ChatGPT's) only when the person first engages the agent,
  * possibly minutes in. So the watch never slows down and never stops:

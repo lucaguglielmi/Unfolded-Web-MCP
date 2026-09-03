@@ -104,10 +104,10 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
         const state = structured!.state as { warnings: string[]; session: { paired: boolean; peers: number } }
         if (state.warnings.length > 0) expect(structured!.warnings).toEqual(state.warnings)
         else expect("warnings" in structured!).toBe(false)
-        // §6.2: the snapshot says whether the tab is paired — a fact, not a guess
+        // tool-performance spec §6.1: the snapshot says whether the tab is paired — a fact, not a guess
         expect(typeof state.session.paired).toBe("boolean")
         expect(typeof state.session.peers).toBe("number")
-        // §5: the two constants are gone from every snapshot
+        // tool-performance spec §5: the retired constants are gone from every snapshot
         expect("linkMode" in (state as object)).toBe(false)
         expect("liveHandoffTool" in (state as object)).toBe(false)
       }
@@ -241,14 +241,14 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
     expect(isError).toBe(true)
     expect(structured!.ok).toBe(false)
     expect(structured!.message).toContain("could not be created")
-    // docs/live-handoff-link-spec.md §7: a failure returns no clickable URL
+    // docs/live-handoff-link-spec.md §5: a failure returns no clickable URL
     // of any kind — a state snapshot would smuggle designUrl back in
     expect(Object.keys(structured!).sort()).toEqual(["message", "ok"])
     expect(JSON.stringify(structured)).not.toMatch(/https?:\/\/|\?type=/)
   })
 
   it("start_pairing: the spoken code and the tappable link, from one call", async () => {
-    // live-handoff-link-spec §8.3's amendment — a code-only answer to
+    // live-handoff-link-spec §7.1 — a code-only answer to
     // "pair from here" was the bug this closed
     const { isError, text, structured } = await call("start_pairing")
     expect(isError).toBe(false)
@@ -356,7 +356,7 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
     expect(useProjectStore.getState().paperSize).toBe("A4")
   })
 
-  it("measures text vs structured payload bytes (recorded in docs/performance-report.md)", async () => {
+  it("measures text vs structured payload bytes (summarized in docs/performance-report.md)", async () => {
     const bytes = (value: string) => new TextEncoder().encode(value).length
     const rows: string[] = []
     for (const [name, input] of [
@@ -372,7 +372,7 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
           `| state alone ${stateCompact} B | envelope total ${textBytes + structuredBytes} B`
       )
       expect(structuredBytes).toBeGreaterThan(0)
-      // docs/webmcp-tool-performance-spec.md §13: the describe_project envelope stays under 1,200 B
+      // docs/webmcp-tool-performance-spec.md §10: the describe_project envelope stays under 1,200 B
       expect(textBytes + structuredBytes).toBeLessThan(1_200)
     }
     console.info(`[${TOOL_RESULT_CONTRACT} payload]\n  ${rows.join("\n  ")}`)
