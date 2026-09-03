@@ -33,6 +33,7 @@ npm test --workspace webmcp-profiler                          # fast loop
 npm run lint && npm test && npm run build && npm run e2e      # the gate, always before pushing
 npm run build -w webmcp-profiler && npm run docs -w webmcp-profiler   # regenerate README blocks and llms.txt
 npm run live -- https://tryunfolded.com                       # health sweep of a deployment (routes, errors, tools, profiler, demo)
+CHROME_PATH=… npm run live:native -- https://tryunfolded.com   # the same site through a REAL host: Chrome 152+ with WebMCPTesting, driven over DevTools
 ```
 
 The package's own tests are a subset of the root run, never a substitute.

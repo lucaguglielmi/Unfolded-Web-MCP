@@ -98,6 +98,36 @@ schema on the surface; the whole 15-tool surface is about 12 KB, the
 across this report are UTF-8 from 0.2 on (0.1 counted UTF-16 units;
 the difference is nil for these ASCII payloads).
 
+### 1.2 · Through a real host: Chrome 152 native WebMCP (`npm run live:native`)
+
+The bench above talks to the page through the package's fake host, so it
+measures the page's side only. `e2e/native-host.mjs` measures the other
+side: Chrome for Testing 152 with `--enable-features=WebMCPTesting`
+exposes a native `document.modelContext`, and its DevTools `WebMCP`
+domain lets the script act as the agent host (`invokeTool` →
+`toolResponded`). Production, sandbox Linux headless, 20 runs per tool.
+"host" is the round trip as the host sees it; "page" is what the
+profiler inside the page recorded for the same calls.
+
+```
+tool                    runs   host p50    host p95    page p50    page p95   host overhead p50
+describe_project          20     282.8 ms    321.6 ms       0.7 ms      1.4 ms      282.1 ms
+get_preview_image         20     284.2 ms    291.0 ms       5.4 ms      7.0 ms      278.8 ms
+```
+
+`get_perf_report` read back through the host: 272 ms for 3,161 bytes
+(tools view). The ledger seen from the page: host on `document`, 15
+tools, 12,571 schema bytes, package 0.2.2.
+
+Reading: the page's compute is unchanged from the fake-host bench, and
+Chrome's host path adds a flat ~280 ms per invocation in this build,
+independent of the tool's own cost or result size. That fixed cost is
+the browser's (invocation plumbing between the DevTools client, the
+renderer and the page), not the site's, so the actionable lever for an
+agent conversation is the number of round trips, not the per-call
+compute. The number should be re-measured on each Chrome release; the
+script prints it in one line.
+
 ## 2 · Boot and load
 
 | metric | desktop 1× | 4× CPU, 390 px |

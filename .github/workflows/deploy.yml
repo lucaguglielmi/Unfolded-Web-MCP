@@ -49,3 +49,9 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: deploy
+      # What is live is what gets tested: the same sweep a contributor runs
+      # with `npm run live`, against production, once the deploy is out.
+      # Non-blocking for one release (a failure here is loud, not a rollback).
+      - name: Post-deploy smoke of production (non-blocking)
+        run: node e2e/live.mjs https://tryunfolded.com
+        continue-on-error: true
