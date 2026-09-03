@@ -27,5 +27,6 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "packages/webmcp-profiler/src"]
+  "include": ["src", "packages/webmcp-profiler/src"],
+  "exclude": ["packages/webmcp-profiler/src/__snippets__"]
 }

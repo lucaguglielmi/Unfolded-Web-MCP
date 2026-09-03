@@ -1,7 +1,7 @@
 import type { ModelContext, ToolDescriptor } from "./modelContext"
 
 /**
- * The all-or-nothing registration engine (hardening spec 4.1), kept free
+ * The all-or-nothing registration engine, kept free
  * of React and DOM so it is unit-testable against fake hosts that resolve
  * slowly, reject mid-set, or ignore signals entirely.
  *

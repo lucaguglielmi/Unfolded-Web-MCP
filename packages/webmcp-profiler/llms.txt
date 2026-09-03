@@ -1,0 +1,129 @@
+# webmcp-profiler 0.2.1 — reference for agents
+
+Drop-in performance analyser for WebMCP tool surfaces. Measures every registered tool's execute():
+wall time, Long-Task blocking, payload bytes and estimated tokens, error rate, schema weight, and the
+host + model gaps between calls. Zero dependencies. ESM, browser runtime.
+
+## Install and use
+
+    npm install webmcp-profiler
+    import { maybeAttachProfiler } from "webmcp-profiler/attach"   // first line at boot
+    maybeAttachProfiler()                                         // opens on ?perf=1
+    import { attachProfiler } from "webmcp-profiler"               // or unconditionally
+    const profiler = attachProfiler({ onSpan: (span) => console.log(span) })
+    import { profilerTool } from "webmcp-profiler/tool"            // let agents read the report
+    document.modelContext.registerTool(profilerTool(profiler))
+    import { createFakeHost } from "webmcp-profiler/testing"       // no agent host? drive tools yourself
+    npx webmcp-profiler bench <url>                                // agentless CI bench
+
+## Activation (query parameter, persisted per origin)
+
+- ?perf=0: turn it off and forget it (also: off, false)
+- ?perf=1: turn profiling on and remember it for this origin (also: on, true)
+- ?perf=overlay: on, with the floating panel open
+- storage key: webmcp-perf:mode
+- cost: zero when off; when on, two clock reads, one JSON serialization of input and result, and a ring-buffer push per call
+
+## Console API (window.__webmcpPerf)
+
+- active: true unless this is the server-side no-op or detach() has run
+- sessionId: this session's 8-hex id, stamped on every span
+- spans: the raw span ring buffer, oldest first
+- aggregates: per-tool rows: calls, errors, min/p50/p95/max, blocking, bytes, tokens, schema bytes
+- ledger: the session ledger: host timeline, registered tools, running totals
+- onSpan: subscribe to spans as they settle; returns an unsubscribe function
+- onSpanUpdate: subscribe to late corrections (Long-Task blocking); returns unsubscribe
+- status: what the profiler is doing right now: phase, one sentence, and next steps
+- help: print the status line and this method list to the console
+- summary: a few lines of text: the split, then one line per tool
+- describe: the machine-readable manifest of this profiler's API, fields, and configuration
+- table: console.table of the per-tool rows, rounded for reading
+- report: the versioned JSON document; report({ spans: false }) omits spans, { spans: 50 } keeps the newest 50, { tool } filters
+- export: download report() as a .json file
+- exportTrace: download the spans as Chrome trace-event JSON for Perfetto or chrome://tracing
+- overlay: toggle the floating panel (loaded on first use)
+- instrument: retrofit a site-exposed { name: tool } registry wrapped after load; returns how many
+- synthetic: mark spans recorded from now on as synthetic (the bench uses it)
+- reset: clear spans and totals; keeps the tool registry
+- detach: restore every original execute and registry method, stop observing, drop the global
+
+## Configuration (attachProfiler and the gate)
+
+- buffer (default 500): spans kept in memory (ring buffer)
+- relay (default true): mirror spans onto a BroadcastChannel so a visible same-origin tab can watch
+- overlay (default false): open the floating panel immediately
+- globalName (default "__webmcpPerf"): window property to expose the API on; false exposes nothing
+- channel (default "webmcp-perf:" + location.origin): BroadcastChannel name for the relay
+- pollMs (default 250): registry sweep interval while no host has been found
+- tokenEstimator (default bytes/4; images at decoded size): replaces the bytes-to-tokens heuristic for every content kind
+- onSpan (default none): a listener subscribed at attach time
+- sample (default 1): fraction of calls that get a span (0..1); the rest pass through unmeasured
+- errorPolicy (default "message"): what an error span keeps: "message" (capped at 200), "name", or "none"
+- param (default "perf"): query parameter that arms the profiler
+- storageKey (default "webmcp-perf:mode"): localStorage key that persists the mode across URL rewrites
+- announce (default true): console line on attach; false silences, a function replaces it
+- allow (default () => true): the site's last word on whether the gate may open; false also clears a persisted mode
+
+## Span fields
+
+- sessionId: the profiler session that recorded the span; `${sessionId}#${seq}` is its identity
+- seq: sequence number within the session, from 0
+- tool: the tool's registered name
+- invokedAt: performance.now() when execute() was called
+- settledAt: performance.now() when execute() resolved or threw
+- wallMs: the execute() await, end to end
+- blockingMs: Long-Task overlap attributed to this call (fills in after the task ends; Chromium only)
+- inputBytes: UTF-8 bytes of the input's JSON
+- resultBytes: UTF-8 bytes of the result's JSON
+- contentTypes: count per content type, e.g. { text: 1, image: 1 }
+- imageBytes: base64 length of image content in the result
+- estInputTokens: estimated tokens the model wrote to produce the input
+- estTextTokens: estimated tokens to read the non-image part of the result
+- estImageTokens: estimated tokens to read the image part of the result
+- estTokens: estInputTokens + estTextTokens + estImageTokens: what this call costs the model
+- isError: the tool reported isError, or threw
+- error: the error message (capped at 200 chars), name, or null, per errorPolicy
+- gapSincePrevCallMs: idle from the previous result settling to this call arriving: host + model think time; null when the calls overlapped
+- synthetic: recorded by the bench rather than a live host
+- serializable: false when the result could not be JSON-serialized (bytes then read 0)
+
+## Ledger fields
+
+- sessionId: this profiler session's id
+- attachedAt: epoch ms when the profiler attached
+- hostFoundAt: performance.now() when a modelContext registry was first seen
+- hostLocation: where it was found: document (the draft), navigator or window (legacy hosts)
+- firstRegistrationAt: performance.now() of the first registerTool / provideContext
+- registeredTools: names currently registered
+- tools: per tool: schemaBytes, registeredAt, unregisteredAt, internal
+- firstCallAt: performance.now() of the first measured call
+- lastSettledAt: performance.now() of the latest settle
+- totals.calls: every call seen, measured or not
+- totals.unsampledCalls: calls that ran unmeasured because `sample` excluded them
+- totals.overlappingCalls: calls invoked before the previous call settled
+- totals.errors: calls that reported or threw an error
+- totals.wallMs: summed execute() time
+- totals.blockingMs: summed Long-Task overlap, union across overlapping calls
+- totals.resultBytes: summed result bytes
+- totals.estTokens: summed estimated tokens (input + result)
+- totals.estInputTokens: summed estimated input tokens
+- totals.hostGapMs: summed settled-to-next-invoke gaps: host + model wait, by definition
+- totals.schemaBytes: descriptor bytes of the tools currently registered, paid in every conversation
+- totals.estSchemaTokens: the same as tokens
+
+## Report tool (get_perf_report) views
+
+- summary: the split and one row per tool; under 1 KB
+- tools: summary plus the full per-tool aggregates
+- spans: tools plus the newest spans (limit, default 50; tool and since filters); the heaviest view
+
+## Report format: webmcp-perf-report/2 (schema: schema/report.v2.json)
+
+## Privacy
+
+- spans carry sizes, shapes, timings, tool names, and (per errorPolicy) error messages; never input or result bodies
+- nothing leaves the browser: the relay is a same-origin BroadcastChannel and export() is a download
+- any same-origin script or tab can read the global and the relay; use globalName: false and relay: false for production telemetry through onSpan
+- the gate's allow predicate is the site's last word on who can arm profiling
+
+Full README: https://www.npmjs.com/package/webmcp-profiler

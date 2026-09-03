@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { profilerTool } from "@/profiler/tool"
 import { capacityMl, heightForCapacityMl } from "@/lib/geometry/unroll"
 import { setClayInputSchema, updateFormInputSchema, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
@@ -31,7 +32,7 @@ import {
  * without its summary fails the build. The e2e suite's EXPECTED_TOOLS is
  * deliberately NOT derived from here: it is the independent contract check.
  */
-export const TOOL_SUMMARIES: { name: string; blurb: string }[] = [
+export const TOOL_SUMMARIES: { name: string; blurb: string; conditional?: true }[] = [
   { name: "describe_project", blurb: "Read the whole design: form, clay, template pieces, capacity in ml, and its permanent design link." },
   { name: "open_model", blurb: "Open a design from a pasted share link and keep editing it." },
   { name: "update_form", blurb: "Change shape, taper, facets, height and diameters — fired sizes, in millimeters." },
@@ -46,6 +47,11 @@ export const TOOL_SUMMARIES: { name: string; blurb: string }[] = [
   { name: "join_session", blurb: "Pair this tab into a live session with the 6-character code from the potter's other device." },
   { name: "start_pairing", blurb: "Mint a 6-character code so the potter's other device can join THIS design live." },
   { name: "undo_last_change", blurb: "Revert the last change — the agent's or the potter's." },
+  {
+    name: "get_perf_report",
+    blurb: "Read the built-in profiler's numbers for this tool surface — only registered when a ?perf=1 link armed it.",
+    conditional: true,
+  },
 ]
 
 /** normalized pairing-code shape — uppercase, separators stripped, 6 glyphs
@@ -60,7 +66,7 @@ function stateText(prefix?: string, state: StateSnapshot = describeState()): str
 }
 
 /**
- * Structured results (hardening spec 9.3, contract tool-result/1) ride
+ * Structured results (contract tool-result/1) ride
  * beside the unchanged text content: `ok` mirrors !isError, `message` is
  * the sentence the text opens with, `state` is the same snapshot the text
  * serializes, and `warnings` appears only when the design has any.
@@ -140,7 +146,7 @@ function toInputSchema(schema: z.ZodType): Record<string, unknown> {
   return json
 }
 
-/** the one consistent shape for a host-cancelled call (spec 4.4) */
+/** the one consistent shape for a host-cancelled call */
 function cancelledResult(): ToolResult {
   const message = "Cancelled by the host before completing — no changes were made."
   return textResult(message, true, { ok: false, message })
@@ -179,7 +185,7 @@ function run(
 }
 
 export function buildTools(): ToolDescriptor[] {
-  return [
+  const tools: ToolDescriptor[] = [
     {
       name: "describe_project",
       description:
@@ -349,7 +355,8 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "export_templates",
       description:
-        "Export the printable template as a multi-page PDF and download it in the potter's browser — remind them to print at 100% scale and check the calibration ruler on page 1. Pages tile the true-scale template with 10 mm glue overlaps. Optionally set paperSize ('A4', 'A3', or 'Letter') first. Returns the page count and the full new state.",
+        "Export the printable template as a multi-page PDF and download it in the potter's browser — remind them to print at 100% scale and check the calibration ruler on page 1. Pages tile the true-scale template with 10 mm glue overlaps. Optionally set paperSize ('A4', 'A3', or 'Letter') first. Returns the page count and the full new state." +
+        LINK_RULE,
       inputSchema: toInputSchema(
         z.object({
           paperSize: z.enum(["A4", "A3", "Letter"]).optional().describe("Paper size for the printout"),
@@ -544,4 +551,11 @@ export function buildTools(): ToolDescriptor[] {
         }),
     },
   ]
+  // The profiler's own report tool, so an agent can read the numbers
+  // through the host (docs/webmcp-profiler-0.2-spec.md §18.5). Registered
+  // only when a ?perf= link armed profiling, so an unarmed session carries
+  // no extra schema bytes.
+  const profiler = typeof window === "undefined" ? undefined : window.__webmcpPerf
+  if (profiler?.active) tools.push(profilerTool(profiler) as unknown as ToolDescriptor)
+  return tools
 }

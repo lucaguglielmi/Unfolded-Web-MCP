@@ -13,7 +13,7 @@ vitest suites plus a live `wrangler dev` smoke suite with real sockets
 (`npm run e2e:worker`, `npm run e2e:pairing`) — vitest-pool-workers does not
 support this repo's vitest major.
 
-Decisions taken 2026-08-31 (previously open):
+Decisions taken (previously open):
 - **Code TTL: 15 minutes.** Confirmed.
 - **Eager session creation.** Minting a code on a never-synced tab creates
   the session immediately, so the code keeps working even if the minting tab
@@ -370,7 +370,9 @@ initialized) · `patch {patchId, baseVersion, patches: SharePatches}` ·
 Server → client: `welcome {state, version, peers}` · `patch {version,
 patches, clientId, actor}` — broadcast to ALL including the sender, whose
 own echo is how it learns the version its edit landed at · `resync {state,
-version}` · `presence {peers}` · `code {code, expiresAt}` ·
+version}` (reserved — the server currently answers a gap-detecting client's
+fresh `hello` with a `welcome` instead of ever emitting `resync`) ·
+`presence {peers}` · `code {code, expiresAt}` ·
 `error {code, message}`.
 
 HTTP (worker): `POST /api/pair/claim {code}` → `{sid}` or uniform failure —
@@ -387,10 +389,12 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
   (free-tier compatible); `/api/*` handled before assets (already
   `run_worker_first: true`).
 - Worker (`worker.js` → `worker/index.ts`, TS so it can import the shared
-  schemas and `applyPatch`): routes `POST /api/pair/claim` (per-IP limit
-  here) and `GET /api/session/:sid/ws` (validate `sid` shape →
+  schemas and `applyPatch`): routes `POST /api/pair/claim` (forwarding the
+  connecting IP; the per-IP limit itself is enforced inside `PairingCore`)
+  and `GET /api/session/:sid/ws` (Origin-checked, validate `sid` shape →
   `idFromName(sid)` → forward upgrade); everything else falls through to
-  the www-redirect + assets behavior exactly as today.
+  the www-redirect + assets behavior, now with security headers on every
+  non-WebSocket response.
 - `SessionDO`: hibernation-aware; storage `state`, `version`, `updatedAt`;
   alarm deletes storage after 30 idle days; `mint_code` registers with
   `PairingDO`.
@@ -402,6 +406,20 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
 
 ## 12. Privacy & security review
 
+- **Session identifiers are bearer capabilities.** Knowing a `sid` IS the
+  authorization to join its room and edit its design — there are no
+  accounts and no second factor. Everything below exists to keep sids
+  unguessable (client-minted 128-bit randoms) and to make sure no sid is
+  ever written where it can be casually read: not in a URL, not in a tool
+  result, not in the printed QR. Codes and join tokens are the only things
+  that travel, and they are single-use, short-lived, and exchanged for the
+  sid server-side.
+- **Cross-site browsers are turned away at the worker.** WebSocket
+  upgrades and `POST /api/pair/claim` reject any request whose `Origin`
+  header names a different host (`worker/originCheck.ts`) — a malicious
+  page in a visitor's browser cannot drive this API. Requests without an
+  Origin header (non-browser clients) pass: they can fabricate any header,
+  so for them the protection is capability secrecy, as above.
 - **What leaves the device (new):** the design slice, coarse presence
   (actor kind, tab count), and — during pairing only — a 6-character code.
   No names, no chat content, no user agent stored. README updated (item 8).
@@ -409,7 +427,7 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
   URL is ever a live capability", which the single-use link tokens below
   superseded) — share links, address bar, printed
   QR (§6 keeps it parameter-only *by specification*), agent `shareUrl`s.
-- **Residual threats:** shoulder-surfing an unclaimed code (5-min window,
+- **Residual threats:** shoulder-surfing an unclaimed code (15-minute window,
   countdown visible, potter sees the device count change); a lost paired
   device (no peer eviction in v1 — abandon the session; eviction is
   stretch); brute force (§4.5); malicious peer garbage (schemas + clamps);
@@ -439,7 +457,7 @@ Versioning is for gap detection only (`version > lastSeen + 1` → request
 - **Contract guards:** `TOOL_SUMMARIES` ↔ `buildTools` test already forces
   summaries for both tools; a no-`/api` boot test asserts today's behavior.
 
-## 14. Work items (ordered; each ships alone, green gates as in refactor-spec)
+## 14. Work items (ordered; each ships alone behind the full lint / test / build / e2e gate)
 
 1. **`applyPatch.ts` extraction** — store behavior byte-identical.
    *Prerequisite; valuable standalone.*
@@ -472,8 +490,7 @@ risk and are reviewable with no infrastructure; item 2 ships value alone.
 
 ## 16. Design review
 
-Reviewed against the codebase on 2026-08-31 (updated same day for flows +
-decisions):
+Reviewed against the codebase (updated for flows + decisions):
 
 - **Flow B forced a real change:** claimer-adopts (§4.3) is the right single
   rule, but it makes direction load-bearing — the device holding the work
@@ -571,10 +588,12 @@ token. The printed PDF QR stays parameter-only, unchanged.
    visible tab shows up in the agent's next read. Every fresh link the
    agent hands over carries a fresh token, so it keeps working even if the
    in-app browser wipes storage between opens.
-3. **Read a code (fallback).** The 6-character code stays for the spoken
-   path — telling an agent "join my desktop session, code …" — collapsed
-   behind "or use a code instead" in the dialog. join_session and
-   start_pairing keep their names and behavior.
+3. **Read a code.** The 6-character code stays for the spoken and typed
+   path — telling an agent "join my desktop session, code …" — and is
+   minted with the QR and shown beside it (it was collapsed behind "or use
+   a code" until on-device use showed the typed-into-ChatGPT path is
+   common). Entering a code from another screen stays behind a toggle.
+   join_session and start_pairing keep their names and behavior.
 
 ## 4. Mechanics
 
@@ -618,7 +637,7 @@ design; the Continue dialog QR pairs a second context.
 
 ---
 
-# Handoff amendment (2026-09-02) — two links, one tool
+# Handoff amendment — two links, one tool
 
 Implemented per `docs/live-handoff-link-spec.md`, which is normative for
 link selection; this section only reconciles the wording above.
@@ -648,14 +667,14 @@ link selection; this section only reconciles the wording above.
 - **Tool count** is fourteen; `/webmcp` derives it from `TOOL_SUMMARIES`
   and `src/mcp/docsGuard.test.ts` pins the README table to the same list.
 
-- **Lifetimes (2026-09-02).** Codes and tokens both live **15 minutes**
+- **Lifetimes.** Codes and tokens both live **15 minutes**
   (codes were 5, tokens 10; the hub's Open-in-ChatGPT flow — app switch,
   login, the agent's hidden browser, a slow first turn — could outrun 5).
   The §4.5 arithmetic scales linearly: three times the live codes, three
   times the exposure of a code that sits in a transcript, still centuries
   per hit inside the rate limits. The minting tab's solo grace moved to
   16 minutes with it. All numbers in this document were updated in place.
-  Considered and **declined** (owner's decision, 2026-09-02): carrying a
+  Considered and **declined** (owner's decision): carrying a
   128-bit join token instead of a spoken code in the Open-in-ChatGPT
   prompt, which would have let the spoken code stay short. One
   invitation shape per surface stays: codes for the prompt and voice,

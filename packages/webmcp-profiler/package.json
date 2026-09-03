@@ -1,7 +1,7 @@
 {
   "name": "webmcp-profiler",
-  "version": "0.1.1",
-  "description": "Drop-in performance analyser for WebMCP tool surfaces: per-call spans, payload and token accounting, host-gap ledger, live overlay. Zero dependencies.",
+  "version": "0.2.1",
+  "description": "Drop-in performance analyser for WebMCP tool surfaces: per-call spans, payload and token accounting, host-gap ledger, live overlay, an agent-readable report tool, and an agentless bench. Zero dependencies.",
   "license": "MIT",
   "author": "Luca Guglielmi",
   "type": "module",
@@ -10,7 +10,7 @@
     "url": "git+https://github.com/lucaguglielmi/Unfolded-Web-MCP.git",
     "directory": "packages/webmcp-profiler"
   },
-  "homepage": "https://tryunfolded.com/webmcp",
+  "homepage": "https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/packages/webmcp-profiler#readme",
   "bugs": "https://github.com/lucaguglielmi/Unfolded-Web-MCP/issues",
   "keywords": [
     "webmcp",
@@ -20,34 +20,94 @@
     "profiler",
     "agents",
     "observability",
-    "instrumentation"
+    "instrumentation",
+    "benchmark"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "./dist/webmcp-profiler.iife.js"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
   "files": [
     "dist",
-    "README.md"
+    "bin",
+    "schema",
+    "llms.txt",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "unpkg": "./dist/webmcp-profiler.iife.js",
+  "jsdelivr": "./dist/webmcp-profiler.iife.js",
+  "bin": {
+    "webmcp-profiler": "./bin/webmcp-profiler.mjs"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./attach": {
       "types": "./dist/attach.d.ts",
-      "import": "./dist/attach.js"
+      "import": "./dist/attach.js",
+      "default": "./dist/attach.js"
     },
-    "./iife": "./dist/webmcp-profiler.iife.js"
+    "./attach-lazy": {
+      "types": "./dist/attach-lazy.d.ts",
+      "import": "./dist/attach-lazy.js",
+      "default": "./dist/attach-lazy.js"
+    },
+    "./tool": {
+      "types": "./dist/tool.d.ts",
+      "import": "./dist/tool.js",
+      "default": "./dist/tool.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
+    },
+    "./docs": {
+      "types": "./dist/docs.d.ts",
+      "import": "./dist/docs.js",
+      "default": "./dist/docs.js"
+    },
+    "./bench": {
+      "types": "./dist/bench/run.d.ts",
+      "import": "./dist/bench/run.js",
+      "default": "./dist/bench/run.js"
+    },
+    "./iife": {
+      "types": "./dist/iife.d.ts",
+      "default": "./dist/webmcp-profiler.iife.js"
+    },
+    "./schema/report.v2.json": "./schema/report.v2.json",
+    "./package.json": "./package.json"
+  },
+  "peerDependencies": {
+    "playwright": ">=1.40"
+  },
+  "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    }
   },
   "scripts": {
-    "build": "vite build && vite build -c vite.iife.config.ts && tsc -p tsconfig.build.json",
-    "prepublishOnly": "npm run build",
+    "build": "vite build && vite build -c vite.iife.config.ts && tsc -p tsconfig.build.json && tsc -p tsconfig.bench.json",
+    "docs": "node scripts/gen-docs.mjs",
+    "docs:check": "node scripts/gen-docs.mjs --check",
+    "size": "node scripts/size-check.mjs",
+    "example": "vite preview --outDir examples --open /vanilla/",
+    "prepublishOnly": "node scripts/prepublish-check.mjs && npm run build && publint && npm run docs:check && npm run size",
     "test": "vitest run"
   }
 }

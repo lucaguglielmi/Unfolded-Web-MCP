@@ -1,6 +1,5 @@
 import { Component, Fragment, type ReactNode } from "react"
-import { LogoMark } from "@/components/LogoMark"
-import { Button } from "@/components/ui/button"
+import { ViewportFallback } from "@/components/ViewportFallback"
 
 /**
  * Keeps a 3D failure contained: a WebGL context loss, a driver quirk, or a
@@ -89,37 +88,19 @@ export class ViewportErrorBoundary extends Component<{ children: ReactNode }, St
       return <Fragment key={this.state.generation}>{this.props.children}</Fragment>
     }
 
-    // no WebGL at all — a retry can't help, say so plainly
-    if (!webglAvailable()) {
-      return (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-4">
-          <LogoMark className="h-8 w-auto opacity-60" />
-          <p className="text-muted-foreground max-w-56 text-center text-xs leading-relaxed">
-            The 3D preview isn't available in this browser — your design, templates,
-            and PDF export all still work.
-          </p>
-        </div>
-      )
-    }
-
-    return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-3 p-4">
-        <LogoMark className="h-8 w-auto opacity-60" />
-        <p className="text-muted-foreground max-w-64 text-center text-xs leading-relaxed">
-          The 3D preview went to sleep while this tab was in the background.
-          Your design, templates, and PDF export are untouched.
-        </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            this.autoRetries = 0
-            this.retry()
-          }}
-        >
-          Wake the preview
-        </Button>
-      </div>
+    // both failure paths share one truthful fallback component (§5.1/§5.2):
+    // no WebGL at all means a retry can't help; anything else is usually a
+    // reclaimed context that a fresh canvas recovers
+    return webglAvailable() ? (
+      <ViewportFallback
+        mode="asleep"
+        onRetry={() => {
+          this.autoRetries = 0
+          this.retry()
+        }}
+      />
+    ) : (
+      <ViewportFallback mode="no-webgl" />
     )
   }
 }

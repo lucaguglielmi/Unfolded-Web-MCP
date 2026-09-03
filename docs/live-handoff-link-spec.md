@@ -1,9 +1,8 @@
 # Reliable ChatGPT Live Handoff Links
 
-Status: Implemented (2026-09-02) — see §15 "Implementation notes"  
+Status: Implemented — see §15 "Implementation notes"  
 Scope: Normative for link selection and the create_live_handoff contract  
-Repository: Unfolded WebMCP  
-Date: 2026-09-01 (spec), 2026-09-02 (implementation)
+Repository: Unfolded WebMCP
 
 ## 1. Summary
 
@@ -84,7 +83,7 @@ Properties:
 - Contains the same design snapshot parameters as designUrl.
 - Contains via=chatgpt.
 - Contains a single-use join token.
-- Expires ten minutes after minting.
+- Expires fifteen minutes after minting.
 - Causes the opening tab to claim and follow the originating live session.
 - Falls back to opening the encoded design snapshot if the token is expired or already used.
 - Is intended for immediate continuation on another screen.
@@ -168,7 +167,7 @@ Description:
     replace it with the current page URL, browser address-bar URL, a previously
     returned link, or a reconstructed URL. Skip this tool only when the user
     explicitly requests a permanent, bookmarkable, printable, archival, or
-    independent-copy link. The invitation expires after ten minutes and works once.
+    independent-copy link. The invitation expires after fifteen minutes and works once.
 
 Successful result:
 
@@ -176,7 +175,7 @@ Successful result:
       "liveHandoffUrl": "https://tryunfolded.com/?...&via=chatgpt&join=...",
       "designUrl": "https://tryunfolded.com/?...",
       "expiresAt": 1788273000000,
-      "expiresInSeconds": 600,
+      "expiresInSeconds": 900,
       "singleUse": true,
       "instruction": "Return liveHandoffUrl verbatim as the default link after creating or editing. Do not use the browser address-bar URL. Use designUrl only for an explicitly requested permanent or independent copy."
     }
@@ -300,7 +299,7 @@ Give each surface one job:
 
 | Surface | Purpose |
 | --- | --- |
-| README.md | Fast judge-facing overview, evidence, demo prompts, and verification commands |
+| README.md | Fast reader-facing overview, evidence, example prompts, and verification commands |
 | /webmcp | Live user and evaluator guide: connection state, tool list, and prompts |
 | /why | Short product story: the pottery problem, why an agent helps, and physical output |
 | docs/live-handoff-link-spec.md | Normative link-selection and handoff contract |
@@ -314,12 +313,18 @@ Link down to detail instead of duplicating it. When two documents make the same 
 
 Target: no more than about 1,200 words excluding commands and the tool table.
 
+> **Done.** The rewrite landed at roughly 1,400 prose words (about 1,700
+> whole-file); `docsGuard.test.ts` now pins an 1,800-word whole-file
+> ceiling. The structure below shipped as recommended, with "Verify in
+> 60 seconds" as the quick-start heading and a closing "Deeper reading"
+> list in place of scattered links.
+
 Recommended order:
 
 1. One-sentence product pitch, live link, guide link, repository status badges.
 2. One screenshot.
 3. Why it matters: the manual pottery-template problem in no more than two short paragraphs.
-4. Judge in 60 seconds: three prompts and the visible result of each.
+4. Verify in 60 seconds: three prompts and the visible result of each.
 5. Under the hood: six or seven evidence-led bullets.
 6. Compact WebMCP tool table, including create_live_handoff.
 7. Local verification commands.
@@ -358,7 +363,7 @@ Avoid hardcoded test counts because they become stale. Use commands and suite na
 | "share link" without a qualifier | Ambiguous | Say design permalink or live handoff link every time |
 | Exact unit-test count | Drifts whenever tests change | Name the suites, or automate the count |
 
-### 10.4 Judge in 60 seconds
+### 10.4 Verify in 60 seconds
 
 The README demo should show the entire human-agent loop, not just individual tools:
 
@@ -519,7 +524,7 @@ The final wording must name the specific link type.
 7. Remove shareUrl and unused agentContinuity token-prefetch code.
 8. Reconcile docs/live-sync-spec.md with the implemented token model.
 
-If backward compatibility is unnecessary for the hackathon build, steps 6 and 7 may happen together.
+If backward compatibility is unnecessary for the current build, steps 6 and 7 may happen together.
 
 ## 13. Acceptance criteria
 

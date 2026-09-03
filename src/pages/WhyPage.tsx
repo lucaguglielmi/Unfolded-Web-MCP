@@ -2,6 +2,7 @@ import { useState } from "react"
 import { ArrowUpRight } from "lucide-react"
 import { ExplainerHeader } from "@/components/ExplainerHeader"
 import { useDesignHref } from "@/lib/useStudioHref"
+import { SITE_URL } from "@/lib/siteUrl"
 import { StudioCtaBar } from "@/components/StudioCtaBar"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 // the tool list renders from its single source next to the registrations
@@ -388,7 +389,7 @@ function ForAgents() {
           {(
             [
               ["App", "Unfolded — slab pottery templates (free for everyone, forever)"],
-              ["Live", "https://tryunfolded.com (origin-independent; links carry the whole model)"],
+              ["Live", `${SITE_URL} (origin-independent; links carry the whole model)`],
               ["Source", "github.com/lucaguglielmi/Unfolded-Web-MCP · MIT"],
               ["Stack", "React 19, TypeScript, zustand, zod, react-three-fiber, jsPDF + svg2pdf, Cloudflare Workers"],
               ["Verification", "282 unit tests + 32-check Playwright e2e suite gate every deploy in CI"],
@@ -504,7 +505,7 @@ export function WhyPage() {
         {/* footer */}
         <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 pt-8">
           <p className="text-sm text-muted-foreground/80">
-            Free for everyone, forever · open source (MIT) · built for the WebMCP Challenge
+            Free for everyone, forever · open source (MIT)
           </p>
           <div className="flex items-center gap-3">
             <a

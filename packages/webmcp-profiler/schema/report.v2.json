@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/lucaguglielmi/Unfolded-Web-MCP/main/packages/webmcp-profiler/schema/report.v2.json",
+  "title": "webmcp-perf-report/2",
+  "description": "The report document produced by webmcp-profiler's report() and by its bench.",
+  "type": "object",
+  "required": ["format", "session", "ledger", "tools", "spans"],
+  "additionalProperties": false,
+  "properties": {
+    "format": { "const": "webmcp-perf-report/2" },
+    "session": {
+      "type": "object",
+      "required": ["id", "origin", "userAgent", "generatedAt", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/sessionId" },
+        "origin": { "type": ["string", "null"] },
+        "userAgent": { "type": ["string", "null"] },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "version": { "type": "string" }
+      }
+    },
+    "ledger": { "$ref": "#/$defs/ledger" },
+    "tools": { "type": "array", "items": { "$ref": "#/$defs/toolAggregate" } },
+    "spans": { "type": "array", "items": { "$ref": "#/$defs/span" } }
+  },
+  "$defs": {
+    "sessionId": { "type": "string", "pattern": "^[0-9a-f]{8}$" },
+    "nullableNumber": { "type": ["number", "null"] },
+    "span": {
+      "type": "object",
+      "required": [
+        "sessionId", "seq", "tool", "invokedAt", "settledAt", "wallMs", "blockingMs", "inputBytes", "resultBytes",
+        "contentTypes", "imageBytes", "estInputTokens", "estTextTokens", "estImageTokens", "estTokens", "isError",
+        "error", "gapSincePrevCallMs", "synthetic", "serializable"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sessionId": { "$ref": "#/$defs/sessionId" },
+        "seq": { "type": "integer", "minimum": 0 },
+        "tool": { "type": "string", "minLength": 1 },
+        "invokedAt": { "type": "number" },
+        "settledAt": { "type": "number" },
+        "wallMs": { "type": "number", "minimum": 0 },
+        "blockingMs": { "type": "number", "minimum": 0 },
+        "inputBytes": { "type": "integer", "minimum": 0 },
+        "resultBytes": { "type": "integer", "minimum": 0 },
+        "contentTypes": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+        "imageBytes": { "type": "integer", "minimum": 0 },
+        "estInputTokens": { "type": "integer", "minimum": 0 },
+        "estTextTokens": { "type": "integer", "minimum": 0 },
+        "estImageTokens": { "type": "integer", "minimum": 0 },
+        "estTokens": { "type": "integer", "minimum": 0 },
+        "isError": { "type": "boolean" },
+        "error": { "type": ["string", "null"], "maxLength": 201 },
+        "gapSincePrevCallMs": { "$ref": "#/$defs/nullableNumber" },
+        "synthetic": { "type": "boolean" },
+        "serializable": { "type": "boolean" }
+      }
+    },
+    "toolRecord": {
+      "type": "object",
+      "required": ["schemaBytes", "registeredAt", "unregisteredAt", "internal"],
+      "additionalProperties": false,
+      "properties": {
+        "schemaBytes": { "type": "integer", "minimum": 0 },
+        "registeredAt": { "type": "number" },
+        "unregisteredAt": { "$ref": "#/$defs/nullableNumber" },
+        "internal": { "type": "boolean" }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "required": [
+        "calls", "unsampledCalls", "overlappingCalls", "errors", "wallMs", "blockingMs", "resultBytes", "estTokens",
+        "estInputTokens", "hostGapMs", "schemaBytes", "estSchemaTokens"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "calls": { "type": "integer", "minimum": 0 },
+        "unsampledCalls": { "type": "integer", "minimum": 0 },
+        "overlappingCalls": { "type": "integer", "minimum": 0 },
+        "errors": { "type": "integer", "minimum": 0 },
+        "wallMs": { "type": "number", "minimum": 0 },
+        "blockingMs": { "type": "number", "minimum": 0 },
+        "resultBytes": { "type": "integer", "minimum": 0 },
+        "estTokens": { "type": "integer", "minimum": 0 },
+        "estInputTokens": { "type": "integer", "minimum": 0 },
+        "hostGapMs": { "type": "number", "minimum": 0 },
+        "schemaBytes": { "type": "integer", "minimum": 0 },
+        "estSchemaTokens": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ledger": {
+      "type": "object",
+      "required": [
+        "sessionId", "attachedAt", "hostFoundAt", "hostLocation", "firstRegistrationAt", "registeredTools", "tools",
+        "firstCallAt", "lastSettledAt", "totals"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "sessionId": { "$ref": "#/$defs/sessionId" },
+        "attachedAt": { "type": "number" },
+        "hostFoundAt": { "$ref": "#/$defs/nullableNumber" },
+        "hostLocation": { "type": ["string", "null"], "enum": ["document", "navigator", "window", null] },
+        "firstRegistrationAt": { "$ref": "#/$defs/nullableNumber" },
+        "registeredTools": { "type": "array", "items": { "type": "string" } },
+        "tools": { "type": "object", "additionalProperties": { "$ref": "#/$defs/toolRecord" } },
+        "firstCallAt": { "$ref": "#/$defs/nullableNumber" },
+        "lastSettledAt": { "$ref": "#/$defs/nullableNumber" },
+        "totals": { "$ref": "#/$defs/totals" }
+      }
+    },
+    "toolAggregate": {
+      "type": "object",
+      "required": [
+        "tool", "calls", "errors", "minMs", "p50Ms", "p95Ms", "maxMs", "blockingMs", "lastResultBytes", "totalBytes",
+        "estTokens", "estInputTokens", "schemaBytes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tool": { "type": "string" },
+        "calls": { "type": "integer", "minimum": 0 },
+        "errors": { "type": "integer", "minimum": 0 },
+        "minMs": { "type": "number", "minimum": 0 },
+        "p50Ms": { "type": "number", "minimum": 0 },
+        "p95Ms": { "type": "number", "minimum": 0 },
+        "maxMs": { "type": "number", "minimum": 0 },
+        "blockingMs": { "type": "number", "minimum": 0 },
+        "lastResultBytes": { "type": "integer", "minimum": 0 },
+        "totalBytes": { "type": "integer", "minimum": 0 },
+        "estTokens": { "type": "integer", "minimum": 0 },
+        "estInputTokens": { "type": "integer", "minimum": 0 },
+        "schemaBytes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

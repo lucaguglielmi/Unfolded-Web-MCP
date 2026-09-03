@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, type UIEvent } from "react"
+import { lazy, Suspense, useEffect, useRef, useState, type UIEvent } from "react"
 import { ChromeFlagNudge } from "@/components/ChromeFlagNudge"
 import { ConnectionHub } from "@/components/ConnectionHub"
 import { LogoMark } from "@/components/LogoMark"
@@ -12,6 +12,7 @@ import { ThemeToggle } from "@/components/ThemeToggle"
 import { Button } from "@/components/ui/button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { feedback } from "@/lib/feedback"
+import { subscribeSettled } from "@/lib/scrollUnstick"
 import { useIsDesktop } from "@/lib/useIsDesktop"
 import { useDesignHref } from "@/lib/useStudioHref"
 import { useWebMCP } from "@/mcp/useWebMCP"
@@ -21,6 +22,13 @@ const WebMCPPage = lazy(() =>
   import("@/pages/WebMCPPage").then((m) => ({ default: m.WebMCPPage }))
 )
 const WhyPage = lazy(() => import("@/pages/WhyPage").then((m) => ({ default: m.WhyPage })))
+const UserFlowPage = lazy(() =>
+  import("@/pages/UserFlowPage").then((m) => ({ default: m.UserFlowPage }))
+)
+
+/** mobile preview chip: collapsed past 48px of settings scroll, with
+    hysteresis so the card doesn't flicker around the threshold */
+const collapsedFor = (collapsed: boolean, top: number) => (collapsed ? top > 8 : top > 48)
 
 export default function App() {
   useWebMCP()
@@ -33,25 +41,44 @@ export default function App() {
   const [previewExpanded, setPreviewExpanded] = useState(false)
   const [previewView, setPreviewView] = useState<PreviewView>("3d")
   const [previewCollapsed, setPreviewCollapsed] = useState(false)
+  const settingsRef = useRef<HTMLDivElement>(null)
   const isDesktop = useIsDesktop()
   const whyHref = useDesignHref("/why")
 
   const handleSettingsScroll = (event: UIEvent<HTMLDivElement>) => {
     if (isDesktop) return
     const top = event.currentTarget.scrollTop
-    // hysteresis so the card doesn't flicker around the threshold
-    setPreviewCollapsed((collapsed) => (collapsed ? top > 8 : top > 48))
+    setPreviewCollapsed((collapsed) => collapsedFor(collapsed, top))
   }
+
+  // The chip state above is driven by scroll events alone, so a phone
+  // viewport being displaced and restored (software keyboard, toolbar
+  // chrome, a tab coming back from the background — scrollUnstick.ts) can
+  // leave it stale against where the panel actually sits. Re-derive it
+  // from the real scroll offset whenever the viewport settles.
+  useEffect(() => {
+    if (isDesktop) return
+    return subscribeSettled(() => {
+      const top = settingsRef.current?.scrollTop
+      if (top !== undefined) setPreviewCollapsed((collapsed) => collapsedFor(collapsed, top))
+    })
+  }, [isDesktop])
 
   // The two explainer pages. The Worker serves index.html for every path
   // (SPA fallback), so this check is all the routing the app needs. Tools
   // register on these pages too (useWebMCP above), so /webmcp can show the
   // live connection status.
   const path = window.location.pathname.replace(/\/+$/, "")
-  if (path === "/webmcp" || path === "/why") {
+  if (path === "/webmcp" || path === "/why" || path === "/user-flow") {
     return (
       <Suspense fallback={<div className="bg-background min-h-dvh" />}>
-        {path === "/webmcp" ? <WebMCPPage /> : <WhyPage />}
+        {path === "/webmcp" ? (
+          <WebMCPPage />
+        ) : path === "/why" ? (
+          <WhyPage />
+        ) : (
+          <UserFlowPage />
+        )}
       </Suspense>
     )
   }
@@ -59,7 +86,13 @@ export default function App() {
   return (
     <TooltipProvider>
       {/* dark mode swaps the flat background for a deep blue-to-black wash */}
-      <div className="bg-background text-foreground app-fade-in flex h-dvh flex-col overflow-hidden dark:bg-gradient-to-b dark:from-[#0a1122] dark:via-[#060a14] dark:to-[#04060c]">
+      {/* data-app-shell: the scroll watchdog (scrollUnstick.ts) snaps this
+          never-scrolling shell — and the document under it — back to the
+          top whenever a phone browser displaces them */}
+      <div
+        data-app-shell
+        className="bg-background text-foreground app-fade-in flex h-dvh flex-col overflow-hidden dark:bg-gradient-to-b dark:from-[#0a1122] dark:via-[#060a14] dark:to-[#04060c]"
+      >
         <header className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-5">
           <div className="flex min-w-0 items-baseline gap-2.5">
             <LogoMark animated className="h-5 w-auto shrink-0 self-center" />
@@ -113,6 +146,7 @@ export default function App() {
               Dark mode: a deep blue a step lighter than the wash's top color,
               so the column reads as its own surface against the gradient. */}
           <div
+            ref={settingsRef}
             onScroll={handleSettingsScroll}
             // no border-r: the viewport's rounded stage separates the panels
             className="order-2 min-h-0 w-full flex-1 overflow-y-auto p-4 sm:p-5 lg:order-1 lg:w-72 lg:flex-none xl:w-80 dark:bg-[#0e1830]"

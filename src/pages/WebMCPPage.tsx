@@ -3,6 +3,7 @@ import { ArrowUpRight, Check } from "lucide-react"
 import { isRealChrome } from "@/components/ChromeFlagNudge"
 import { ExplainerHeader } from "@/components/ExplainerHeader"
 import { useDesignHref } from "@/lib/useStudioHref"
+import { SITE_URL } from "@/lib/siteUrl"
 import { StudioCtaBar } from "@/components/StudioCtaBar"
 import { ReadingDepthToolbar, type ReadingDepth } from "@/components/ReadingDepthToolbar"
 import { feedback } from "@/lib/feedback"
@@ -339,9 +340,9 @@ function FiveMinutes() {
             at all.
           </li>
           <li>
-            <span className="font-semibold text-foreground">The code is the fallback:</span>{" "}
-            behind &ldquo;or use a code&rdquo; in the same dialog, for when you can't scan
-            or tap — read it aloud, or tell your agent{" "}
+            <span className="font-semibold text-foreground">The code is always in view:</span>{" "}
+            shown beside the QR in the same dialog, for when you can't scan or tap — read
+            it aloud, or type it into ChatGPT{" "}
             <em>&ldquo;join my desktop session, code K7F&#8209;3QP&rdquo;</em>.
           </li>
           <li>
@@ -405,8 +406,9 @@ function FiveMinutes() {
             <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">?perf=1</code>{" "}
             turns it on for this browser (it remembers),{" "}
             <code className="rounded bg-muted px-1 py-0.5 font-mono text-xs">?perf=0</code>{" "}
-            turns it off. Nothing is measured, stored, or sent otherwise — and even when on,
-            everything stays in your tab.
+            turns it off. Nothing is measured, stored, or sent otherwise — and when on, nothing
+            leaves your browser: spans are visible to other tabs on this origin and to you
+            through export, and to no one else.
           </li>
           <li>
             <span className="font-semibold text-foreground">For the console-inclined:</span>{" "}
@@ -457,7 +459,7 @@ function FiveMinutes() {
  * the etiquette — but the page shows only its first line: it's for pasting,
  * not reading.
  */
-const KICKSTART_PROMPT = `Open https://tryunfolded.com in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get ${TOOL_COUNT} typed tools: ${TOOL_SUMMARIES.map((t) => t.name).join(", ")}. Start by calling describe_project to see the current design. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it through the tools — all dimensions are FIRED sizes in millimeters; for a target volume use set_capacity, which solves the exact height in one call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and then call create_live_handoff and give me its liveHandoffUrl exactly as returned — it's a single-use live link: when I open it, my browser follows your session and my edits show up in your next read (never send me the address-bar URL instead). If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
+const KICKSTART_PROMPT = `Open ${SITE_URL} in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get ${TOOL_COUNT} typed tools: ${TOOL_SUMMARIES.map((t) => t.name).join(", ")}. Start by calling describe_project to see the current design. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it through the tools — all dimensions are FIRED sizes in millimeters; for a target volume use set_capacity, which solves the exact height in one call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and then call create_live_handoff and give me its liveHandoffUrl exactly as returned — it's a single-use live link: when I open it, my browser follows your session and my edits show up in your next read (never send me the address-bar URL instead). If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
 
 function HumanEasterEgg() {
   const [copied, setCopied] = useState(false)
@@ -556,6 +558,7 @@ function ForAgents() {
     shareLinks: unknown
     liveSync: unknown
     profiler: unknown
+    profilerNotes: unknown
     layoutConstants: unknown
     interactionModel: unknown
   }
@@ -674,11 +677,12 @@ function ForAgents() {
           <Code>?perf=1</Code> (via <Code>open_model</Code>, if you like) and every call you
           make is spanned: wall time, payload bytes, the tokens your result costs you to
           read, and the gap the host + model spent thinking before your call arrived. Read
-          it back with <Code>window.__webmcpPerf.report()</Code>. Known baseline: every tool
-          here executes in single-digit milliseconds — if an interaction feels slow, the
-          ledger will show you it isn't the page.
+          it back through the host: call <Code>get_perf_report</Code>, registered as the
+          fifteenth tool while profiling is armed. Known baseline: every tool here executes
+          in single-digit milliseconds — if an interaction feels slow, the ledger will show
+          you it isn't the page.
         </p>
-        <JsonBlock label="profiler" data={m.profiler} />
+        <JsonBlock label="profiler · profilerNotes" data={{ profiler: m.profiler, profilerNotes: m.profilerNotes }} />
       </section>
 
       <section className="border-t border-border/60 py-14">
@@ -737,7 +741,7 @@ export function WebMCPPage() {
         {/* footer */}
         <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-border/60 pt-8">
           <p className="text-sm text-muted-foreground/80">
-            Open source (MIT) · built for the WebMCP Challenge
+            Open source (MIT)
           </p>
           <div className="flex items-center gap-3">
             <a

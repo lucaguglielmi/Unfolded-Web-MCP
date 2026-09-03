@@ -1,16 +1,15 @@
 # Publishes packages/webmcp-profiler to npm.
 #
 # Triggers: manually (workflow_dispatch), or any push to main that touches
-# the package's package.json — which makes a version bump the release
-# action, and nothing else: the guard step skips the publish when that
+# the package's package.json, which makes a version bump the release
+# action and nothing else: the guard step skips the publish when that
 # version already exists on npm, so doc-only edits to package.json are
 # harmless no-ops.
 #
 # Auth is npm trusted publishing (OIDC): npmjs.com trusts this repo's
 # publish-profiler.yml workflow directly, so there is no token or secret
-# anywhere — the id-token permission below is what mints the OIDC proof
-# (and provenance). The npm upgrade step matters: trusted publishing
-# needs a newer npm CLI than Node's bundled one.
+# anywhere; the id-token permission below mints the OIDC proof (and
+# provenance). Actions are pinned to commit SHAs.
 name: Publish webmcp-profiler
 
 on:
@@ -27,8 +26,8 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           registry-url: "https://registry.npmjs.org"
@@ -40,7 +39,7 @@ jobs:
           VERSION=$(node -p "require('./packages/webmcp-profiler/package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           if npm view "webmcp-profiler@$VERSION" version >/dev/null 2>&1; then
-            echo "webmcp-profiler@$VERSION already published — nothing to do"
+            echo "webmcp-profiler@$VERSION already published; nothing to do"
             echo "published=true" >> "$GITHUB_OUTPUT"
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
@@ -52,4 +51,26 @@ jobs:
       - if: steps.guard.outputs.published == 'false'
         run: npm run build --workspace webmcp-profiler
       - if: steps.guard.outputs.published == 'false'
+        name: publint, generated docs, size ceilings
+        run: |
+          npx publint packages/webmcp-profiler
+          npm run docs:check --workspace webmcp-profiler
+          npm run size --workspace webmcp-profiler
+      - if: steps.guard.outputs.published == 'false'
+        name: Smoke the tarball (what is tested is what ships)
+        run: |
+          set -e
+          TARBALL=$(cd packages/webmcp-profiler && npm pack --silent | tail -1)
+          mkdir -p /tmp/smoke && cd /tmp/smoke
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "$GITHUB_WORKSPACE/packages/webmcp-profiler/$TARBALL"
+          cp "$GITHUB_WORKSPACE/packages/webmcp-profiler/scripts/smoke-tarball.mjs" .
+          node smoke-tarball.mjs
+      - if: steps.guard.outputs.published == 'false'
+        name: SRI of the IIFE (paste into the release notes)
+        run: |
+          echo "sha384-$(openssl dgst -sha384 -binary packages/webmcp-profiler/dist/webmcp-profiler.iife.js | openssl base64 -A)"
+      - if: steps.guard.outputs.published == 'false'
+        env:
+          WEBMCP_PROFILER_ALLOW_DIRTY: "1"
         run: npm publish --workspace webmcp-profiler --access public --provenance

@@ -22,7 +22,12 @@ function applyEnvExampleDefaults(): void {
 applyEnvExampleDefaults()
 
 // https://vite.dev/config/
+const profilerVersion = JSON.parse(
+  fs.readFileSync(new URL("./packages/webmcp-profiler/package.json", import.meta.url), "utf8")
+).version as string
+
 export default defineConfig({
+  define: { __WEBMCP_PROFILER_VERSION__: JSON.stringify(profilerVersion) },
   plugins: [react(), tailwindcss()],
   test: {
     // agent worktrees live under .claude/ (git-ignored); their copies of

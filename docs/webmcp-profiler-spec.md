@@ -99,13 +99,17 @@ The only mandatory layer. On load it patches the registration surface —
 wrapped transparently:
 
 - **Early load** (before the app registers): pure pass-through wrapping.
-- **Late load** (bookmarklet / DevTools snippet on a page that already
-  registered): retrofits by re-registering wrapped copies where the host
-  allows it, else falls back to wrapping the site's own registry if one
-  is exposed (this app: `window.__unfoldedTools`).
-- **No host present**: installs a *recording* stub `modelContext` so
-  registration timing and tool surface are still captured, and flags the
-  session `hostless` (useful in CI).
+- **Late load** *(retrofit shipped; re-registration not yet built)*
+  (bookmarklet / DevTools snippet on a page that already registered):
+  wraps the site's own registry if one is exposed
+  (`__webmcpPerf.instrument(window.__myTools)`); re-registering wrapped
+  copies through the host is designed but not built, because the draft's
+  `getTools()` does not expose `execute`.
+- **No host present** *(designed, not yet built)*: install a *recording*
+  stub `modelContext` so registration timing and tool surface are still
+  captured, and flag the session `hostless` (useful in CI). Today the
+  interceptor simply keeps polling until a host or the site registry
+  appears.
 
 The wrapper adds one `try/finally` and two `performance.now()` calls of
 overhead per invocation — budgeted at < 0.1 ms so the profiler never
@@ -209,11 +213,11 @@ Every WebMCP tool declares a JSON Schema. The bench runner uses it:
 ## 7 · Surfaces *(overlay and console API shipped; beacon and OTel exporter not yet built)*
 
 - **Overlay** (optional, lazy chunk): a shadow-DOM floating panel — no
-  style bleed, framework-free — showing a live per-tool table (calls,
-  p50/p95, payload, grade), a conversation waterfall (call bars with the
-  host gaps drawn between them, so the "where did 40 s go" picture is
-  literally visible), and budget violations as badges. Toggle with a
-  keyboard chord; hidden by default in production.
+  style bleed, framework-free — showing a live per-tool table and the
+  host-gap ledger line. The conversation waterfall (call bars with the
+  host gaps drawn between them) and budget-violation badges are designed
+  but *not yet built* — today the report JSON carries the data and the
+  table carries the numbers. Hidden by default in production.
 - **Console API**: `__webmcpPerf.table()`, `.report()`, `.export()`
   (downloads the JSON), `.bench(opts)` (not yet built), `.reset()` —
   everything works headless from DevTools. Shipped alongside: `.instrument()`
@@ -331,22 +335,37 @@ overlay are both views over this same document.
 The single source of truth for what has landed; the section markers
 above derive from this list.
 
-1. `npm run perf` (shipped) — Playwright bench of every tool, the
-   numbers in §1.
+1. `npm run perf` (shipped) — Playwright bench of the synchronous tool
+   surface (10 of the 14 tools; `export_templates`, `create_live_handoff`,
+   `join_session`, and `start_pairing` are excluded — they download files
+   or talk to the pairing service, so their latency is network, not
+   harness), the numbers in §1.
 2. (shipped) In-page interceptor + collector + console API, live on
-   tryunfolded.com behind `?perf=1` — `src/profiler/`, deliberately free
+   tryunfolded.com behind `?perf=1` — `packages/webmcp-profiler/src`,
+   consumed by the app via the `@/profiler` alias, deliberately free
    of app imports so it lifts out unchanged.
 3. (shipped) Overlay (`?perf=overlay` or `__webmcpPerf.overlay()`) +
    BroadcastChannel relay: a visible same-origin tab renders spans from
    a hidden agent tab. Note: ChatGPT's hidden and in-app browsers are
    separate browsing contexts, so BroadcastChannel may not bridge them —
    the WebSocket relay (§7) remains the answer there.
-4. (structure shipped) `packages/webmcp-profiler` is a workspace package
-   — ESM + IIFE + type-declaration builds, `npm pack` verified, publish
-   workflow at `.github/workflows/publish-profiler.yml` (dispatch or a
-   `webmcp-profiler-v*` tag; needs the NPM_TOKEN repo secret until npm
-   trusted publishing is configured). The app consumes the package
-   source via the `@/profiler` alias, staying its first consumer.
+4. (shipped) `packages/webmcp-profiler` is a workspace package: ESM,
+   IIFE, declaration, and bench builds; published by
+   `.github/workflows/publish-profiler.yml` through npm trusted
+   publishing (OIDC, provenance, no token) on any push to `main` that
+   changes the package's `package.json` to a version not yet on npm. The
+   app consumes the package source via the `@/profiler` alias and is its
+   first consumer; `AGENTS.md` carries the same-pull-request rule.
+4b. (shipped, 0.2.0) The generic-package release,
+   [webmcp-profiler-0.2-spec.md](./webmcp-profiler-0.2-spec.md): typed
+   exports and `onSpan`, configurable names and gate, SSR no-op and
+   idempotent attach, UTF-8 bytes with one serialization, per-kind token
+   estimates, schema bytes, session ids, union Long-Task attribution,
+   registry unregistration, a relay overlay that renders remote sessions,
+   `profilerTool` for agents, `createFakeHost`, `status()`, `help()`,
+   `summary()`, `describe()`, `compare()`, the Perfetto export, the bench
+   CLI with schema-driven inputs, the report schema, and the generated
+   documentation. Report format is `webmcp-perf-report/2`.
 
 Shipped alongside step 2: the first finding acted on —
 `get_preview_image` went from a 480 px PNG (~130 KB ≈ 32 K tokens per

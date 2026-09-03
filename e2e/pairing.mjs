@@ -46,7 +46,7 @@ const server = await startWrangler({
 // drive edits without reaching into React internals
 const mcpHostInit = () => {
   window.__mcpTools = {}
-  // async fake host, mirroring e2e/run.mjs (spec 6.1)
+  // async fake host, mirroring e2e/run.mjs
   document.modelContext = {
     registerTool: (t, opts) =>
       new Promise((resolve) => {
@@ -80,17 +80,17 @@ try {
   await a.waitForFunction(() => window.__mcpTools?.describe_project)
   await b.waitForFunction(() => window.__mcpTools?.describe_project)
 
-  // A mints a code in the Continue dialog (behind the code toggle)
+  // A opens the Continue dialog: the spoken code is minted with the QR and
+  // shown without any click — it's what gets typed into a chat
   await openContinue(a)
-  await a.click('button:text-is("or use a code")')
-  await a.click("text=Create a code to read aloud")
-  const codeText = await a.textContent("code.font-mono", { timeout: 15000 })
+  await a.waitForSelector("code[data-pairing-code]", { timeout: 15000 })
+  const codeText = await a.textContent("code[data-pairing-code]")
   const code = (codeText ?? "").replace(/[^A-Z2-9]/g, "")
-  check("A mints a 6-glyph code in the dialog", /^[A-HJ-NP-Z2-9]{6}$/.test(code), codeText ?? "none")
+  check("the dialog shows a 6-glyph code as soon as it opens", /^[A-HJ-NP-Z2-9]{6}$/.test(code), codeText ?? "none")
 
   // B enters it and follows A's session
   await openContinue(b)
-  await b.click('button:text-is("or use a code")')
+  await b.click('button:text-is("Enter a code from another screen")')
   await b.fill('input[aria-label="Pairing code from your other device"]', code)
   await b.click('button:text-is("Join")')
   await b.waitForSelector("text=Paired — this device now follows that session.", { timeout: 10000 })
@@ -146,18 +146,21 @@ try {
   const toolCode = (mintResult.match(/[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}/) ?? [""])[0]
   check("start_pairing returns a spoken-friendly code", toolCode.length === 7, mintResult.slice(0, 120))
   await openContinue(a)
-  await a.click('button:text-is("or use a code")')
+  await a.click('button:text-is("Enter a code from another screen")')
   await a.fill('input[aria-label="Pairing code from your other device"]', toolCode)
   await a.click('button:text-is("Join")')
   await a.waitForFunction(() => window.location.search.includes("Flow"), null, { timeout: 10000 })
   check("flow B: desktop adopts the phone's design via the tool-minted code", true)
   await a.keyboard.press("Escape")
 
-  // flow A: A mints in the dialog, B's agent joins with join_session
+  // flow A: A mints in the dialog, B's agent joins with join_session. A is
+  // already live with B, so the dialog opens on the success panel: a fresh
+  // invitation (QR + code) is minted only on an explicit "Invite another
+  // screen" — a spent one is never shown as if it still worked
   await openContinue(a)
-  await a.click('button:text-is("or use a code")')
-  await a.click("text=Create a code to read aloud")
-  const codeText2 = await a.textContent("code.font-mono", { timeout: 15000 })
+  await a.click('button:text-is("Invite another screen")')
+  await a.waitForSelector("code[data-pairing-code]", { timeout: 15000 })
+  const codeText2 = await a.textContent("code[data-pairing-code]")
   const code2 = (codeText2 ?? "").replace(/[^A-Z2-9]/g, "")
   const joinResult = await b.evaluate(async ([c]) => {
     const r = await window.__mcpTools.join_session.execute({ code: c })
@@ -343,7 +346,7 @@ try {
   await f.evaluate(() => window.__mcpTools.set_clay.execute({ shrinkagePct: 7 }))
   await g.waitForFunction(() => window.location.search.includes("shrinkage=7"), null, { timeout: 15000 })
   check("agent tab: the visible tab follows the hidden browser live", true)
-  // and the visible tab's edits reach the agent's next read (hardening spec 6.4)
+  // and the visible tab's edits reach the agent's next read
   await g.waitForFunction(() => window.__mcpTools?.update_form, null, { timeout: 15000 })
   await g.evaluate(() => window.__mcpTools.update_form.execute({ heightMm: 171 }))
   await f.waitForFunction(() => window.location.search.includes("height=171"), null, { timeout: 15000 })

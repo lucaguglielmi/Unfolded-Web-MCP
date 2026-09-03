@@ -68,9 +68,9 @@ describe("docs guard", () => {
   it("the README stays a fast overview", () => {
     const words = read("README.md").split(/\s+/).filter(Boolean).length
     // docs/live-handoff-link-spec.md §10.2 asks for a ~1,200-word README
-    // (excluding commands and the tool table); the full restructure hasn't
-    // happened, so this pins the current whole-file size as a no-regrowth
-    // ceiling — lower it when that rewrite lands
-    expect(words).toBeLessThanOrEqual(2_800)
+    // excluding commands and the tool table; the rewrite landed at ~1,400
+    // prose words (~1,700 whole-file, which is what this counts), so this
+    // ceiling holds the line against regrowth
+    expect(words).toBeLessThanOrEqual(1_800)
   })
 })

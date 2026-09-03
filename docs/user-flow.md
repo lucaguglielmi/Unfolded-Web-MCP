@@ -139,9 +139,9 @@ else:
    fresh single-use code (valid 15 minutes). Just send it. The **Copy
    prompt** button beside it is the same text for pasting into any
    other assistant.
-2. Or by voice: **Continue on another screen** → **or use a code** →
-   **Create a code to read aloud**, then tell the agent: *"Join my
-   Unfolded session with code K7F3QP."* The agent calls `join_session`.
+2. Or by code: **Continue on another screen** shows a 6-character code
+   right beside the QR; type it into the chat: *"Join my Unfolded session
+   with code K7F-3QP."* The agent calls `join_session`.
 3. Either way, the agent's hidden tab **adopts your Chrome design** (the
    claimer adopts — your work is what survives) and the two are live.
    Ask for changes in the chat and watch them land in Chrome.
@@ -161,8 +161,8 @@ Continue dialog is plain WebSockets, no WebMCP involved. **Open in
 ChatGPT** works here too (it's an ordinary link); the steps below walk
 the spoken-code path.*
 
-1. In Safari, open **Continue on another screen** → **or use a code** →
-   create the code.
+1. In Safari, open **Continue on another screen** — the code is shown
+   beside the QR.
 2. Read it to the ChatGPT agent; it joins with `join_session` and adopts
    your Safari design.
 3. From then on: the agent's edits appear live in Safari; your Safari
@@ -180,9 +180,10 @@ Two routes, both from the phone's menu → **Continue on desktop**:
   aimed the other way (desktop → phone), so from a phone use *Copy link*
   and send it to yourself (email, notes, chat); opening it on the desktop
   joins the session and adopts the phone's design.
-- **Code** — **or use a code** → create it on the phone, then on the
-  desktop open **Continue on another screen** and type it into the *join*
-  field. Same result: desktop adopts the phone, both live.
+- **Code** — read the code shown beside the QR on the phone, then on the
+  desktop open **Continue on another screen** → **Enter a code from
+  another screen** and type it in. Same result: desktop adopts the phone,
+  both live.
 
 Afterwards the pairing is symmetric and durable: close the laptop, edit
 on the phone over lunch, reopen the laptop — it reconnects and catches
