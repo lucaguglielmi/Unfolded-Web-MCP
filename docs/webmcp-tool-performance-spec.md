@@ -11,6 +11,9 @@ the discovery-gap measurement (§7) reads the ledger through
 enum rule the trim commit introduced. New §8: fingerprinted assets are
 served without browser caching in production — found by reading the
 live headers, the cheapest item here, so it goes first in the order.
+§6 gains the fresh-session offer: a potter who starts in ChatGPT was
+offered only the pairing-code way in, never the link that opens a
+paired browser session with the chat (§6.2, from a live session).
 The pre-launch rule that public tool names are never renamed or merged
 is superseded for the four tools §4 names.
 
@@ -248,15 +251,17 @@ pretty-printing and for constants:
    description ("given out only when the potter explicitly asks … otherwise
    links come from create_live_handoff") and the manifest's invariants.
    Nothing else in the snapshot is constant; `warnings: []` stays so the
-   shape is stable.
+   shape is stable. §6.2's `session` field is the one addition under the
+   same contract bump.
 3. **Bump `TOOL_RESULT_CONTRACT` to `tool-result/2`.** Removing fields is
    a shape change by the constant's own rule. The manifest's
    `resultContract` and docs/performance-report.md §7 follow.
 
 ### Acceptance
 
-`describe_project`'s text half ≈ 470 B (556 B compact today minus the two
-constants), the envelope ≈ 1,150 B, about 20% under today's 1,438 B —
+`describe_project`'s text half ≈ 500 B (556 B compact today minus the two
+constants, plus `session`), the envelope ≈ 1,200 B, about 17% under
+today's 1,438 B —
 printed by `structuredResult.test.ts` and quoted in the commit. The
 remaining duplication (another ~40%) is §9's post-launch item.
 
@@ -272,23 +277,25 @@ example, the manifest strings, docs/performance-report.md §7.
 
 ---
 
-## 6. P0 — `describe_project` stops asking to be called first
+## 6. P0 — `describe_project`: the routing sentence and the fresh-session offer
 
-### Problem
+### 6.1 Stop asking to be called first
+
+#### Problem
 
 After the trim the description says, simply, "Call this first." An agent
 takes that literally: a read round trip before the first edit, even for
 *"make it 12 cm tall"*, whose edit returns the same snapshot anyway. The
 prompt suite pins the phrase ("call this first").
 
-### Change
+#### Change
 
 Say when a read is worth it, and when it is not. Replace the sentence with:
 
 > Read it when the request depends on what is there now — "what am I
-> designing?", "make it taller", "will this print on one page?"; an
-> absolute edit ("make it 12 cm tall") can go straight to update_design,
-> which returns this same snapshot.
+> designing?", "make it taller", "will this print on one page?", or when
+> the potter has just connected; an absolute edit ("make it 12 cm tall")
+> can go straight to update_design, which returns this same snapshot.
 
 Everything else in the description stays, including the live-sync "look
 again and retry" sentence. The prompt suite's `describe_project` entry
@@ -297,15 +304,83 @@ is there now", and gains a negative assertion: the description must not
 contain "call this first". A new suite entry, *"Make it 12 cm tall."* →
 `update_design`, documents the intended routing.
 
-### Acceptance
+#### Acceptance
 
 In the ChatGPT manual check (§11), *"make it 12 cm tall"* on a fresh
 conversation produces one `update_design` call and no `describe_project`
 before it; *"what am I designing?"* still routes to `describe_project`.
 
+### 6.2 A fresh session offers the paired-browser link
+
+#### Problem
+
+Seen live: a potter opens ChatGPT, says "Connect to tryunfolded.com",
+and the agent reads the default design and replies *"This is a fresh
+session. Send me the six-character pairing code if you want me to join
+the design already open on your device."* That offers only the way in
+that starts on a device the potter may not have open. The other way in
+already exists — `create_live_handoff` mints a link that opens this
+design in the potter's own browser, paired with the chat — but nothing
+tells the agent to offer it on first contact, so the potter who starts
+in ChatGPT never sees it. It is the more useful of the two for that
+potter: one tap, and the chat and the screen are the same session.
+
+The snapshot also gives the agent no way to know the session is fresh;
+"fresh" was inferred from the default mug. That guess is wrong the
+moment a potter has paired before.
+
+#### Change
+
+1. **The snapshot says whether the tab is paired.** `describeState()`
+   gains `session: { paired: boolean, peers: number }` from
+   `liveSync.isPaired()` / `liveSync.peers()` — a fact, not a guess, at
+   ~30 bytes. Read-only: reading it never mints anything (§9's invariant
+   holds). It lands under `tool-result/2` with §5.
+2. **The description tells the agent what to offer when the session is
+   fresh.** Appended to `describe_project`:
+
+   > When session.paired is false, offer the potter both ways in, in
+   > this order: (1) call create_live_handoff and give them its
+   > liveHandoffUrl as a link labelled "Open a paired browser session
+   > with this chat" — one tap opens this design on their screen,
+   > paired with this conversation; (2) or, if they already have the
+   > design open on another device, ask for its six-character code and
+   > call join_session.
+
+   The link call is one extra round trip on the potter's first turn,
+   spent once; usability decides it. The rule keeps the handoff contract
+   whole: the link is minted by `create_live_handoff`, fresh, returned
+   verbatim, never by a read.
+3. **One label for the mirror of "Open in ChatGPT".** The header's
+   connection panel already names the browser → chat direction "Open in
+   ChatGPT". "Open a paired browser session with this chat" is the
+   chat → browser direction, introduced here; docs/user-flow.md's
+   ChatGPT-first scenario and the `/user-flow` page gain that step under
+   that label, so the two ends of the flow name each other consistently.
+
+#### Acceptance
+
+- `describeState()` carries `session`; `structuredResult.test.ts` asserts
+  `session.paired === false` and `peers === 1` in the test environment,
+  and `liveHandoff.test.ts` asserts a read still mints nothing.
+- Prompt suite: *"Connect to tryunfolded.com"* → `describe_project`,
+  must mention "paired browser session", "create_live_handoff" and
+  "six-character".
+- Manual (§11): a fresh ChatGPT conversation's first reply contains a
+  tappable link labelled "Open a paired browser session with this chat"
+  that opens the design paired with the chat (the sync dot goes green on
+  both ends), and offers the code as the alternative. The link is the
+  `liveHandoffUrl` of a `create_live_handoff` call made in that turn.
+
 ### App-side work
 
-`src/mcp/tools.ts`, `src/mcp/promptSuite.test.ts`.
+`src/mcp/tools.ts`, `src/mcp/describe.ts` (`session`),
+`src/mcp/promptSuite.test.ts`, `src/mcp/structuredResult.test.ts`,
+`src/mcp/liveHandoff.test.ts`, `src/pages/agentManifest.ts` (the state
+shape in `resultContract` and `invariants`), `src/pages/UserFlowPage.tsx`
+(the ChatGPT-first card gains the link step under the new label),
+docs/user-flow.md (the ChatGPT-first scenario likewise),
+docs/live-handoff-link-spec.md (the snapshot example gains `session`).
 
 ---
 
@@ -477,14 +552,17 @@ plan docs/performance-report.md §7 records — that is where the other
   "fired", "millimeters" — "hexagon" lives in the `facets` property
   description, which the merged schema keeps), *"Switch to inches."*
   ("display", "millimeters regardless"). `describe_project`'s entry
-  changes per §6. New: *"Make it 12 cm tall."* → `update_design`. The
+  changes per §6.1. New: *"Make it 12 cm tall."* → `update_design`, and
+  *"Connect to tryunfolded.com"* → `describe_project` with §6.2's three
+  phrases. The
   "every editing tool carries the link rule" and "promises the full
   state" assertions list the new name. The `update_form`-defers-to-
   `set_capacity` assertion becomes: `update_design`'s metadata contains
   "never iterate".
 - **Metadata budget.** `METADATA_BUDGET_CHARS` is 9,500 today against
-  9,029 measured. After §4, lower it to the measured total plus 5%
-  (expected ≈ 8,650). The floor stays at 6,000.
+  9,029 measured. §6.2 adds ~350 chars to `describe_project` (fits the
+  current budget); §4 removes ~800. After both, lower the budget to the
+  measured total plus 5% (expected ≈ 9,000). The floor stays at 6,000.
 - **Advertised equals accepted.** The `tools.test.ts` case that pins
   `update_form`'s `type` enum (`round, faceted, cylinder, tapered`)
   retargets to `update_design`; the merged input object is the one zod
@@ -523,6 +601,7 @@ plan docs/performance-report.md §7 records — that is where the other
 | Environment | Added check |
 | --- | --- |
 | ChatGPT built-in browser | all 11 tools discovered; *"hex planter, 18 cm, 13% shrinkage, inches"* lands as ONE `update_design` call; *"make it 12 cm tall"* does not trigger `describe_project` first |
+| ChatGPT, fresh conversation, phone | *"Connect to tryunfolded.com"*: the first reply offers a tappable "Open a paired browser session with this chat" link (a `liveHandoffUrl` minted in that turn) and the six-character code as the alternative; tapping the link opens the design paired with the chat |
 | ChatGPT built-in browser, `?perf=1` | `get_perf_report` shows `hostFoundAt` → `firstRegistrationAt` under 600 ms when the agent is engaged minutes after load |
 | Chrome 152+ with WebMCPTesting (`npm run live:native`) | 11 tools in registration order; the session script completes; a mid-set registration failure leaves the registry empty |
 | Any browser, second visit | `/assets/*` served from cache with no conditional requests |
@@ -533,7 +612,8 @@ plan docs/performance-report.md §7 records — that is where the other
 2. §7 — discovery and parallel registration (no public-surface change).
 3. §4 — `update_design`, with §10's suite, budget, e2e and bench changes in
    the same commit.
-4. §6 — `describe_project` wording, with its suite entries.
+4. §6 — `describe_project` wording and the fresh-session offer, with
+   the `session` field and the suite entries.
 5. §5 — compact text, constants dropped, `tool-result/2`, docs.
 6. §11 — README and page copy; re-run `npm run perf` and update the
    report.
@@ -558,6 +638,9 @@ the description, not the tool, needs work.
   and one undo step; *"make it hold 350 ml"* is one call; both return the
   full state; the legacy `type` values are advertised and accepted.
 - `describe_project` no longer says "call this first"; the suite asserts it.
+- A fresh ChatGPT conversation's first reply carries the "Open a paired
+  browser session with this chat" link and the code alternative; the
+  snapshot's `session.paired` is what the agent decided on.
 - Discovery metadata is under the lowered budget; `describe_project`'s
   envelope is under 1,200 B; both numbers are in the commit messages and
   in docs/performance-report.md.
@@ -573,7 +656,8 @@ the description, not the tool, needs work.
 | three sequential calls for one potter sentence; ~280 ms host cost per call | §4 |
 | second round trip per edit turn (link rule) | §9 (kept; review after launch) |
 | snapshot carried twice, pretty-printed, with two constants | §5 |
-| "Call this first" induces a read before absolute edits | §6 |
+| "Call this first" induces a read before absolute edits | §6.1 |
+| a fresh ChatGPT session is offered only the pairing code, never the paired-browser link | §6.2 |
 | 3 s host poll after 15 s; no poll while hidden; sequential registration | §7 |
 | metadata size (trimmed to 9,029 chars, budgeted), boot, 3D/PDF chunks, preview payload | healthy — §2 non-goals |
 
