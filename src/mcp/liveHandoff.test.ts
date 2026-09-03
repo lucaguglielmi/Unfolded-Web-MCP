@@ -84,7 +84,7 @@ describe("create_live_handoff", () => {
   })
 
   it("fails closed: no URL of any kind when the mint fails", async () => {
-    mintToken.mockResolvedValueOnce(null)
+    mintToken.mockResolvedValue(null)
     const { isError, text } = await textOf("create_live_handoff")
     expect(isError).toBe(true)
     expect(text).toMatch(/could not be created/)
@@ -93,8 +93,22 @@ describe("create_live_handoff", () => {
     expect(text).toContain("start_pairing")
   })
 
+  it("absorbs a cold first mint: the socket that comes up late still yields a link", async () => {
+    // the first mint spent its whole budget opening the session socket
+    mintToken.mockResolvedValueOnce(null)
+    const handoff = await createLiveHandoff()
+    expect(handoff?.liveHandoffUrl).toMatch(/join=tok_/)
+    expect(mintToken).toHaveBeenCalledTimes(2)
+  })
+
+  it("gives up after the retry — no endless minting on a real outage", async () => {
+    mintToken.mockResolvedValue(null)
+    expect(await createLiveHandoff()).toBeNull()
+    expect(mintToken).toHaveBeenCalledTimes(2)
+  })
+
   it("treats an already-expired token as a failure", async () => {
-    mintToken.mockResolvedValueOnce({ token: "stale_token_1234567890abcd", expiresAt: Date.now() - 1 })
+    mintToken.mockResolvedValue({ token: "stale_token_1234567890abcd", expiresAt: Date.now() - 1 })
     expect(await createLiveHandoff()).toBeNull()
   })
 

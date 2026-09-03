@@ -4,6 +4,7 @@ import { applyClayPatch, applyFormPatch } from "@/lib/model/applyPatch"
 import type { PaperSize } from "@/lib/export/svg"
 import type { Unit } from "@/lib/units"
 import type { ClaySettings, FormParams } from "@/lib/model/schemas"
+import { rememberMintedSecret } from "@/lib/pairingOffer"
 import { useProjectStore, type ProjectStore } from "./useProjectStore"
 
 /**
@@ -680,7 +681,7 @@ export function createSyncClient({
   const mintCode = async (): Promise<{ code: string; expiresAt: number } | null> => {
     pair()
     if (!(await whenSyncing(8_000))) return null
-    return new Promise((resolve) => {
+    return new Promise<{ code: string; expiresAt: number } | null>((resolve) => {
       pendingMint?.(null)
       pendingMint = resolve
       send({ kind: "mint_code" })
@@ -690,6 +691,9 @@ export function createSyncClient({
           resolve(null)
         }
       }, 8_000)
+    }).then((minted) => {
+      if (minted) rememberMintedSecret(minted.code)
+      return minted
     })
   }
 
@@ -697,7 +701,7 @@ export function createSyncClient({
   const mintToken = async (): Promise<{ token: string; expiresAt: number } | null> => {
     pair()
     if (!(await whenSyncing(8_000))) return null
-    return new Promise((resolve) => {
+    return new Promise<{ token: string; expiresAt: number } | null>((resolve) => {
       pendingToken?.(null)
       pendingToken = resolve
       send({ kind: "mint_token" })
@@ -707,6 +711,9 @@ export function createSyncClient({
           resolve(null)
         }
       }, 8_000)
+    }).then((minted) => {
+      if (minted) rememberMintedSecret(minted.token)
+      return minted
     })
   }
 

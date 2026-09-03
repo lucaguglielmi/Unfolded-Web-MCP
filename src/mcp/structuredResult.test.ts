@@ -234,7 +234,8 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
   })
 
   it("fail-closed handoff: ok:false, message, and no URL anywhere — not even a state snapshot", async () => {
-    mintToken.mockResolvedValueOnce(null)
+    // every attempt fails: a single cold mint is retried, an outage is not
+    mintToken.mockResolvedValue(null)
     const { isError, structured } = await call("create_live_handoff")
     expect(isError).toBe(true)
     expect(structured!.ok).toBe(false)

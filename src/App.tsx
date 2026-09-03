@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type UIEvent } from "react"
 import { ChromeFlagNudge } from "@/components/ChromeFlagNudge"
+import { ClipboardJoinBanner } from "@/components/ClipboardJoinBanner"
 import { ConnectionHub } from "@/components/ConnectionHub"
 import { LogoMark } from "@/components/LogoMark"
 import { ExportPdfDialog } from "@/components/ExportPdfDialog"
@@ -168,6 +169,9 @@ export default function App() {
             }
           />
         </div>
+
+        {/* a code or live link in the clipboard: offer the join in one tap */}
+        <ClipboardJoinBanner />
 
         {/* Chrome-only tip: WebMCP is one documented flag away */}
         <ChromeFlagNudge />
