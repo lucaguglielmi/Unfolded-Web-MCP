@@ -223,6 +223,56 @@ describe("startInterception with the fake host", () => {
     interception.unpatchAll()
   })
 
+  it("a burst of registrations on an async host all reach the ledger (registration on acceptance)", async () => {
+    host = createFakeHost() // async: each registerTool resolves on a later tick
+    const opts = setup()
+    const interception = startInterception(opts)
+    const registry = host.registry as { registerTool: (t: ToolLike) => Promise<void> }
+    const names = ["t1", "t2", "t3", "t4", "t5"]
+    await Promise.all(names.map((name) => registry.registerTool({ name, description: "d", execute: async () => ({}) })))
+    await new Promise((r) => setTimeout(r, 20)) // let every toolchange reconcile settle
+    expect(opts.collector.ledger.registeredTools).toEqual(names)
+    expect(opts.collector.ledger.totals.schemaBytes).toBeGreaterThan(5 * 20)
+    interception.stop()
+    interception.unpatchAll()
+  })
+
+  it("registrations the host does not accept never enter the ledger", async () => {
+    host = createFakeHost({ async: false })
+    const opts = setup()
+    const interception = startInterception(opts)
+    const registry = host.registry as { registerTool: (t: unknown, o?: unknown) => Promise<void> }
+    const aborted = new AbortController()
+    aborted.abort()
+    await registry.registerTool({ name: "dead", execute: async () => ({}) }, { signal: aborted.signal })
+    await registry.registerTool({ execute: async () => ({}) }).catch(() => undefined) // no name: the host rejects
+    await expect(registry.registerTool(null)).rejects.toThrow()
+    expect(opts.collector.ledger.registeredTools).toEqual([])
+    // a call that lands before the host's promise settles is still measured
+    const late = { name: "late", execute: async (_input?: unknown) => ({ content: [] }) }
+    const pending = registry.registerTool(late)
+    await late.execute({})
+    await pending
+    expect(opts.collector.spans().map((s) => s.tool)).toEqual(["late"])
+    expect(opts.collector.ledger.registeredTools).toEqual(["late"])
+    interception.stop()
+    interception.unpatchAll()
+  })
+
+  it("provideContext replaces the tool set", async () => {
+    host = createFakeHost({ legacy: true })
+    const opts = setup()
+    const interception = startInterception(opts)
+    const registry = host.registry as { provideContext: (c: { tools: ToolLike[] }) => void }
+    registry.provideContext({ tools: [{ name: "a", execute: async () => ({}) }, { name: "b", execute: async () => ({}) }] })
+    expect(opts.collector.ledger.registeredTools).toEqual(["a", "b"])
+    registry.provideContext({ tools: [{ name: "c", execute: async () => ({}) }] })
+    expect(opts.collector.ledger.registeredTools).toEqual(["c"])
+    expect(opts.collector.ledger.tools.a.unregisteredAt).not.toBeNull()
+    interception.stop()
+    interception.unpatchAll()
+  })
+
   it("tracks unregisterTool, clearContext-style hosts, and toolchange reconciliation", async () => {
     host = createFakeHost({ async: false })
     const opts = setup()

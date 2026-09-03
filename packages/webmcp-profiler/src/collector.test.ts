@@ -152,6 +152,34 @@ describe("Collector", () => {
     expect(c.ledger.totals.estSchemaTokens).toBe(10)
   })
 
+  it("report() is a snapshot: an earlier report does not change as the session continues", () => {
+    const c = new Collector()
+    c.toolRegistered("a", 10)
+    c.record(raw())
+    const base = c.report()
+    c.record(raw({ invokedAt: 500, settledAt: 505 }))
+    c.toolRegistered("b", 20)
+    expect(base.ledger.totals.calls).toBe(1)
+    expect(base.ledger.registeredTools).toEqual(["a"])
+    expect(base.spans).toHaveLength(1)
+    expect(c.report().ledger.totals.calls).toBe(2)
+  })
+
+  it("keeps update listeners isolated from each other", () => {
+    const c = new Collector()
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined)
+    const seen: unknown[] = []
+    c.onUpdate(() => {
+      throw new Error("boom")
+    })
+    c.onUpdate((u) => seen.push(u))
+    c.record(raw({ invokedAt: 0, settledAt: 100 }))
+    c.attributeLongTask(10, 50)
+    expect(seen).toHaveLength(1)
+    expect(err).toHaveBeenCalled()
+    err.mockRestore()
+  })
+
   it("keeps listeners isolated from each other", () => {
     const c = new Collector()
     const err = vi.spyOn(console, "error").mockImplementation(() => undefined)

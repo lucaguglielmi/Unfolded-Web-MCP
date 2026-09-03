@@ -5,6 +5,7 @@
  * an optional peer dependency resolved at run time.
  */
 
+import { quantile as q } from "webmcp-profiler"
 import { FAKE_HOST_INIT_SCRIPT } from "webmcp-profiler/testing"
 import { generateInputs, type SchemaLike } from "./inputs.js"
 
@@ -53,9 +54,12 @@ export interface BenchRow {
   p50Ms: number
   p95Ms: number
   maxMs: number
+  /** UTF-8 bytes of the last result */
   resultBytes: number
   estTokens: number
   schemaBytes: number
+  /** calls whose execute() threw (timed and counted, not fatal) */
+  errors: number
   violations: string[]
   /** present with `overhead`: p50/p95 without the profiler armed */
   raw?: { p50Ms: number; p95Ms: number }
@@ -70,8 +74,6 @@ export interface BenchResult {
   boot: { domContentLoaded: number; load: number }
   ok: boolean
 }
-
-const q = (sorted: number[], p: number): number => (sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] : 0)
 
 async function loadPlaywright(): Promise<{ chromium: { launch: (o: Record<string, unknown>) => Promise<Browser> } }> {
   try {
@@ -115,19 +117,24 @@ interface Descriptor {
   annotations?: { readOnlyHint?: boolean }
 }
 
-async function drive(page: Page, tool: string, inputs: unknown[]): Promise<{ durations: number[]; bytes: number }> {
+async function drive(page: Page, tool: string, inputs: unknown[]): Promise<{ durations: number[]; bytes: number; errors: number }> {
   return page.evaluate(
     async ([toolName, inputList]: [string, unknown[]]) => {
       const host = (globalThis as unknown as PageGlobals).__webmcpFakeHost
       const durations: number[] = []
       let bytes = 0
+      let errors = 0
       for (const input of inputList) {
         const t0 = performance.now()
-        const res = await host.call(toolName, input)
+        try {
+          const res = await host.call(toolName, input)
+          bytes = new TextEncoder().encode(JSON.stringify(res) ?? "").byteLength
+        } catch {
+          errors++
+        }
         durations.push(performance.now() - t0)
-        bytes = JSON.stringify(res).length
       }
-      return { durations, bytes }
+      return { durations, bytes, errors }
     },
     [tool, inputs]
   )
@@ -200,7 +207,7 @@ export async function runBench(opts: BenchOptions): Promise<BenchResult> {
     })
     const rows: BenchRow[] = []
     for (const c of plan) {
-      const { durations, bytes } = await drive(page, c.tool, c.inputs)
+      const { durations, bytes, errors } = await drive(page, c.tool, c.inputs)
       const sorted = [...durations].sort((a, b) => a - b)
       const schemaBytes = await page.evaluate(
         (name: string) => (globalThis as unknown as PageGlobals).__webmcpPerf?.ledger().tools[name]?.schemaBytes ?? 0,
@@ -217,6 +224,7 @@ export async function runBench(opts: BenchOptions): Promise<BenchResult> {
         resultBytes: bytes,
         estTokens: Math.ceil(bytes / 4),
         schemaBytes,
+        errors,
         violations: [],
       }
       const budget = opts.budgets?.[c.tool]
@@ -226,18 +234,18 @@ export async function runBench(opts: BenchOptions): Promise<BenchResult> {
         if (budget.estTokens !== undefined && row.estTokens > budget.estTokens) row.violations.push(`tokens ${row.estTokens} > ${budget.estTokens}`)
       }
       rows.push(row)
-      log(`${c.name}: p50 ${row.p50Ms.toFixed(1)}ms · p95 ${row.p95Ms.toFixed(1)}ms · ${bytes}B`)
+      log(`${c.name}: p50 ${row.p50Ms.toFixed(1)}ms · p95 ${row.p95Ms.toFixed(1)}ms · ${bytes}B${errors ? ` · ${errors} threw` : ""}`)
     }
     const report = await page.evaluate(() => (globalThis as unknown as PageGlobals).__webmcpPerf?.report() ?? null)
     await page.close()
 
     if (opts.overhead) {
       const { page: rawPage } = await openPage(browser, opts.url, false, opts)
-      for (const c of plan) {
+      // rows and plan were built in the same order: index, not name, pairs them
+      for (const [index, c] of plan.entries()) {
         const { durations } = await drive(rawPage, c.tool, c.inputs)
         const sorted = [...durations].sort((a, b) => a - b)
-        const row = rows.find((r) => r.name === c.name)!
-        row.raw = { p50Ms: q(sorted, 0.5), p95Ms: q(sorted, 0.95) }
+        rows[index].raw = { p50Ms: q(sorted, 0.5), p95Ms: q(sorted, 0.95) }
       }
       await rawPage.close()
     }
@@ -261,6 +269,7 @@ export function formatBenchTable(result: BenchResult): string {
       `  ${r.p95Ms.toFixed(1).padStart(6)}  ${r.maxMs.toFixed(1).padStart(6)}   ${String(r.resultBytes).padStart(10)}  ${String(r.schemaBytes).padStart(11)}`
     if (r.raw) line += `   ${(r.p50Ms - r.raw.p50Ms).toFixed(2).padStart(8)}ms        ${(r.p95Ms - r.raw.p95Ms).toFixed(2).padStart(6)}ms`
     lines.push(line)
+    if (r.errors) lines.push(`  ! ${r.name}: ${r.errors} call(s) threw`)
     for (const v of r.violations) lines.push(`  ✗ ${r.name}: ${v}`)
   }
   return lines.join("\n")

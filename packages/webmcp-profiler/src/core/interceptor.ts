@@ -113,18 +113,34 @@ function summarize(result: unknown, inputBytes: number, opts: WrapOptions): Omit
   }
 }
 
-/** Wrap one tool's execute in place; idempotent; internal tools are listed, not wrapped. */
-export function instrumentTool(tool: ToolLike, opts: WrapOptions): void {
-  if (!tool || typeof tool.execute !== "function") return
+const isInternal = (tool: ToolLike): boolean => (tool as { [PROFILER_INTERNAL]?: true })[PROFILER_INTERNAL] === true
+
+/** A descriptor the host could accept: a named object with an execute function. */
+export const isToolLike = (tool: unknown): tool is ToolLike =>
+  !!tool && typeof tool === "object" && typeof (tool as ToolLike).name === "string" && typeof (tool as ToolLike).execute === "function"
+
+/** Open (or re-open) the ledger record for a tool the host holds. */
+export function ledgerRegister(tool: ToolLike, collector: Collector): void {
+  collector.toolRegistered(tool.name, schemaBytesOf(tool), isInternal(tool))
+}
+
+/**
+ * Wrap one tool's execute in place; idempotent; internal tools are never
+ * wrapped. With `register` (the default) the ledger record opens at once,
+ * which is right for retrofits and synchronous hosts; the registerTool
+ * patch passes false and opens the record when the host accepts.
+ */
+export function instrumentTool(tool: ToolLike, opts: WrapOptions, register = true): void {
+  if (!isToolLike(tool)) return
   const { collector, originals } = opts
-  if ((tool as { [PROFILER_INTERNAL]?: true })[PROFILER_INTERNAL]) {
-    collector.toolRegistered(tool.name, schemaBytesOf(tool), true)
+  if (isInternal(tool)) {
+    if (register) ledgerRegister(tool, collector)
     return
   }
   const execute = tool.execute as ((...args: unknown[]) => unknown) & { [WRAPPED]?: true }
   // a re-registration (a host swap, a StrictMode remount) re-opens the
   // ledger record even though the function is already wrapped
-  collector.toolRegistered(tool.name, schemaBytesOf(tool))
+  if (register) ledgerRegister(tool, collector)
   if (execute[WRAPPED]) return
 
   originals.set(tool, execute)
@@ -280,19 +296,32 @@ export function startInterception(wrap: WrapOptions, options: InterceptionOption
     // reach the host untouched; the signal also tells us about unregistration
     if (registerTool) {
       registry.registerTool = (tool, ...rest) => {
-        instrumentTool(tool, wrap)
+        const valid = isToolLike(tool)
+        // wrap now so a call that lands before the host's promise settles is
+        // still measured; the ledger record opens only when the host accepts
+        if (valid) instrumentTool(tool, wrap, false)
         const signal = (rest[0] as { signal?: AbortSignal } | undefined)?.signal
-        if (signal && typeof signal.addEventListener === "function") {
-          latestSignal.set(tool.name, signal)
-          signal.addEventListener(
-            "abort",
-            () => {
-              if (latestSignal.get(tool.name) === signal) collector.toolUnregistered(tool.name)
-            },
-            { once: true }
-          )
+        const result = registerTool.call(registry, tool, ...rest)
+        if (valid && !signal?.aborted) {
+          const accept = (): void => {
+            if (signal?.aborted) return // dropped by the host while pending
+            ledgerRegister(tool, collector)
+            if (signal && typeof signal.addEventListener === "function") {
+              latestSignal.set(tool.name, signal)
+              signal.addEventListener(
+                "abort",
+                () => {
+                  if (latestSignal.get(tool.name) === signal) collector.toolUnregistered(tool.name)
+                },
+                { once: true }
+              )
+            }
+          }
+          if (result && typeof (result as Promise<unknown>).then === "function") {
+            ;(result as Promise<unknown>).then(accept, () => undefined)
+          } else accept()
         }
-        return registerTool.call(registry, tool, ...rest)
+        return result
       }
     }
     if (unregisterTool) {
@@ -302,8 +331,13 @@ export function startInterception(wrap: WrapOptions, options: InterceptionOption
       }
     }
     if (provideContext) {
+      // provideContext replaces the whole context: tools absent from the new
+      // set leave the ledger, the new set is wrapped and registered at once
       registry.provideContext = (context, ...rest) => {
-        for (const tool of context?.tools ?? []) instrumentTool(tool, wrap)
+        const next = (context?.tools ?? []).filter(isToolLike)
+        const names = new Set(next.map((t) => t.name))
+        for (const name of [...collector.ledger.registeredTools]) if (!names.has(name)) collector.toolUnregistered(name)
+        for (const tool of next) instrumentTool(tool, wrap)
         return provideContext.call(registry, context, ...rest)
       }
     }
@@ -340,8 +374,9 @@ export function startInterception(wrap: WrapOptions, options: InterceptionOption
     }
     // a native implementation is present from page load and nothing later
     // replaces it; polyfills and extension hosts (plain objects) may still
-    // arrive, so the poll keeps going for those
-    return nativeOnDocument || found === spots.length
+    // arrive or be swapped for a new object, so the poll keeps going for
+    // those however many locations are filled
+    return nativeOnDocument
   }
 
   const stop = (): void => {

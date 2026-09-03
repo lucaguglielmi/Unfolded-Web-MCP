@@ -11,7 +11,8 @@
 import { REPORT_VIEWS, type ReportView } from "./core/text"
 import { PROFILER_INTERNAL, type ToolLike } from "./core/interceptor"
 import { reportToolNames } from "./core/internal"
-import { utf8Length, type LedgerTotals, type Span, type ToolAggregate } from "./core/collector"
+import { PACKAGE_VERSION, REPORT_FORMAT, utf8Length, type LedgerTotals, type Span, type ToolAggregate } from "./core/collector"
+import { fmtSplit } from "./core/format"
 import type { Profiler, ProfilerStatus } from "./index"
 
 /** Options for profilerTool. */
@@ -81,19 +82,19 @@ export function profilerTool(profiler: Profiler, options: ProfilerToolOptions = 
       const args = (input && typeof input === "object" ? input : {}) as ProfilerToolInput
       const view: ReportView = args.view && args.view in REPORT_VIEWS ? args.view : "summary"
       const ledger = profiler.ledger()
-      const head = profiler.report({ spans: false })
+      const aggregates = profiler.aggregates()
       const summaryText = profiler.summary()
       const structured: ProfilerToolResult = {
         ok: true,
-        format: head.format,
-        session: { id: ledger.sessionId, version: head.session.version },
+        format: REPORT_FORMAT,
+        session: { id: ledger.sessionId, version: PACKAGE_VERSION },
         status: profiler.status(),
-        totals: ledger.totals,
-        split: summaryText.split("\n")[1] ?? "",
+        totals: { ...ledger.totals },
+        split: fmtSplit(ledger.totals),
         meta: { view, resultBytes: 0, estTokens: 0 },
       }
       if (view === "tools" || view === "spans") {
-        structured.tools = profiler.aggregates().filter((a) => !args.tool || a.tool === args.tool)
+        structured.tools = aggregates.filter((a) => !args.tool || a.tool === args.tool)
       }
       if (view === "spans") {
         const limit = Math.min(500, Math.max(1, Math.floor(args.limit ?? 50)))

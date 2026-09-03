@@ -57,8 +57,11 @@ export function resolveGate(options: GateOptions = {}): { mode: PerfMode | null;
       else rejected = requested
     }
     if (requested !== null && OFF.has(requested)) return { mode: null, rejected }
+    // the URL wins for this load even where storage is blocked (sandboxed
+    // frames, privacy modes); storage only carries the mode across loads
+    const fromUrl: PerfMode | null = requested !== null && ON.has(requested) ? "1" : requested === "overlay" ? "overlay" : null
     const stored = storage?.getItem(key) ?? null
-    const mode = stored === "overlay" ? "overlay" : stored === "1" ? "1" : null
+    const mode: PerfMode | null = fromUrl ?? (stored === "overlay" ? "overlay" : stored === "1" ? "1" : null)
     return { mode, rejected }
   } catch {
     return { mode: null, rejected }

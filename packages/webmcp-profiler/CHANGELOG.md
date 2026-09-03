@@ -6,6 +6,28 @@ semver as if 0.x were 1.x (a breaking change bumps the minor).
 
 ## [Unreleased]
 
+## [0.2.1]
+
+### Fixed
+
+- The ledger records a tool when the host accepts it (promise resolved,
+  signal not aborted), not when the site asks; a burst of concurrent
+  registrations, an already-aborted signal, or a rejected descriptor no
+  longer leaves phantom or missing tools.
+- `provideContext` replaces the tool set in the ledger, as the legacy
+  hosts that expose it do.
+- The gate honours `?perf=1` for the current load even where storage is
+  blocked; storage only carries the mode across loads.
+- Registry polling continues while the found registries are plain
+  objects, so a polyfill that replaces its registry is patched again.
+- `report()` returns a snapshot; an earlier report no longer changes as
+  the session continues, which `compare(base, head)` relies on.
+- `onSpanUpdate` listeners are isolated from each other like `onSpan`.
+- Bench: the overhead pass pairs rows by index, a throwing tool is
+  counted per call instead of aborting the run, result bytes are UTF-8,
+  and the quantile is the package's own.
+- The report tool aggregates once per call.
+
 ## [0.2.0]
 
 The release that makes the package generic. Design:

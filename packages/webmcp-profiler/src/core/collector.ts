@@ -206,7 +206,8 @@ export function newSessionId(): string {
     .padStart(8, "0")
 }
 
-const quantile = (sorted: number[], p: number): number =>
+/** The p-quantile of an ascending list (nearest-rank), 0 for an empty list. */
+export const quantile = (sorted: number[], p: number): number =>
   sorted.length === 0 ? 0 : sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))]
 
 /** Per-tool aggregates over any span list; the overlay uses it for relayed sessions too. */
@@ -359,7 +360,13 @@ export class Collector {
     this.ledger.totals.blockingMs += union
     for (const span of touched) {
       const update = { sessionId: span.sessionId, seq: span.seq, blockingMs: span.blockingMs }
-      for (const listener of this.updateListeners) listener(update)
+      for (const listener of this.updateListeners) {
+        try {
+          listener(update)
+        } catch (error) {
+          console.error("[webmcp-perf] onSpanUpdate listener threw", error)
+        }
+      }
     }
   }
 
@@ -504,9 +511,15 @@ export class Collector {
         generatedAt: new Date().toISOString(),
         version: PACKAGE_VERSION,
       },
-      ledger: this.ledger,
+      // a snapshot: a report captured earlier must not change as the session goes on
+      ledger: {
+        ...this.ledger,
+        registeredTools: [...this.ledger.registeredTools],
+        tools: Object.fromEntries(Object.entries(this.ledger.tools).map(([k, v]) => [k, { ...v }])),
+        totals: { ...this.ledger.totals },
+      },
       tools: this.aggregates(options.tool),
-      spans: [...spans],
+      spans: spans.map((s) => ({ ...s, contentTypes: { ...s.contentTypes } })),
     }
   }
 

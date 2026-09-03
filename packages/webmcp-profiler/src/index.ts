@@ -49,9 +49,9 @@ export type {
   ToolAggregate,
   ToolRecord,
 } from "./core/collector"
-export { PACKAGE_VERSION, REPORT_FORMAT, aggregateSpans, defaultTokenEstimator, totalsFromSpans, utf8Length } from "./core/collector"
+export { PACKAGE_VERSION, REPORT_FORMAT, aggregateSpans, defaultTokenEstimator, quantile, totalsFromSpans, utf8Length } from "./core/collector"
 export type { ToolLike } from "./core/interceptor"
-export { PROFILER_INTERNAL } from "./core/interceptor"
+export { PROFILER_INTERNAL, isToolLike } from "./core/interceptor"
 export type { ProfilerManifest, ReportView } from "./core/docs"
 export { PHASE_HINTS, REPORT_VIEWS } from "./core/text"
 export { compare, formatDiff, type CompareThresholds, type ReportDiff, type ToolDelta } from "./core/compare"

@@ -53,6 +53,24 @@ describe("resolveGate", () => {
     expect(localStorage.getItem(PERF_STORAGE_KEY)).toBeNull()
   })
 
+  it("the URL opens the gate for this load even when storage is blocked", () => {
+    const original = Object.getOwnPropertyDescriptor(window, "localStorage")
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get() {
+        throw new Error("blocked")
+      },
+    })
+    try {
+      setUrl("?perf=overlay")
+      expect(resolveGate().mode).toBe("overlay")
+      setUrl("?other=1")
+      expect(resolveGate().mode).toBeNull()
+    } finally {
+      if (original) Object.defineProperty(window, "localStorage", original)
+    }
+  })
+
   it("allow() false keeps the gate shut and clears a persisted mode", () => {
     localStorage.setItem(PERF_STORAGE_KEY, "1")
     setUrl("?perf=1")
