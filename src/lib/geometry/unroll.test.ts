@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildPieces, capacityMl, describePiece, facetBevelDeg, formWarnings, heightForCapacityMl, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
+import { buildPieces, capacityMl, describePiece, facetBevelDeg, firedWallMm, formWarnings, heightForCapacityMl, shrinkageScale, unrollCylinder, unrollFrustum } from "./unroll"
 import type { ClaySettings, FormParams } from "@/lib/model/schemas"
 
 const clay: ClaySettings = { shrinkagePct: 0, wallThicknessMm: 5 }
@@ -75,6 +75,25 @@ describe("buildPieces", () => {
     const [wall] = buildPieces(mug, shrinky)
     if (wall.kind !== "rectangle") throw new Error("expected rectangle wall")
     expect(wall.heightMm).toBeCloseTo(100 / 0.88)
+  })
+
+  it("treats the slab as wet: inset after scaling, so templates and capacity describe one vessel", () => {
+    const shrinky: ClaySettings = { shrinkagePct: 12, wallThicknessMm: 5 }
+    const s = shrinkageScale(12)
+    const [wall, base] = buildPieces(mug, shrinky)
+    if (wall.kind !== "rectangle" || base.kind !== "disc") throw new Error("expected rectangle + disc")
+    // mid-surface: half a WET slab inside the wet outer radius
+    expect(wall.widthMm).toBeCloseTo(2 * Math.PI * ((85 / 2) * s - 2.5))
+    // base disc: one wet slab inside the wet outer radius…
+    expect(base.diameterMm).toBeCloseTo(2 * ((85 / 2) * s - 5))
+    // …which fires down to exactly the interior capacityMl assumes
+    expect(base.diameterMm / s).toBeCloseTo(85 - 2 * firedWallMm(shrinky))
+    // faceted bases follow the same rule across the flats
+    const hex: FormParams = { ...mug, type: "faceted", facets: 6, bottomDiameterMm: 100 }
+    const hexBase = buildPieces(hex, shrinky)[1]
+    if (hexBase.kind !== "polygon") throw new Error("expected polygon base")
+    const acrossFlats = 2 * hexBase.circumradiusMm * Math.cos(Math.PI / 6)
+    expect(acrossFlats).toBeCloseTo(2 * (50 * Math.cos(Math.PI / 6) * s - 5))
   })
 
   it("produces a sector wall for tapered forms", () => {

@@ -8,8 +8,8 @@
     "tool": "get_template_summary"
   },
   {
-    "name": "update_form",
-    "tool": "update_form",
+    "name": "update_design (height)",
+    "tool": "update_design",
     "inputs": [
       {
         "heightMm": 80
@@ -134,8 +134,8 @@
     ]
   },
   {
-    "name": "update_form (type flip)",
-    "tool": "update_form",
+    "name": "update_design (type flip)",
+    "tool": "update_design",
     "inputs": [
       {
         "type": "round"
@@ -280,8 +280,8 @@
     ]
   },
   {
-    "name": "set_clay",
-    "tool": "set_clay",
+    "name": "update_design (clay)",
+    "tool": "update_design",
     "inputs": [
       {
         "shrinkagePct": 8
@@ -406,8 +406,8 @@
     ]
   },
   {
-    "name": "set_capacity",
-    "tool": "set_capacity",
+    "name": "update_design (capacity)",
+    "tool": "update_design",
     "inputs": [
       {
         "capacityMl": 300
@@ -532,8 +532,8 @@
     ]
   },
   {
-    "name": "set_units",
-    "tool": "set_units",
+    "name": "update_design (units)",
+    "tool": "update_design",
     "inputs": [
       {
         "units": "cm"
@@ -653,6 +653,292 @@
         "units": "cm"
       },
       {
+        "units": "in"
+      }
+    ]
+  },
+  {
+    "name": "update_design (form+clay+units)",
+    "tool": "update_design",
+    "inputs": [
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 120,
+        "shrinkagePct": 9,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 125,
+        "shrinkagePct": 10,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 130,
+        "shrinkagePct": 11,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 135,
+        "shrinkagePct": 12,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 140,
+        "shrinkagePct": 13,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 145,
+        "shrinkagePct": 14,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 150,
+        "shrinkagePct": 9,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 155,
+        "shrinkagePct": 10,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 160,
+        "shrinkagePct": 11,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 165,
+        "shrinkagePct": 12,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 120,
+        "shrinkagePct": 13,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 125,
+        "shrinkagePct": 14,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 130,
+        "shrinkagePct": 9,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 135,
+        "shrinkagePct": 10,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 140,
+        "shrinkagePct": 11,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 145,
+        "shrinkagePct": 12,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 150,
+        "shrinkagePct": 13,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 155,
+        "shrinkagePct": 14,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 160,
+        "shrinkagePct": 9,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 165,
+        "shrinkagePct": 10,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 120,
+        "shrinkagePct": 11,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 125,
+        "shrinkagePct": 12,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 130,
+        "shrinkagePct": 13,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 135,
+        "shrinkagePct": 14,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 140,
+        "shrinkagePct": 9,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 145,
+        "shrinkagePct": 10,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 150,
+        "shrinkagePct": 11,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 155,
+        "shrinkagePct": 12,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 160,
+        "shrinkagePct": 13,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 165,
+        "shrinkagePct": 14,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 120,
+        "shrinkagePct": 9,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 125,
+        "shrinkagePct": 10,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 130,
+        "shrinkagePct": 11,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 135,
+        "shrinkagePct": 12,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 140,
+        "shrinkagePct": 13,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 145,
+        "shrinkagePct": 14,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 150,
+        "shrinkagePct": 9,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 155,
+        "shrinkagePct": 10,
+        "units": "in"
+      },
+      {
+        "type": "round",
+        "facets": 6,
+        "heightMm": 160,
+        "shrinkagePct": 11,
+        "units": "cm"
+      },
+      {
+        "type": "faceted",
+        "facets": 6,
+        "heightMm": 165,
+        "shrinkagePct": 12,
         "units": "in"
       }
     ]

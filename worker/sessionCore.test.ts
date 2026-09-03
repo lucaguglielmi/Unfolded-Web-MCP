@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { MAX_CLIENT_ID_CHARS, parseHello } from "./sessionCore"
 import { DEFAULT_CLAY, PRESETS } from "../src/lib/model/schemas"
 import { oversizedFrame, SessionCore } from "./sessionCore"
 
@@ -80,6 +81,24 @@ describe("SessionCore apply", () => {
     expect(core.apply({ nonsense: 1 }).ok).toBe(false)
     expect(core.apply("garbage").ok).toBe(false)
     expect(core.version).toBe(0)
+  })
+})
+
+describe("parseHello", () => {
+  it("accepts a full hello and a bare wake probe alike", () => {
+    expect(parseHello({ kind: "hello", clientId: "tab-a", actor: "agent", state: { unit: "in" } })).toEqual({
+      clientId: "tab-a",
+      actor: "agent",
+      state: { unit: "in" },
+    })
+    expect(parseHello({ kind: "hello" })).toEqual({ clientId: "", actor: "human", state: undefined })
+  })
+
+  it("rejects an id the socket attachment could not hold, and unknown actors", () => {
+    expect(parseHello({ clientId: "x".repeat(MAX_CLIENT_ID_CHARS) })).not.toBeNull()
+    expect(parseHello({ clientId: "x".repeat(MAX_CLIENT_ID_CHARS + 1) })).toBeNull()
+    expect(parseHello({ clientId: 42 })).toBeNull()
+    expect(parseHello({ actor: "robot" })).toBeNull()
   })
 })
 

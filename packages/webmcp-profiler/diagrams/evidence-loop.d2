@@ -1,0 +1,56 @@
+direction: down
+
+spans: Captured spans
+aggregate: Aggregate by tool {
+  label: "Aggregate by tool\ncalls · errors · min · p50 · p95 · max"
+}
+surfaces: Choose a surface {
+  shape: diamond
+}
+overlay: Live shadow-DOM overlay
+console: console.table aggregates
+report: Versioned JSON report
+devtools: Performance panel measures
+decision: Make the right change {
+  shape: diamond
+}
+code: Optimize execute code
+payload: Shrink tool results
+roundtrips: Batch work and reduce tool calls
+
+spans -> aggregate -> surfaces
+surfaces -> overlay: Watch
+surfaces -> console: Inspect
+surfaces -> report: Export or diff
+surfaces -> devtools: Correlate
+overlay -> decision
+console -> decision
+report -> decision
+devtools -> decision
+decision -> code: Page compute dominates
+decision -> payload: Bytes dominate
+decision -> roundtrips: Host gaps dominate
+
+*.style.border-radius: 14
+spans.style.fill: "#dbeafe"
+spans.style.stroke: "#2563eb"
+aggregate.style.fill: "#ede9fe"
+aggregate.style.stroke: "#7c3aed"
+surfaces.style.fill: "#fef3c7"
+surfaces.style.stroke: "#d97706"
+overlay.style.fill: "#e0f2fe"
+overlay.style.stroke: "#0284c7"
+console.style.fill: "#e0f2fe"
+console.style.stroke: "#0284c7"
+report.style.fill: "#e0f2fe"
+report.style.stroke: "#0284c7"
+devtools.style.fill: "#e0f2fe"
+devtools.style.stroke: "#0284c7"
+decision.style.fill: "#fef3c7"
+decision.style.stroke: "#d97706"
+code.style.fill: "#d1fae5"
+code.style.stroke: "#059669"
+payload.style.fill: "#ffedd5"
+payload.style.stroke: "#ea580c"
+roundtrips.style.fill: "#ede9fe"
+roundtrips.style.stroke: "#7c3aed"

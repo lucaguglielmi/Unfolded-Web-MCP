@@ -24,14 +24,14 @@ describe("profiler manifest", () => {
     expect(manifest.profiler.tool?.name).toBe("get_perf_report")
   })
 
-  it("registers get_perf_report as the fifteenth tool only while profiling is armed", () => {
+  it("registers get_perf_report as the twelfth tool only while profiling is armed", () => {
     expect(buildTools().map((t) => t.name)).not.toContain("get_perf_report")
     const host = createFakeHost({ async: false })
     const profiler = attachProfiler({ relay: false })
     const names = buildTools().map((t) => t.name)
     expect(names[names.length - 1]).toBe("get_perf_report")
-    expect(names).toHaveLength(15)
-    const registered = buildTools()[14]
+    expect(names).toHaveLength(12)
+    const registered = buildTools()[11]
     const reference = profilerTool(profiler)
     expect(registered.name).toBe(reference.name)
     expect(registered.annotations?.readOnlyHint).toBe(true)

@@ -12,6 +12,13 @@ import { formatLength, type Unit } from "@/lib/units"
  *    its middle, so we develop radius (r - t/2), not the outer skin.
  * 2. Shrinkage: clay shrinks s% from wet to fired. Templates are for wet clay,
  *    so all dimensions scale by 1 / (1 - s/100).
+ *
+ * `wallThicknessMm` is the WET slab as the potter rolls it — the one
+ * number in the model that is not a fired size. It shrinks with the rest
+ * of the piece, so every function here agrees on one convention: the
+ * templates subtract the slab from WET outer sizes (after scaling), and
+ * the fired interior (capacity, warnings) subtracts the fired wall,
+ * t·(1 - s/100), from FIRED outer sizes. Both describe the same vessel.
  */
 
 export interface RectanglePiece {
@@ -204,23 +211,30 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
       })
     }
 
-    const apothemIn = Math.max(0, apothemBot - t)
+    // the base sits inside the WET panels: one wet slab in from the scaled
+    // outer faces
+    const apothemIn = Math.max(0, apothemBot * scale - t)
     pieces.push({
       kind: "polygon",
       id: "base",
       label: "Base",
       sides: n,
-      circumradiusMm: (apothemIn / Math.cos(Math.PI / n)) * scale,
+      circumradiusMm: apothemIn / Math.cos(Math.PI / n),
       notes: ["Sized to the inner faces so the sides wrap around it"],
     })
     return pieces
   }
 
-  const outerTopR = (form.tapered ? form.topDiameterMm : form.bottomDiameterMm) / 2
-  const outerBottomR = form.bottomDiameterMm / 2
-  const midTopR = outerTopR - t / 2
-  const midBottomR = outerBottomR - t / 2
-  const innerBottomR = outerBottomR - t
+  // Wet-clay outer radii: the slab (thickness t, as rolled) wraps around
+  // the wet outer surface, so the mid-surface and the inner face sit half
+  // a slab and a whole slab inside it — subtracted AFTER shrinkage scaling,
+  // since the slab is already a wet size.
+  const wetOuterTopR = ((form.tapered ? form.topDiameterMm : form.bottomDiameterMm) / 2) * scale
+  const wetOuterBottomR = (form.bottomDiameterMm / 2) * scale
+  const wetHeight = form.heightMm * scale
+  const midTopR = wetOuterTopR - t / 2
+  const midBottomR = wetOuterBottomR - t / 2
+  const innerBottomR = wetOuterBottomR - t
 
   const pieces: Piece[] = []
   // treat sub-0.05mm taper as straight: it is far below printing tolerance and
@@ -228,7 +242,7 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
   const isStraight = Math.abs(midTopR - midBottomR) < 0.05
 
   if (isStraight) {
-    const wall = unrollCylinder(midBottomR * scale, form.heightMm * scale)
+    const wall = unrollCylinder(midBottomR, wetHeight)
     pieces.push({
       ...wall,
       id: "wall",
@@ -240,7 +254,7 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
       ],
     })
   } else {
-    const wall = unrollFrustum(midTopR * scale, midBottomR * scale, form.heightMm * scale)
+    const wall = unrollFrustum(midTopR, midBottomR, wetHeight)
     pieces.push({
       ...wall,
       id: "wall",
@@ -257,7 +271,7 @@ export function buildPieces(form: FormParams, clay: ClaySettings): Piece[] {
     kind: "disc",
     id: "base",
     label: "Base",
-    diameterMm: 2 * Math.max(0, innerBottomR) * scale,
+    diameterMm: 2 * Math.max(0, innerBottomR),
     notes: ["Sized to the inner wall so the wall wraps around it"],
   })
 
@@ -279,15 +293,16 @@ export function capacityMl(form: FormParams, clay: ClaySettings): number {
   return Math.round((interiorSectionMm2(form, firedWall) * hIn) / 1000)
 }
 
-function firedWallMm(clay: ClaySettings): number {
+/** the wet slab after firing — what the finished piece's wall measures */
+export function firedWallMm(clay: ClaySettings): number {
   return clay.wallThicknessMm * (1 - clay.shrinkagePct / 100)
 }
 
 /**
  * Effective interior cross-section in mm² — the K in V = K · interiorHeight.
  * Volume is LINEAR in height for every supported shape (the frustum formula's
- * radii/areas don't depend on height), which is what makes set_capacity an
- * exact one-step solve.
+ * radii/areas don't depend on height), which is what makes update_design's
+ * capacityMl an exact one-step solve.
  */
 function interiorSectionMm2(form: FormParams, firedWall: number): number {
   const topOuter = form.tapered ? form.topDiameterMm : form.bottomDiameterMm
@@ -334,7 +349,11 @@ export function heightForCapacityMl(
  */
 export function formWarnings(form: FormParams, clay: ClaySettings, unit: Unit = "cm"): string[] {
   const warnings: string[] = []
-  const t = clay.wallThicknessMm
+  // room is checked inside the FIRED piece, so the wall that counts is the
+  // fired one (the interior capacityMl computes); the message still names
+  // the slab thickness the potter entered
+  const t = firedWallMm(clay)
+  const slab = clay.wallThicknessMm
   const len = (mm: number) => formatLength(mm, unit)
 
   const topOuter = form.tapered ? form.topDiameterMm : form.bottomDiameterMm
@@ -347,7 +366,7 @@ export function formWarnings(form: FormParams, clay: ClaySettings, unit: Unit = 
     const innerAcrossFlats = 2 * (apothemOut - t)
     if (innerAcrossFlats <= 0) {
       warnings.push(
-        `Wall thickness (${len(t)}) leaves no room for a base inside a ${len(form.bottomDiameterMm)} ${form.facets}-sided form — thin the walls or widen it.`
+        `Wall thickness (${len(slab)}) leaves no room for a base inside a ${len(form.bottomDiameterMm)} ${form.facets}-sided form — thin the walls or widen it.`
       )
     } else if (innerAcrossFlats < 15) {
       warnings.push(
@@ -356,7 +375,7 @@ export function formWarnings(form: FormParams, clay: ClaySettings, unit: Unit = 
     }
     if (form.tapered && (topOuter / 2) * cosN - t <= 0) {
       warnings.push(
-        `Wall thickness (${len(t)}) closes off the ${len(topOuter)} opening at the rim entirely.`
+        `Wall thickness (${len(slab)}) closes off the ${len(topOuter)} opening at the rim entirely.`
       )
     }
     return warnings
@@ -367,7 +386,7 @@ export function formWarnings(form: FormParams, clay: ClaySettings, unit: Unit = 
 
   if (innerBottomD <= 0) {
     warnings.push(
-      `Wall thickness (${len(t)}) leaves no room for a base inside a ${len(form.bottomDiameterMm)} bottom — thin the walls or widen the base.`
+      `Wall thickness (${len(slab)}) leaves no room for a base inside a ${len(form.bottomDiameterMm)} bottom — thin the walls or widen the base.`
     )
   } else if (innerBottomD < 15) {
     warnings.push(
@@ -376,7 +395,7 @@ export function formWarnings(form: FormParams, clay: ClaySettings, unit: Unit = 
   }
   if (topD - 2 * t <= 0) {
     warnings.push(
-      `Wall thickness (${t} mm) closes off the ${topD} mm opening at the rim entirely.`
+      `Wall thickness (${len(slab)}) closes off the ${len(topD)} opening at the rim entirely.`
     )
   }
   const taper = Math.abs(topD - form.bottomDiameterMm)

@@ -14,7 +14,7 @@ import { useProjectStore, type AgentStatus } from "@/store/useProjectStore"
  * The header's one connection control: agent (WebMCP) and live sync as two
  * status dots on a single button, with a panel that explains both states in
  * plain language for wherever this tab actually is — ChatGPT's in-app
- * browser, a native WebMCP host, or a plain browser — and offers the two
+ * browser, a native WebMCP host, or a plain browser — and offers the
  * actions that matter: Continue on another screen, the agent-prompt
  * buttons, and a How-does-it-work link to /webmcp.
  *

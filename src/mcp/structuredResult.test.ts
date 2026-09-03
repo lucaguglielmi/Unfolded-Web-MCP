@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 /**
- * Structured results (contract tool-result/1): every
- * tool keeps its text `content` exactly as before and ADDITIONALLY returns
+ * Structured results (contract tool-result/2): every
+ * tool keeps its text `content` (compact JSON from contract 2 on) and ADDITIONALLY returns
  * `structuredContent` — `{ ok, message, state?, warnings? }` for the
- * state-reporting tools, the tool's own object (plus ok/message) for the
+ * state-reporting tools (start_pairing adds `liveHandoffUrl` beside them
+ * when its link minted), the tool's own object (plus ok/message) for the
  * rest. This suite drives every tool through success and failure paths
  * and pins the two invariants a host can rely on: `ok` mirrors `!isError`,
  * and a `state` field is byte-for-byte the JSON the text serializes.
  *
  * It also prints the payload measurement the report records: text bytes
- * versus structured bytes for describe_project and update_form.
+ * versus structured bytes for describe_project and update_design.
  */
 
 const { mintToken, mintCode, joinWithCode } = vi.hoisted(() => ({
@@ -46,11 +47,11 @@ const call = async (name: string, input: unknown = {}) => {
   return { result, text, isError: result.isError === true, structured: result.structuredContent }
 }
 
-/** the pretty-printed state JSON is the text itself (reads) or follows a
-    "\n{\n" boundary after the message (mutations and failures) */
+/** the compact state JSON is the text itself (reads) or follows a
+    "\n{" boundary after the message (mutations and failures) */
 const stateJsonIn = (text: string): unknown => {
-  const start = text.startsWith("{\n") ? 0 : text.indexOf("\n{\n") + 1
-  expect(start, "text must carry a pretty-printed state object").toBeGreaterThanOrEqual(0)
+  const start = text.startsWith("{") ? 0 : text.indexOf("\n{") + 1
+  expect(start, "text must carry a state object").toBeGreaterThanOrEqual(0)
   return JSON.parse(text.slice(start))
 }
 
@@ -59,10 +60,7 @@ const stateJsonIn = (text: string): unknown => {
 const EVERY_TOOL: { name: string; input?: unknown; expectError?: boolean }[] = [
   { name: "describe_project" },
   { name: "open_model", input: { url: "?type=hexagon&height=150" } },
-  { name: "update_form", input: { heightMm: 140 } },
-  { name: "set_clay", input: { shrinkagePct: 11 } },
-  { name: "set_units", input: { units: "in" } },
-  { name: "set_capacity", input: { capacityMl: 300 } },
+  { name: "update_design", input: { heightMm: 140, shrinkagePct: 11, units: "in" } },
   { name: "get_template_summary" },
   { name: "get_preview_image" },
   { name: "export_templates", input: {} },
@@ -103,27 +101,117 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
       expect(structured!.ok).toBe(!isError)
       if ("state" in structured!) {
         expect(structured!.state).toEqual(stateJsonIn(text))
-        const state = structured!.state as { warnings: string[] }
+        const state = structured!.state as { warnings: string[]; session: { paired: boolean; peers: number } }
         if (state.warnings.length > 0) expect(structured!.warnings).toEqual(state.warnings)
         else expect("warnings" in structured!).toBe(false)
+        // §6.2: the snapshot says whether the tab is paired — a fact, not a guess
+        expect(typeof state.session.paired).toBe("boolean")
+        expect(typeof state.session.peers).toBe("number")
+        // §5: the two constants are gone from every snapshot
+        expect("linkMode" in (state as object)).toBe(false)
+        expect("liveHandoffTool" in (state as object)).toBe(false)
       }
     })
   }
 
-  it("the text content is untouched: reads are bare JSON, mutations are message + JSON", async () => {
+  it("the text content: reads are bare compact JSON, mutations are message + compact JSON", async () => {
     const read = await call("describe_project")
-    expect(read.text).toBe(JSON.stringify(describeState(), null, 2))
+    expect(read.text).toBe(JSON.stringify(describeState()))
     expect(read.structured).toEqual({ ok: true, message: "Current design.", state: describeState() })
 
-    const edit = await call("update_form", { heightMm: 140 })
-    expect(edit.text).toBe(`Form updated.\n${JSON.stringify(describeState(), null, 2)}`)
-    expect(edit.structured!.message).toBe("Form updated.")
+    const edit = await call("update_design", { heightMm: 140 })
+    expect(edit.text).toBe(`Design updated.\n${JSON.stringify(describeState())}`)
+    expect(edit.structured!.message).toBe("Design updated.")
     expect(edit.structured!.state).toEqual(describeState())
+  })
+
+  it("update_design: one call carries shape, clay, paper, units and a capacity solve, as one undo step", async () => {
+    const before = describeState()
+    const { isError, structured } = await call("update_design", {
+      type: "hexagon" as never,
+      facets: 6,
+      bottomDiameterMm: 140,
+      shrinkagePct: 13,
+      units: "in",
+      paperSize: "A3",
+      capacityMl: 1200,
+    })
+    // 'hexagon' is share-link vocabulary, not a form type: the schema rejects it
+    expect(isError).toBe(true)
+    expect(structured!.state).toEqual(before)
+
+    const ok = await call("update_design", {
+      type: "faceted",
+      facets: 6,
+      bottomDiameterMm: 140,
+      shrinkagePct: 13,
+      units: "in",
+      paperSize: "A3",
+      capacityMl: 1200,
+    })
+    const state = ok.structured!.state as ReturnType<typeof describeState>
+    expect(ok.isError).toBe(false)
+    expect(state.form.type).toBe("faceted")
+    expect(state.form.facets).toBe(6)
+    expect(state.clay.shrinkagePct).toBe(13)
+    expect(state.units).toBe("in")
+    expect(state.paperSize).toBe("A3")
+    expect(Math.abs(state.capacityMl - 1200)).toBeLessThanOrEqual(12)
+    expect(ok.structured!.message).toMatch(/^Design updated\. Display units set to inches\. Height set to/)
+    // one undo step reverts the whole call (units are a display setting, not history)
+    const undone = await call("undo_last_change")
+    const back = undone.structured!.state as ReturnType<typeof describeState>
+    expect(back.form).toEqual(before.form)
+    expect(back.clay).toEqual(before.clay)
+    expect(back.paperSize).toEqual(before.paperSize)
+  })
+
+  it("update_design: an infeasible capacity solve commits nothing — clay and diameters stay as they were", async () => {
+    // walls that close the interior: 15 mm slabs on a 25 mm base. The
+    // solve is checked BEFORE any write, so the failure leaves the design
+    // untouched (the advertised failure contract), not with the thick
+    // walls already committed and synced
+    const before = describeState()
+    const historyBefore = useProjectStore.getState().history.length
+    const { isError, text, structured } = await call("update_design", {
+      wallThicknessMm: 15,
+      bottomDiameterMm: 25,
+      capacityMl: 350,
+    })
+    expect(isError).toBe(true)
+    expect(text).toMatch(/Nothing was changed/)
+    expect(structured).toMatchObject({ ok: false, state: before })
+    expect(describeState()).toEqual(before)
+    // and no undo step was burned
+    expect(useProjectStore.getState().history.length).toBe(historyBefore)
+  })
+
+  it("update_design: heightMm and capacityMl together is a validation error with the unchanged state", async () => {
+    const before = describeState()
+    const { isError, text, structured } = await call("update_design", { heightMm: 100, capacityMl: 300 })
+    expect(isError).toBe(true)
+    expect(text).toMatch(/^Invalid input:\nheightMm and capacityMl/)
+    expect(structured).toMatchObject({ ok: false, state: before })
+  })
+
+  it("update_design: legacy type values are advertised and accepted", async () => {
+    const { isError, structured } = await call("update_design", { type: "tapered" })
+    const state = structured!.state as ReturnType<typeof describeState>
+    expect(isError).toBe(false)
+    expect(state.form.type).toBe("round")
+    expect(state.form.tapered).toBe(true)
+  })
+
+  it("update_design: an empty patch is not an error", async () => {
+    const { isError, structured } = await call("update_design", {})
+    expect(isError).toBe(false)
+    expect(structured!.message).toBe("No changes requested.")
+    expect(structured!.state).toEqual(describeState())
   })
 
   it("validation errors: ok:false, the message, and the unchanged state", async () => {
     const before = describeState()
-    const { text, isError, structured } = await call("update_form", { heightMm: -5 })
+    const { text, isError, structured } = await call("update_design", { heightMm: -5 })
     expect(isError).toBe(true)
     expect(text).toMatch(/^Invalid input:\n/)
     expect(text).toContain("\n\nCurrent state unchanged:\n")
@@ -147,7 +235,8 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
   })
 
   it("fail-closed handoff: ok:false, message, and no URL anywhere — not even a state snapshot", async () => {
-    mintToken.mockResolvedValueOnce(null)
+    // every attempt fails: a single cold mint is retried, an outage is not
+    mintToken.mockResolvedValue(null)
     const { isError, structured } = await call("create_live_handoff")
     expect(isError).toBe(true)
     expect(structured!.ok).toBe(false)
@@ -156,6 +245,27 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
     // of any kind — a state snapshot would smuggle designUrl back in
     expect(Object.keys(structured!).sort()).toEqual(["message", "ok"])
     expect(JSON.stringify(structured)).not.toMatch(/https?:\/\/|\?type=/)
+  })
+
+  it("start_pairing: the spoken code and the tappable link, from one call", async () => {
+    // live-handoff-link-spec §8.3's amendment — a code-only answer to
+    // "pair from here" was the bug this closed
+    const { isError, text, structured } = await call("start_pairing")
+    expect(isError).toBe(false)
+    expect(text).toMatch(/K7F-3QP/)
+    expect(structured!.liveHandoffUrl).toMatch(/join=tok_/)
+    expect(text).toContain(structured!.liveHandoffUrl as string)
+    // the code stays the tool's own contract: state rides along as ever
+    expect(structured!.state).toEqual(describeState())
+  })
+
+  it("start_pairing: a failed token mint costs the link, never the pairing", async () => {
+    mintToken.mockResolvedValue(null)
+    const { isError, text, structured } = await call("start_pairing")
+    expect(isError).toBe(false)
+    expect(text).toMatch(/K7F-3QP/)
+    expect("liveHandoffUrl" in structured!).toBe(false)
+    expect(JSON.stringify(structured)).not.toMatch(/join=/)
   })
 
   it("create_live_handoff: the handoff object plus ok/message", async () => {
@@ -191,7 +301,7 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
     expect(structured!.message).toMatch(/^PDF downloaded/)
     expect(structured).toMatchObject({ ok: true, pages: 3, paper: "A4", rows: 1, cols: 2, state })
     // paperSize is design state: the text is message + snapshot like any mutation
-    expect(text).toBe(`${structured!.message}\n${JSON.stringify(state, null, 2)}`)
+    expect(text).toBe(`${structured!.message}\n${JSON.stringify(state)}`)
     expect(state.paperSize).toBe("A4")
   })
 
@@ -207,7 +317,7 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
   it("host cancellation: ok:false, no state", async () => {
     const controller = new AbortController()
     controller.abort()
-    const result = await tool("update_form").execute({ heightMm: 100 }, { signal: controller.signal })
+    const result = await tool("update_design").execute({ heightMm: 100 }, { signal: controller.signal })
     expect(result.isError).toBe(true)
     expect(result.structuredContent).toEqual({
       ok: false,
@@ -220,18 +330,19 @@ describe(`structured results — ${TOOL_RESULT_CONTRACT}`, () => {
     const rows: string[] = []
     for (const [name, input] of [
       ["describe_project", {}],
-      ["update_form", { heightMm: 140 }],
+      ["update_design", { heightMm: 140 }],
     ] as const) {
       const { text, structured } = await call(name, input)
       const textBytes = bytes(text)
       const structuredBytes = bytes(JSON.stringify(structured))
       const stateCompact = bytes(JSON.stringify(structured!.state))
       rows.push(
-        `${name}: text ${textBytes} B (pretty JSON) | structuredContent ${structuredBytes} B (compact) ` +
+        `${name}: text ${textBytes} B (compact JSON) | structuredContent ${structuredBytes} B ` +
           `| state alone ${stateCompact} B | envelope total ${textBytes + structuredBytes} B`
       )
       expect(structuredBytes).toBeGreaterThan(0)
-      expect(structuredBytes).toBeLessThan(textBytes)
+      // docs/webmcp-tool-performance-spec.md §13: the describe_project envelope stays under 1,200 B
+      expect(textBytes + structuredBytes).toBeLessThan(1_200)
     }
     console.info(`[${TOOL_RESULT_CONTRACT} payload]\n  ${rows.join("\n  ")}`)
   })

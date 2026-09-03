@@ -133,6 +133,20 @@ try {
     page.headers.get("referrer-policy") === "strict-origin-when-cross-origin"
   )
 
+  // fingerprinted assets are immutable in the browser (spec §8); wrangler
+  // dev serves public/_headers the way production does. Needs a build —
+  // the deploy workflow runs one first; locally the check is skipped.
+  const { existsSync, readdirSync } = await import("node:fs")
+  const chunk = existsSync("dist/assets") ? readdirSync("dist/assets").find((f) => f.endsWith(".js")) : undefined
+  if (chunk) {
+    const asset = await fetch(`${BASE}/assets/${chunk}`)
+    const cache = asset.headers.get("cache-control") ?? ""
+    check("caching: /assets/* carry immutable, year-long Cache-Control", asset.ok && /immutable/.test(cache) && /max-age=31\d{6}/.test(cache), `${chunk} → ${cache}`)
+    check("caching: the HTML entry still revalidates", !/immutable/.test(page.headers.get("cache-control") ?? ""), page.headers.get("cache-control") ?? "")
+  } else {
+    console.log("SKIP  caching checks — no dist/assets (run npm run build first)")
+  }
+
   a.ws.close()
   b.ws.close()
 } catch (e) {

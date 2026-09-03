@@ -15,7 +15,7 @@ const scenarios = [
     icon: Bot,
     title: "ChatGPT agent browser",
     status: "Direct WebMCP",
-    body: "ChatGPT opens Unfolded in its internal agent browser. The app registers all 14 tools, so the agent reads and edits the same tab directly.",
+    body: "ChatGPT opens Unfolded in its internal agent browser. The app registers all 11 tools, so the agent reads and edits the same tab directly — and on a fresh session its first reply offers \"Open a paired browser session with this chat\", the link that puts the same design on your own screen.",
     tone: "violet",
   },
   {
@@ -171,6 +171,8 @@ export function UserFlowPage() {
             QR codes and links are the quickest route between physical screens. The
             six-character code is the conversational route: read it aloud or paste it into
             ChatGPT, which joins through the <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[0.9em]">join_session</code> tool.
+            Coming back with either one copied, there is no dialog to find: the app spots a
+            code or a live link on the clipboard and offers the join in one tap.
           </p>
           <Diagram
             src="/diagrams/cross-device.svg"

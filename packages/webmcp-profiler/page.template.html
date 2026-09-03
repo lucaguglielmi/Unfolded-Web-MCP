@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A visual guide to webmcp-profiler: understand WebMCP tool execution, payload cost, host gaps, reports and live instrumentation."
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <title>webmcp-profiler — See where agent time goes</title>
+    <link rel="stylesheet" href="./profiler.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="shell header-inner">
+        <a class="product-mark" href="#top" aria-label="webmcp-profiler home">
+          <span class="pulse-mark" aria-hidden="true"></span>
+          <span class="product-name">webmcp<span>-profiler</span></span>
+        </a>
+        <nav class="header-links" aria-label="Page sections">
+          <a href="#why">Why</a>
+          <a href="#how">How it works</a>
+          <a href="#data">What it records</a>
+          <a href="#roadmap">Roadmap</a>
+          <a class="button" href="https://www.npmjs.com/package/webmcp-profiler">View on npm</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero shell">
+        <p class="eyebrow">Open source · zero dependencies · v0.1.1</p>
+        <h1>See where agent time actually goes.</h1>
+        <p class="hero-copy">
+          A drop-in performance analyser for WebMCP tools. It separates page compute,
+          payload weight and host/model wait—so “the agent feels slow” becomes a precise,
+          fixable diagnosis.
+        </p>
+        <div class="hero-actions">
+          <a class="button primary" href="#quickstart">Install in one minute</a>
+          <a
+            class="button"
+            href="https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/packages/webmcp-profiler"
+          >View source</a>
+        </div>
+
+        <div class="stat-grid" aria-label="Profiler highlights">
+          <div class="stat"><strong>1 import</strong><span>Automatic instrumentation—no edits to individual tools.</span></div>
+          <div class="stat"><strong>500</strong><span>Spans retained by the default in-memory ring buffer.</span></div>
+          <div class="stat"><strong>3 layers</strong><span>Compute, payload and host/model gap measured separately.</span></div>
+          <div class="stat"><strong>0 deps</strong><span>Framework-free ESM and classic-script builds.</span></div>
+        </div>
+      </section>
+
+      <section class="section" id="why">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">The problem</p>
+              <h2>“WebMCP is slow” hides three different problems.</h2>
+            </div>
+            <p class="section-intro">
+              A stopwatch around <code>execute()</code> sees only the page-owned part of a call.
+              It misses the cost of putting a result into model context and the seconds spent
+              between calls. The profiler records enough evidence to assign each delay to the
+              right owner—and therefore the right fix.
+            </p>
+          </div>
+
+          <figure class="diagram">
+            <img src="./diagrams/latency-split.svg" alt="A WebMCP request separated into page compute, payload cost and host plus model wait" />
+            <figcaption>Three causes, three remedies: optimise code, shrink results, or reduce round trips.</figcaption>
+          </figure>
+
+          <div class="three-up">
+            <article class="info-card">
+              <span class="tag green">Page-owned</span>
+              <h3>Tool execution</h3>
+              <p>Wall time and Long-Task overlap reveal expensive code, layout, encoding or blocking work inside the page.</p>
+            </article>
+            <article class="info-card">
+              <span class="tag orange">Shared cost</span>
+              <h3>Payload weight</h3>
+              <p>Approximate input and result sizes, content types, image size and estimated tokens reveal oversized tool contracts.</p>
+            </article>
+            <article class="info-card">
+              <span class="tag violet">Platform time</span>
+              <h3>Host + model gaps</h3>
+              <p>The settled-to-next-invoke interval brackets orchestration and reasoning time that the page cannot see directly.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="quickstart">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Quickstart</p>
+              <h2>Attach before your tools register.</h2>
+            </div>
+            <p class="section-intro">
+              The standard gate keeps production overhead at zero until profiling is requested.
+              The mode persists in <code>localStorage</code>, which matters when an app rewrites
+              its URL or an agent can only be steered to a page once.
+            </p>
+          </div>
+
+          <div class="code-card">
+            <div class="code-head"><span>Install, then gate at boot</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code><span class="token-orange">// npm install webmcp-profiler</span>
+<span class="token-blue">import</span> { maybeAttachProfiler } <span class="token-blue">from</span> <span class="token-green">"webmcp-profiler/attach"</span>
+maybeAttachProfiler()</code></pre>
+          </div>
+
+          <div class="three-up">
+            <article class="info-card"><h3><code>?perf=1</code></h3><p>Enable profiling and remember the mode for this origin.</p></article>
+            <article class="info-card"><h3><code>?perf=overlay</code></h3><p>Enable profiling and open the floating live panel immediately.</p></article>
+            <article class="info-card"><h3><code>?perf=0</code></h3><p>Remove the saved mode and return the page to its normal state.</p></article>
+          </div>
+
+          <div class="two-up">
+            <div class="code-card">
+              <div class="code-head"><span>Classic script—no bundler</span><button class="copy-button" type="button">Copy</button></div>
+              <pre><code>&lt;script src=<span class="token-green">"https://cdn.jsdelivr.net/npm/webmcp-profiler@0.1.1/dist/webmcp-profiler.iife.js"</span>&gt;&lt;/script&gt;</code></pre>
+            </div>
+            <div class="code-card">
+              <div class="code-head"><span>Attach with explicit options</span><button class="copy-button" type="button">Copy</button></div>
+              <pre><code><span class="token-blue">import</span> { attachProfiler } <span class="token-blue">from</span> <span class="token-green">"webmcp-profiler"</span>
+
+<span class="token-blue">const</span> profiler = attachProfiler({
+  buffer: <span class="token-orange">500</span>,
+  relay: <span class="token-orange">true</span>,
+  overlay: <span class="token-orange">false</span>,
+})</code></pre>
+            </div>
+          </div>
+
+          <div class="code-card">
+            <div class="code-head"><span>Use it from DevTools</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code>__webmcpPerf.table()    <span class="token-orange">// per-tool calls, percentiles, payload and errors</span>
+__webmcpPerf.overlay()  <span class="token-orange">// toggle the live panel</span>
+__webmcpPerf.report()   <span class="token-orange">// return the complete versioned document</span>
+__webmcpPerf.export()   <span class="token-orange">// download that document as JSON</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="how">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Architecture</p>
+              <h2>Transparent interception, one shared source of truth.</h2>
+            </div>
+            <p class="section-intro">
+              The profiler watches all current WebMCP registry locations—<code>document</code>,
+              <code>navigator</code> and <code>window</code>. It wraps the tool object in place,
+              so the host, the app and any test harness all invoke the same measured function.
+              Original inputs, return values, thrown errors and extra host arguments pass through unchanged.
+            </p>
+          </div>
+
+          <div class="diagram-grid">
+            <figure class="diagram">
+              <img class="portrait" src="./diagrams/architecture.svg" alt="Profiler architecture from WebMCP host through interceptor, tool, collector and output surfaces" />
+              <figcaption>The package observes a WebMCP host; it is not a host or polyfill.</figcaption>
+            </figure>
+            <figure class="diagram">
+              <img src="./diagrams/interception.svg" alt="Profiler interception flow for early and late attachment and complete detachment" />
+              <figcaption>Early attachment is automatic. Late attachment needs an exposed site tool map.</figcaption>
+            </figure>
+          </div>
+
+          <div class="callout">
+            <div class="callout-icon" aria-hidden="true">i</div>
+            <div>
+              <strong>Why poll every 250 ms?</strong>
+              <p>Agent hosts may inject <code>modelContext</code> after the app has started. The watcher stays alive so late host injection is still captured. A host that never appears is simply left untouched.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="data">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">One call, one span</p>
+              <h2>The smallest useful record of a tool invocation.</h2>
+            </div>
+            <p class="section-intro">
+              Each wrapper brackets the original <code>execute()</code>, summarises the result,
+              records a span and returns the original result. Long Tasks are attributed later
+              when Chromium delivers their observer entries.
+            </p>
+          </div>
+
+          <figure class="diagram">
+            <img class="portrait" src="./diagrams/span-lifecycle.svg" alt="Lifecycle of a profiled tool invocation from input to span and output views" />
+            <figcaption>The hot path is deliberately small: two clock reads, size accounting and a ring-buffer push.</figcaption>
+          </figure>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Span field</th><th>What it tells you</th><th>Source</th></tr></thead>
+              <tbody>
+                <tr><td><code>tool</code>, <code>seq</code></td><td>Tool identity and call order in this session.</td><td>Registration metadata + collector counter</td></tr>
+                <tr><td><code>invokedAt</code>, <code>settledAt</code></td><td>The exact <code>performance.now()</code> window around the awaited tool.</td><td>Wrapper clocks</td></tr>
+                <tr><td><code>wallMs</code></td><td>End-to-end duration of the page’s <code>execute()</code>.</td><td>Settled minus invoked</td></tr>
+                <tr><td><code>blockingMs</code></td><td>Long-Task overlap attributed to that call window. Chromium-only; otherwise zero.</td><td><code>PerformanceObserver</code></td></tr>
+                <tr><td><code>inputBytes</code>, <code>resultBytes</code></td><td>Approximate JSON size entering and leaving the tool; exact for typical ASCII-heavy payloads.</td><td><code>JSON.stringify</code> string length</td></tr>
+                <tr><td><code>contentTypes</code>, <code>imageBytes</code></td><td>Result composition and encoded image-string length.</td><td>MCP content summary</td></tr>
+                <tr><td><code>estTokens</code></td><td>A directional model-context estimate: result bytes divided by four.</td><td>Heuristic, rounded up</td></tr>
+                <tr><td><code>gapSincePrevCallMs</code></td><td>Time between the previous result settling and this call arriving.</td><td>Session ledger</td></tr>
+                <tr><td><code>isError</code>, <code>error</code></td><td>Tool-reported failures and thrown exceptions.</td><td>Result flag or caught error</td></tr>
+                <tr><td><code>synthetic</code></td><td>Reserved distinction between live and benchmark calls; current captured calls are false.</td><td>Profiler</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">The differentiator</p>
+              <h2>Host-gap analysis reveals the seconds around the milliseconds.</h2>
+            </div>
+            <p class="section-intro">
+              A page cannot inspect model reasoning or host internals. It can still prove what
+              did not happen inside the page. The ledger sums the positive time between one
+              result settling and the next invocation arriving, then reports it separately from
+              tool work and payload size.
+            </p>
+          </div>
+
+          <figure class="diagram">
+            <img class="portrait" src="./diagrams/host-gap.svg" alt="A sequence of millisecond tool calls separated by multi-second host and model gaps" />
+            <figcaption>Illustrative timeline: the page owns 16 ms; 15.2 seconds sit between calls.</figcaption>
+          </figure>
+
+          <div class="callout">
+            <div class="callout-icon" aria-hidden="true">✓</div>
+            <div>
+              <strong>What the first production case study found</strong>
+              <p>Tool execution was already in the 1–15 ms range. The profiler exposed a roughly 130 KB preview image payload, which was reduced to a roughly 7 KB JPEG. It also showed that perceived delay was dominated by model round trips, not page compute.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Surfaces</p>
+              <h2>Watch live, inspect in DevTools, or export evidence.</h2>
+            </div>
+            <p class="section-intro">
+              Every surface reads the same collector. The overlay is lazy-loaded into Shadow
+              DOM, console commands work without UI, and every call emits a native
+              <code>performance.measure</code> named <code>webmcp:&lt;tool&gt;#&lt;seq&gt;</code>.
+            </p>
+          </div>
+
+          <figure class="diagram">
+            <img src="./diagrams/evidence-loop.svg" alt="Captured spans becoming aggregates, views and the correct optimisation decision" />
+            <figcaption>Evidence routes the team toward code, payload or orchestration changes—not generic optimisation.</figcaption>
+          </figure>
+
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Console API</th><th>Purpose</th></tr></thead>
+              <tbody>
+                <tr><td><code>spans()</code></td><td>Read the current immutable view of captured span records.</td></tr>
+                <tr><td><code>aggregates()</code></td><td>Get per-tool calls, errors, min, p50, p95, max, blocking and payload totals.</td></tr>
+                <tr><td><code>table()</code></td><td>Print per-tool aggregates with <code>console.table</code>.</td></tr>
+                <tr><td><code>report()</code></td><td>Return a stable <code>webmcp-perf-report/1</code> JSON document.</td></tr>
+                <tr><td><code>export()</code></td><td>Download the report as a timestamped JSON file.</td></tr>
+                <tr><td><code>overlay()</code></td><td>Lazy-create, show or hide the floating live table.</td></tr>
+                <tr><td><code>instrument(toolMap)</code></td><td>Retrofit a site-exposed <code>{ name: tool }</code> map after registration.</td></tr>
+                <tr><td><code>reset()</code></td><td>Clear captured spans and call totals while retaining host and registration facts.</td></tr>
+                <tr><td><code>detach()</code></td><td>Restore every original tool and registry method, stop observers and remove the global API.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Hidden agent browsers</p>
+              <h2>The profiler can send measurements to the screen you can see.</h2>
+            </div>
+            <p class="section-intro">
+              With relay enabled—the default—each span is mirrored through a same-origin
+              <code>BroadcastChannel</code>. The visible overlay currently shows a live count of
+              spans received from another tab; merging remote spans into its per-tool table is
+              future work. Only span metadata moves—tool inputs and result bodies do not.
+            </p>
+          </div>
+
+          <figure class="diagram">
+            <img src="./diagrams/relay.svg" alt="Span metadata relayed from a hidden agent tab to a visible same-origin overlay, with a separate-context limitation" />
+            <figcaption>Important limits: the shipped overlay counts remote spans, and ChatGPT hidden and in-app browsers may be isolated contexts. A fuller WebSocket relay is planned.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Reports and CI</p>
+              <h2>A portable record of what happened.</h2>
+            </div>
+            <p class="section-intro">
+              <code>report()</code> returns session metadata, the ledger, per-tool aggregates and
+              every retained span under a versioned format identifier. Reports can be diffed in
+              CI or ingested by a dashboard without scraping the overlay.
+            </p>
+          </div>
+
+          <div class="code-card">
+            <div class="code-head"><span>webmcp-perf-report/1</span><button class="copy-button" type="button">Copy</button></div>
+            <pre><code>{
+  <span class="token-blue">"format"</span>: <span class="token-green">"webmcp-perf-report/1"</span>,
+  <span class="token-blue">"session"</span>: { <span class="token-blue">"origin"</span>: <span class="token-green">"https://example.com"</span>, <span class="token-blue">"userAgent"</span>: <span class="token-green">"…"</span>, <span class="token-blue">"generatedAt"</span>: <span class="token-green">"…"</span> },
+  <span class="token-blue">"ledger"</span>: { <span class="token-blue">"registeredTools"</span>: [<span class="token-green">"search"</span>, <span class="token-green">"checkout"</span>], <span class="token-blue">"totals"</span>: { <span class="token-blue">"calls"</span>: <span class="token-orange">12</span>, <span class="token-blue">"hostGapMs"</span>: <span class="token-orange">39120</span> } },
+  <span class="token-blue">"tools"</span>: [{ <span class="token-blue">"tool"</span>: <span class="token-green">"search"</span>, <span class="token-blue">"p50Ms"</span>: <span class="token-orange">4.2</span>, <span class="token-blue">"p95Ms"</span>: <span class="token-orange">8.1</span> }],
+  <span class="token-blue">"spans"</span>: [{ <span class="token-blue">"tool"</span>: <span class="token-green">"search"</span>, <span class="token-blue">"wallMs"</span>: <span class="token-orange">4.9</span>, <span class="token-blue">"estTokens"</span>: <span class="token-orange">194</span> }]
+}</code></pre>
+          </div>
+
+          <div class="two-up">
+            <article class="lead-card">
+              <h3>Live-agent evidence</h3>
+              <p>Profile real calls from Chrome, ChatGPT or another host and preserve the exact sequence, payload shape and gaps the page observed.</p>
+            </article>
+            <article class="lead-card">
+              <h3>Agentless baseline</h3>
+              <p>The repository’s current <code>npm run perf</code> harness uses Playwright to invoke tools through <code>modelContext</code>. A schema-driven <code>bench()</code> API is planned for the package.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="roadmap">
+        <div class="shell">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Truthful scope</p>
+              <h2>What ships today—and what comes next.</h2>
+            </div>
+            <p class="section-intro">
+              The profiler is useful now, but it is deliberately early. The page keeps current
+              behavior separate from the larger analyser described in the design specification.
+            </p>
+          </div>
+
+          <div class="roadmap">
+            <article class="roadmap-card">
+              <span class="status shipped">Shipped in 0.1.1</span>
+              <h3>Measure and explain</h3>
+              <ul class="check-list">
+                <li>Automatic registry interception and in-place wrapping</li>
+                <li>Wall time, Long-Task overlap, bytes, token estimate and errors</li>
+                <li>Host injection, registration and inter-call gap ledger</li>
+                <li>500-span configurable in-memory ring buffer</li>
+                <li>Overlay, console API, JSON export and DevTools measures</li>
+                <li>Same-origin BroadcastChannel relay</li>
+                <li>ESM, attach gate and single-file IIFE builds</li>
+                <li>Clean detach and late registry instrumentation</li>
+              </ul>
+            </article>
+            <article class="roadmap-card future">
+              <span class="status planned">Designed, not shipped</span>
+              <h3>Grade, persist and connect</h3>
+              <ul class="check-list">
+                <li>IndexedDB persistence across reloads</li>
+                <li>Cross-context and cross-device WebSocket relay</li>
+                <li>Performance budgets, grades and anti-pattern detectors</li>
+                <li>Schema-driven in-package <code>bench()</code></li>
+                <li>Beacon and OpenTelemetry exporters</li>
+                <li>Conversation waterfall and violation badges</li>
+                <li>Memory, frame-drop, queue-delay and schema-validity fields</li>
+                <li>Hostless recording stub and opt-in body capture</li>
+              </ul>
+            </article>
+          </div>
+
+          <div class="callout">
+            <div class="callout-icon" aria-hidden="true">🔒</div>
+            <div>
+              <strong>Privacy by default</strong>
+              <p>The shipped profiler records sizes, timings, content-type counts and error strings—not tool input or result bodies. Data stays in memory unless the developer explicitly exports a report. Relay messages contain spans, never payload bodies.</p>
+            </div>
+          </div>
+
+          <div class="note" style="margin-top: 30px">
+            <p><strong>Known limitations:</strong> a reload starts a fresh buffer; Long-Task attribution is Chromium-only; the current “byte” fields use JavaScript string length and are approximate for non-ASCII or base64 data; token count is that approximate result size divided by four; already-registered tools require an exposed map; the overlay counts but does not aggregate relayed spans; BroadcastChannel cannot cross isolated browsing contexts; and host gaps identify time outside the page without claiming whether the host or model consumed each millisecond.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="shell closing">
+        <div class="closing-inner">
+          <p class="eyebrow">The judge takeaway</p>
+          <h2>WebMCP performance can be measured, not guessed.</h2>
+          <p>
+            The profiler makes agent-facing performance visible with a tiny, removable layer.
+            It helped turn one vague latency complaint into a concrete payload fix—and proved
+            where the remaining time really lived.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://www.npmjs.com/package/webmcp-profiler">Open npm package</a>
+            <a class="button" href="https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/packages/webmcp-profiler">Inspect the code</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="shell site-footer">
+      <span>webmcp-profiler · MIT licensed · framework-free</span>
+      <div class="footer-links">
+        <a href="https://github.com/lucaguglielmi/Unfolded-Web-MCP/tree/main/packages/webmcp-profiler#readme">Documentation</a>
+        <a href="https://github.com/lucaguglielmi/Unfolded-Web-MCP/issues">Issues</a>
+      </div>
+    </footer>
+
+    <script>
+      document.querySelectorAll(".copy-button").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const code = button.closest(".code-card")?.querySelector("code")?.textContent || ""
+          try {
+            await navigator.clipboard.writeText(code)
+            const oldLabel = button.textContent
+            button.textContent = "Copied"
+            window.setTimeout(() => { button.textContent = oldLabel }, 1400)
+          } catch {
+            button.textContent = "Select code"
+          }
+        })
+      })
+    </script>
+  </body>
+</html>

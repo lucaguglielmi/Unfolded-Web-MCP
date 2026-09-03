@@ -1,7 +1,8 @@
 import { z } from "zod"
 import { profilerTool } from "@/profiler/tool"
 import { capacityMl, heightForCapacityMl } from "@/lib/geometry/unroll"
-import { setClayInputSchema, updateFormInputSchema, PRESETS } from "@/lib/model/schemas"
+import { applyClayPatch, applyFormPatch } from "@/lib/model/applyPatch"
+import { updateDesignInputSchema, PRESETS } from "@/lib/model/schemas"
 import { parseShareParams } from "@/lib/model/shareLink"
 import { capturePreviewImage } from "@/lib/previewCapture"
 import { liveSync } from "@/store/syncClient"
@@ -35,17 +36,14 @@ import {
 export const TOOL_SUMMARIES: { name: string; blurb: string; conditional?: true }[] = [
   { name: "describe_project", blurb: "Read the whole design: form, clay, template pieces, capacity in ml, and its permanent design link." },
   { name: "open_model", blurb: "Open a design from a pasted share link and keep editing it." },
-  { name: "update_form", blurb: "Change shape, taper, facets, height and diameters — fired sizes, in millimeters." },
-  { name: "set_clay", blurb: "Set shrinkage % and slab thickness for the potter's clay body." },
-  { name: "set_units", blurb: "Switch the potter's display units between centimeters and inches — UI and PDF alike." },
-  { name: "set_capacity", blurb: "Solve the height for a target interior volume — 'make it hold 350 ml'." },
+  { name: "update_design", blurb: "Change any part of the design in one call — shape, fired sizes, clay, paper, display units, or a target capacity the height is solved for." },
   { name: "get_template_summary", blurb: "Template layout, per-piece dimensions, and the exact PDF page count." },
   { name: "get_preview_image", blurb: "See the live 3D preview as an image — exactly what the potter sees." },
   { name: "export_templates", blurb: "Generate and download the true-scale, multi-page template PDF." },
   { name: "apply_preset", blurb: "Start from a classic mug, tumbler, bud vase, or hex planter." },
   { name: "create_live_handoff", blurb: "Mint the single-use link that continues this design live on the potter's screen — the default link after any edit." },
   { name: "join_session", blurb: "Pair this tab into a live session with the 6-character code from the potter's other device." },
-  { name: "start_pairing", blurb: "Mint a 6-character code so the potter's other device can join THIS design live." },
+  { name: "start_pairing", blurb: "Mint a 6-character code (and a tappable link) so the potter's other device can join THIS design live." },
   { name: "undo_last_change", blurb: "Revert the last change — the agent's or the potter's." },
   {
     name: "get_perf_report",
@@ -61,12 +59,16 @@ const prettyCode = (code: string) => `${code.slice(0, 3)}-${code.slice(3)}`
 
 type StateSnapshot = ReturnType<typeof describeState>
 
+/** text half of a state result: "<message>\n<compact json>", or the bare
+    json. Compact on purpose (docs/webmcp-tool-performance-spec.md §5): a
+    model reads it as well as pretty-printed, and every byte here is paid
+    on every call */
 function stateText(prefix?: string, state: StateSnapshot = describeState()): string {
-  return (prefix ? `${prefix}\n` : "") + JSON.stringify(state, null, 2)
+  return (prefix ? `${prefix}\n` : "") + JSON.stringify(state)
 }
 
 /**
- * Structured results (contract tool-result/1) ride
+ * Structured results (contract tool-result/2) ride
  * beside the unchanged text content: `ok` mirrors !isError, `message` is
  * the sentence the text opens with, `state` is the same snapshot the text
  * serializes, and `warnings` appears only when the design has any.
@@ -146,6 +148,27 @@ function toInputSchema(schema: z.ZodType): Record<string, unknown> {
   return json
 }
 
+/**
+ * Each tool's input contract, declared ONCE: the same zod object is
+ * advertised to the host (as JSON Schema) and enforced on the call, so
+ * the bounds an agent reads and the bounds it hits can never drift apart.
+ * update_design's lives with the model (updateDesignInputSchema).
+ */
+const PRESET_IDS = Object.keys(PRESETS) as [string, ...string[]]
+const openModelInput = z.object({
+  url: z.string().min(1).describe("Share link URL, or just its query string"),
+})
+const exportTemplatesInput = z.object({
+  paperSize: z.enum(["A4", "A3", "Letter"]).optional(),
+})
+const applyPresetInput = z.object({ preset: z.enum(PRESET_IDS) })
+const joinSessionInput = z.object({
+  code: z
+    .string()
+    .min(1)
+    .describe("Code from the potter's other device (case and dashes ignored)"),
+})
+
 /** the one consistent shape for a host-cancelled call */
 function cancelledResult(): ToolResult {
   const message = "Cancelled by the host before completing — no changes were made."
@@ -189,7 +212,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "describe_project",
       description:
-        "Get the current pottery design: form type and dimensions (fired mm), clay settings, the flat template pieces it unrolls into (wet-clay sizes, shrinkage already applied), capacityMl, and designUrl — a permanent link that reopens an independent copy (no live session; give it out only when the potter explicitly asks for a permanent or bookmarkable link — otherwise links come from create_live_handoff). Call this first to see what the potter is working on. This page is live-synced: it changes on its own when the potter edits on another screen or a device joins or leaves, so if your browser refuses a tool call because the page changed since you last looked, just look again and retry — nothing went wrong.",
+        "Get the current design: form (fired mm), clay, the flat template pieces it unrolls into (wet-clay sizes, shrinkage applied), capacityMl, designUrl — a permanent link to an independent copy, given out only when the potter explicitly asks for a permanent or bookmarkable link (otherwise links come from create_live_handoff) — and session (whether this tab is paired, and with how many devices). Read it when the request depends on what is there now — 'what am I designing?', 'make it taller', 'will this print on one page?' — or when the potter has just connected; an absolute edit ('make it 12 cm tall') can go straight to update_design, which returns this same snapshot. When session.paired is false, offer the potter both ways in, in this order: (1) call create_live_handoff and give them its liveHandoffUrl as a link labelled 'Open a paired browser session with this chat' — one tap opens this design on their screen, paired with this conversation; (2) or, if they already have the design open on another device, ask for its six-character code — it's in the connection button, top right (two dots) → Continue on another screen, tap the code to copy it — and call join_session. Always offer both, even if (1) fails: a blocked or failed create_live_handoff call is never the last word, fall back to (2) and still give the potter a way in. The page is live-synced and may change under you: if the browser refuses a call because the page changed, look again and retry.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Describe current design",
       annotations: { title: "Describe current design", readOnlyHint: true },
@@ -199,17 +222,13 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "open_model",
       description:
-        "Open a pottery design from an Unfolded share link — the full URL or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Parameters: type (cylinder, tapered, triangle, square, pentagon, hexagon, heptagon, octagon), height/bottom/top (fired mm; a 'top' value implies tapered), name, shrinkage (percent), wall (mm), paper (A4/A3/Letter). Missing parameters keep current values; out-of-range values clamp. Returns the full new state, ready for further edits." + LINK_RULE,
-      inputSchema: toInputSchema(
-        z.object({
-          url: z.string().min(1).describe("Share link URL, or just its query string"),
-        })
-      ),
+        "Open a design from an Unfolded share link — the full URL or just its query string, e.g. '?type=tapered&height=600&bottom=300&top=100&shrinkage=12&wall=5'. Keys: type, height/bottom/top (fired mm), name, shrinkage (%), wall (mm), paper (A4/A3/Letter). Missing keys keep current values; out-of-range values clamp. Returns the full new state." + LINK_RULE,
+      inputSchema: toInputSchema(openModelInput),
       title: "Open model from link",
       annotations: { title: "Open model from link" },
       execute: (input, options) =>
         run("open_model", options, () => {
-          const { url } = z.object({ url: z.string().min(1) }).parse(input ?? {})
+          const { url } = openModelInput.parse(input ?? {})
           const patches = parseShareParams(url)
           if (!patches.form && !patches.clay && !patches.paperSize) {
             return stateError(
@@ -223,100 +242,94 @@ export function buildTools(): ToolDescriptor[] {
         }),
     },
     {
-      name: "update_form",
+      name: "update_design",
       description:
-        "Update any subset of the pottery form's fields — each property documents itself in the input schema (type round/faceted, the independent tapered flag, facets, name, and the mm dimensions). Legacy type values 'cylinder' and 'tapered' are still accepted. Dimensions are FIRED millimeters; shrinkage compensation is applied to the templates automatically, and the potter's 3D preview updates immediately. Returns the full new state including capacityMl. For a target volume like 'a 350 ml mug', prefer set_capacity — it solves the height exactly in one call." + LINK_RULE,
-      inputSchema: toInputSchema(updateFormInputSchema),
-      title: "Update form dimensions",
-      annotations: { title: "Update form dimensions" },
+        "Change any subset of the design in ONE call: shape (type, tapered, facets, name), the dimensions in FIRED millimeters, clay (shrinkage and wet slab thickness), paperSize, and the potter's display units ('cm' or 'in' — display only; tool inputs and outputs stay in millimeters regardless). For a target volume pass capacityMl (milliliters) instead of heightMm: volume is linear in height, so this solves the exact height — never iterate. Everything applies together as one undo step and the potter's 3D preview updates at once. Legacy type values 'cylinder' and 'tapered' are accepted. Returns the full new state with capacityMl." +
+        LINK_RULE,
+      inputSchema: toInputSchema(updateDesignInputSchema),
+      title: "Update the design",
+      annotations: { title: "Update the design" },
       execute: (input, options) =>
-        run("update_form", options, () => {
-          // the store action validates with the same zod schema
-          useProjectStore.getState().updateForm((input ?? {}) as UpdateFormInput)
-          return stateResult("Form updated.")
-        }),
-    },
-    {
-      name: "set_clay",
-      description:
-        "Update clay settings: shrinkagePct (total wet-to-fired shrinkage, e.g. 12 for a typical stoneware), wallThicknessMm (slab thickness). These change how the flat templates are computed (shrinkage scales them up; wall thickness shifts the developed mid-surface). Returns the full new state." + LINK_RULE,
-      inputSchema: toInputSchema(setClayInputSchema),
-      title: "Set clay properties",
-      annotations: { title: "Set clay properties" },
-      execute: (input, options) =>
-        run("set_clay", options, () => {
-          useProjectStore.getState().setClay((input ?? {}) as SetClayInput)
-          return stateResult("Clay settings updated.")
-        }),
-    },
-    {
-      name: "set_units",
-      description:
-        "Set the potter's preferred display units: 'cm' (default) or 'in'. Display-only — it changes every human-facing measurement (UI, warnings, and the printed PDF with its scale-check bar); tool inputs and outputs stay in millimeters regardless. Remembered in the browser and on share links. Returns the full new state." + LINK_RULE,
-      inputSchema: toInputSchema(
-        z.object({
-          units: z.enum(["cm", "in"]).describe("Preferred display units: 'cm' or 'in'"),
-        })
-      ),
-      title: "Set measurement units",
-      annotations: { title: "Set measurement units" },
-      execute: (input, options) =>
-        run("set_units", options, () => {
-          const { units } = z.object({ units: z.enum(["cm", "in"]) }).parse(input ?? {})
-          useProjectStore.getState().setUnit(units)
-          return stateResult(`Measurement units set to ${units === "in" ? "inches" : "centimeters"}.`)
-        }),
-    },
-    {
-      name: "set_capacity",
-      description:
-        "Set the vessel's interior capacity in milliliters. Volume is linear in height, so this solves the exact height for the target — never iterate with update_form. If the height clamps at the buildable 20-600 mm range the response reports the achievable capacity; adjust the diameters and call again. Returns the full new state." + LINK_RULE,
-      inputSchema: toInputSchema(
-        z.object({
-          capacityMl: z
-            .number()
-            .min(1)
-            .max(200000)
-            .describe("Target fired interior capacity in milliliters, e.g. 350 for a mug"),
-        })
-      ),
-      title: "Set capacity",
-      annotations: { title: "Set capacity" },
-      execute: (input, options) =>
-        run("set_capacity", options, () => {
-          const { capacityMl: target } = z
-            .object({ capacityMl: z.number().min(1).max(200000) })
-            .parse(input ?? {})
-          const { form, clay } = useProjectStore.getState()
-          const solved = heightForCapacityMl(form, clay, target)
-          if (solved === null) {
+        run("update_design", options, () => {
+          const parsed = updateDesignInputSchema.parse(input ?? {})
+          const { shrinkagePct, wallThicknessMm, units, paperSize, capacityMl: target, ...formPatch } = parsed
+          if (parsed.heightMm !== undefined && target !== undefined) {
             return stateError(
-              "The walls close this form's interior entirely — no height can hold anything. " +
-                "Thin the walls (set_clay) or widen the form (update_form) first.",
-              "Current state"
+              "Invalid input:\nheightMm and capacityMl: give one or the other — capacityMl solves the height itself.",
+              "Current state unchanged"
             )
           }
-          const clamped = Math.round(Math.min(600, Math.max(20, solved)) * 10) / 10
-          useProjectStore.getState().updateForm({ heightMm: clamped })
-          const achieved = capacityMl(useProjectStore.getState().form, clay)
-          const note =
-            Math.abs(clamped - solved) > 0.05
-              ? `Target ${target} ml needs a ${solved.toFixed(0)} mm height — clamped to ${clamped} mm, which holds ~${achieved} ml. Adjust the diameters to get closer.`
-              : `Height set to ${clamped} mm — the vessel now holds ~${achieved} ml.`
-          return stateResult(note)
+          const clayPatch: SetClayInput = {}
+          if (shrinkagePct !== undefined) clayPatch.shrinkagePct = shrinkagePct
+          if (wallThicknessMm !== undefined) clayPatch.wallThicknessMm = wallThicknessMm
+          const hasForm = Object.values(formPatch).some((v) => v !== undefined)
+          const hasClay = Object.keys(clayPatch).length > 0
+          if (!hasForm && !hasClay && !units && !paperSize && target === undefined) {
+            return stateResult("No changes requested.")
+          }
+
+          const store = useProjectStore.getState()
+          // The capacity solve runs against the diameters and clay AFTER the
+          // other fields apply, so one call carries the whole sentence — and
+          // its feasibility is settled BEFORE anything is written: a failure
+          // must leave the design exactly as it was (the advertised failure
+          // contract), never with the walls and diameters already committed.
+          // applyFormPatch/applyClayPatch are the store's own pure steps.
+          let solved: number | null = null
+          if (target !== undefined) {
+            const nextForm = hasForm ? applyFormPatch(store.form, formPatch as UpdateFormInput) : store.form
+            const nextClay = hasClay ? applyClayPatch(store.clay, clayPatch) : store.clay
+            solved = heightForCapacityMl(nextForm, nextClay, target)
+            if (solved === null) {
+              return stateError(
+                "The walls close this form's interior entirely — no height can hold anything. " +
+                  "Thin the walls (wallThicknessMm) or widen the form first. Nothing was changed.",
+                "Current state unchanged"
+              )
+            }
+          }
+
+          const notes: string[] = []
+          // one undo scope for the whole call, however many slices it touches
+          store.beginUndoCoalescing()
+          try {
+            // the store action normalizes the legacy type values and then
+            // validates with the model's schema — the advertised contract
+            // above admits exactly that set
+            if (hasForm) store.updateForm(formPatch as UpdateFormInput)
+            if (hasClay) store.setClay(clayPatch)
+            if (paperSize) store.setPaperSize(paperSize)
+            if (units) store.setUnit(units)
+            if (hasForm || hasClay || paperSize) notes.push("Design updated.")
+            if (units) notes.push(`Display units set to ${units === "in" ? "inches" : "centimeters"}.`)
+            if (target !== undefined && solved !== null) {
+              const clamped = Math.round(Math.min(600, Math.max(20, solved)) * 10) / 10
+              store.updateForm({ heightMm: clamped })
+              const { form, clay } = useProjectStore.getState()
+              const achieved = capacityMl(form, clay)
+              notes.push(
+                Math.abs(clamped - solved) > 0.05
+                  ? `Target ${target} ml needs a ${solved.toFixed(0)} mm height — clamped to ${clamped} mm, which holds ~${achieved} ml. Adjust the diameters to get closer.`
+                  : `Height set to ${clamped} mm — the vessel now holds ~${achieved} ml.`
+              )
+            }
+          } finally {
+            store.endUndoCoalescing()
+          }
+          return stateResult(notes.join(" "))
         }),
     },
     {
       name: "get_template_summary",
       description:
-        "Get the printable template details: each flat piece with wet-clay dimensions and assembly notes, the overall layout size, glue overlap, and exactly how many pages the PDF will have at the current paper size (A4, A3, or Letter). Read-only.",
+        "Printable template details: each flat piece with wet-clay dimensions and assembly notes, the layout size, glue overlap, and exactly how many PDF pages at the current paper size (A4, A3, or Letter). Read-only.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Template summary",
       annotations: { title: "Template summary", readOnlyHint: true },
       execute: (_input, options) =>
         run("get_template_summary", options, () => {
           const summary = describeTemplates()
-          return textResult(JSON.stringify(summary, null, 2), false, {
+          return textResult(JSON.stringify(summary), false, {
             ok: true,
             message: "Template summary.",
             ...summary,
@@ -326,7 +339,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "get_preview_image",
       description:
-        "See what the potter sees: a compact JPEG snapshot of the live 3D preview, deliberately small so it costs little context. Use it to visually confirm a change. If the canvas can't be captured here, a text description is returned instead. Read-only.",
+        "See what the potter sees: a compact JPEG of the live 3D preview, small enough to cost little context. Use it to confirm a change visually. If the canvas can't be captured, a text description is returned instead. Read-only.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "See the 3D preview",
       annotations: { title: "See the 3D preview", readOnlyHint: true },
@@ -355,22 +368,16 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "export_templates",
       description:
-        "Export the printable template as a multi-page PDF and download it in the potter's browser — remind them to print at 100% scale and check the calibration ruler on page 1. Pages tile the true-scale template with 10 mm glue overlaps. Optionally set paperSize ('A4', 'A3', or 'Letter') first. Returns the page count and the full new state." +
+        "Export the printable template as a multi-page PDF, downloaded in the potter's browser — remind them to print at 100% scale and check the calibration ruler on page 1. Pages tile the true-scale template with 10 mm glue overlaps. Optionally set paperSize first. Returns the page count and the full new state." +
         LINK_RULE,
-      inputSchema: toInputSchema(
-        z.object({
-          paperSize: z.enum(["A4", "A3", "Letter"]).optional().describe("Paper size for the printout"),
-        })
-      ),
+      inputSchema: toInputSchema(exportTemplatesInput),
       title: "Export printable PDF",
       annotations: { title: "Export printable PDF" },
       execute: async (input, options) => {
         if (options?.signal?.aborted) return cancelledResult()
         useProjectStore.getState().recordAgentCall("export_templates")
         try {
-          const { paperSize } = z
-            .object({ paperSize: z.enum(["A4", "A3", "Letter"]).optional() })
-            .parse(input ?? {})
+          const { paperSize } = exportTemplatesInput.parse(input ?? {})
           if (paperSize) useProjectStore.getState().setPaperSize(paperSize)
           // last safe point: past here the PDF generates and downloads
           if (options?.signal?.aborted) return cancelledResult()
@@ -400,19 +407,13 @@ export function buildTools(): ToolDescriptor[] {
     },
     {
       name: "apply_preset",
-      description: `Start from a known-good preset design. Available presets: ${Object.keys(PRESETS).join(", ")}. Overwrites the current form and clay settings (undo_last_change reverts it). Returns the full new state.` + LINK_RULE,
-      inputSchema: toInputSchema(
-        z.object({
-          preset: z.enum(Object.keys(PRESETS) as [string, ...string[]]).describe("Preset id"),
-        })
-      ),
+      description: "Start from a known-good preset (the enum lists them). Overwrites the current form and clay settings (undo_last_change reverts it). Returns the full new state." + LINK_RULE,
+      inputSchema: toInputSchema(applyPresetInput),
       title: "Apply a preset",
       annotations: { title: "Apply a preset" },
       execute: (input, options) =>
         run("apply_preset", options, () => {
-          const { preset } = z
-            .object({ preset: z.enum(Object.keys(PRESETS) as [string, ...string[]]) })
-            .parse(input ?? {})
+          const { preset } = applyPresetInput.parse(input ?? {})
           useProjectStore.getState().applyPreset(preset as keyof typeof PRESETS)
           return stateResult(`Preset '${preset}' applied.`)
         }),
@@ -420,7 +421,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "create_live_handoff",
       description:
-        "Create a fresh, single-use link that lets the potter continue this exact design in the same live session on another screen — edits then flow both ways, and their changes show in your next read. This is the DEFAULT link tool: call it immediately before returning any Unfolded link — after creating, editing, previewing, or opening a design, and for 'send me the link', 'show me', 'open it', or 'continue in the browser'. Return liveHandoffUrl verbatim: never the current page or address-bar URL, a previously returned link, or a reconstructed one. Skip it only when the potter explicitly asks for a permanent, bookmarkable, printable, or independent-copy link (that is designUrl). The invitation expires after 15 minutes and works once. On failure no link exists: retry once, then offer start_pairing.",
+        "Create a fresh, single-use link that continues this exact design in the same live session on another screen — edits then flow both ways and show in your next read. This is the DEFAULT link tool: call it immediately before returning any Unfolded link — after creating, editing, previewing, or opening a design, and for 'send me the link', 'show me', 'open it', or 'continue in the browser'. Return liveHandoffUrl verbatim: never the current page or address-bar URL, an earlier link, or a reconstructed one. Skip it only when the potter explicitly asks for a permanent, bookmarkable, printable, or independent-copy link (that is designUrl). Expires after 15 minutes and works once. On failure no link exists: retry once, then offer start_pairing.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Create live handoff link",
       annotations: { title: "Create live handoff link" },
@@ -435,39 +436,40 @@ export function buildTools(): ToolDescriptor[] {
             // fail closed — no fallback URL of any kind (spec §7)
             return linklessError(
               "A live handoff link could not be created because the pairing service is unavailable. " +
-                "No link was generated. Retry once, or use start_pairing to create a six-character code."
+                "No link was generated. Retry once; if it still fails, don't give up on pairing — ask the potter for " +
+                "their own six-character code instead (it's in their connection button, top right, two dots → " +
+                "Continue on another screen — the code is shown there, tap to copy) and call join_session with it. " +
+                "Or use start_pairing to mint one from this tab."
             )
           }
-          return textResult(JSON.stringify(handoff, null, 2), false, {
+          return textResult(JSON.stringify(handoff), false, {
             ok: true,
             message: "Live handoff link created — return liveHandoffUrl verbatim.",
             ...handoff,
           })
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
-          return linklessError(`A live handoff link could not be created (${message}). No link was generated. Retry once, or use start_pairing.`)
+          return linklessError(
+            `A live handoff link could not be created (${message}). No link was generated. Retry once; if it still ` +
+              "fails, ask the potter for their own six-character code instead (connection button, top right, two dots " +
+              "→ Continue on another screen — tap the code to copy it) and call join_session with it, or use " +
+              "start_pairing to mint one from this tab."
+          )
         }
       },
     },
     {
       name: "join_session",
       description:
-        "Pair this tab into a live cross-device session using the 6-character code from the potter's OTHER device, e.g. 'K7F-3QP'. This tab adopts that session's design (one undo step brings the previous one back); afterwards every edit on any device syncs live within about a second. Codes expire in 15 minutes and work once — on failure ask for a fresh one. Returns the full state after joining.",
-      inputSchema: toInputSchema(
-        z.object({
-          code: z
-            .string()
-            .min(1)
-            .describe("6-character code from the potter's other device, e.g. 'K7F-3QP' (case/dashes ignored)"),
-        })
-      ),
+        "Pair this tab into a live session with the 6-character code from the potter's OTHER device, e.g. 'K7F-3QP'. This tab adopts that session's design (one undo step brings the previous one back); afterwards every edit on any device syncs within about a second. Codes expire in 15 minutes and work once — on failure ask for a fresh one. Returns the full state after joining.",
+      inputSchema: toInputSchema(joinSessionInput),
       title: "Join live session",
       annotations: { title: "Join live session" },
       execute: async (input, options) => {
         if (options?.signal?.aborted) return cancelledResult()
         useProjectStore.getState().recordAgentCall("join_session")
         try {
-          const { code: raw } = z.object({ code: z.string().min(1) }).parse(input ?? {})
+          const { code: raw } = joinSessionInput.parse(input ?? {})
           const code = raw.toUpperCase().replace(/[^A-Z0-9]/g, "")
           if (!PAIR_CODE_RE.test(code)) {
             return stateError(
@@ -505,7 +507,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "start_pairing",
       description:
-        "Mint a 6-character pairing code for THIS tab's live session and tell it to the potter. Entered on their other device (connection button → Continue on another screen), that device then FOLLOWS this design — use this when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop'. Valid 15 minutes, one use; both devices stay live peers afterwards. Returns the full state.",
+        "Mint a 6-character pairing code for THIS tab's session and tell it to the potter — also mint and give them a liveHandoffUrl link that does the same thing in one tap. Entered on their other device (connection button → Continue on another screen), or opened as a link, that device then FOLLOWS this design — use it when the work lives here and the potter wants it on another screen, e.g. 'put this on my desktop', 'pair from here'. Valid 15 minutes, one use; both devices stay live peers. Returns the full state.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Start device pairing",
       annotations: { title: "Start device pairing" },
@@ -513,9 +515,13 @@ export function buildTools(): ToolDescriptor[] {
         if (options?.signal?.aborted) return cancelledResult()
         useProjectStore.getState().recordAgentCall("start_pairing")
         try {
-          const minted = await liveSync.mintCode()
-          // a cancel that lands mid-mint: the unused code simply expires
-          // and the never-peered session forgets itself (solo grace)
+          // the code and the link are two independent mints for the same
+          // session — always attempt both together (the in-app "Continue
+          // on another screen" dialog does the same), so the potter never
+          // gets the code alone when a tappable link was also possible
+          const [minted, handoff] = await Promise.all([liveSync.mintCode(), createLiveHandoff()])
+          // a cancel that lands mid-mint: the unused code/token simply
+          // expires and the never-peered session forgets itself (solo grace)
           if (options?.signal?.aborted) return cancelledResult()
           if (!minted) {
             return stateError(
@@ -524,10 +530,19 @@ export function buildTools(): ToolDescriptor[] {
               "Current state"
             )
           }
-          return stateResult(
+          const message =
             `Pairing code: ${prettyCode(minted.code)} — valid 15 minutes, one use. ` +
-              "On the other device: the connection button (two dots in the header) → Continue on another screen → enter this code. " +
-              "That device will adopt this design; afterwards edits sync both ways."
+            "On the other device: the connection button (two dots in the header) → Continue on another screen → " +
+            "Enter a code from another screen → type this code." +
+            (handoff
+              ? ` Or, faster, send them this link and one tap does the same thing: ${handoff.liveHandoffUrl}`
+              : "") +
+            " That device will adopt this design; afterwards edits sync both ways."
+          const state = describeState()
+          return textResult(
+            stateText(message, state),
+            false,
+            structured(true, message, state, handoff ? { liveHandoffUrl: handoff.liveHandoffUrl } : undefined)
           )
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
@@ -538,7 +553,7 @@ export function buildTools(): ToolDescriptor[] {
     {
       name: "undo_last_change",
       description:
-        "Undo the most recent change to the design (form, clay, or paper size) — whether it was made by you or by the potter in the UI. Rapid consecutive changes (like a slider drag, or opening a link) count as one step; up to 50 steps are kept. Returns the full state after undoing." + LINK_RULE,
+        "Undo the most recent change to the design (form, clay, or paper size), whether made by you or by the potter in the UI. Rapid consecutive changes (a slider drag, opening a link) count as one step; 50 steps are kept. Returns the full state after undoing." + LINK_RULE,
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       title: "Undo last change",
       annotations: { title: "Undo last change" },

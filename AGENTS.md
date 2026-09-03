@@ -21,7 +21,7 @@ package. Review this inventory on every profiler change:
 - `src/pages/WebMCPPage.tsx` (profiler copy and links)
 - `e2e/run.mjs` (uses `FAKE_HOST_INIT_SCRIPT`; the profiler checks)
 - `e2e/perf.mjs` and `e2e/perf.cases.json` (the bench wrapper and its cases)
-- `README.md` (profiler section; the docs guard caps the README at 2,800 words)
+- `README.md` (profiler section; the docs guard caps the README at 1,800 words — it runs close to the cap, so new prose has to pay for itself)
 - `docs/performance-report.md` (numbers and claims)
 - `.github/workflows/publish-profiler.yml` and `deploy.yml`
 - `docs/webmcp-profiler-spec.md` §12 (what has landed)
@@ -33,9 +33,21 @@ npm test --workspace webmcp-profiler                          # fast loop
 npm run lint && npm test && npm run build && npm run e2e      # the gate, always before pushing
 npm run build -w webmcp-profiler && npm run docs -w webmcp-profiler   # regenerate README blocks and llms.txt
 npm run live -- https://tryunfolded.com                       # health sweep of a deployment (routes, errors, tools, profiler, demo)
+CHROME_PATH=… npm run live:native -- https://tryunfolded.com   # the same site through a REAL host: Chrome 152+ with WebMCPTesting, driven over DevTools
+npm run diagrams                                              # re-render public/diagrams/*.svg from docs/diagrams/*.d2
 ```
 
 The package's own tests are a subset of the root run, never a substitute.
+
+`npm run diagrams` needs **d2 v0.8.2** — the version the committed SVGs
+were rendered with, and the one that reproduces them byte for byte. Any
+other version rewrites all three files with layout noise that buries the
+change you meant to make, so install that version rather than the latest:
+`curl -fsSL https://github.com/terrastruct/d2/releases/download/v0.8.2/d2-v0.8.2-linux-amd64.tar.gz | tar xz`.
+Edit the `.d2` source and re-render — never hand-edit an SVG, whose class
+names are content hashes. A diagram carrying a tool count or a tool name
+is documentation and goes stale like any other; check them when the tool
+surface moves.
 
 ## Rules that tests enforce
 

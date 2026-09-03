@@ -59,6 +59,15 @@ one-sentence link rule it adds to every editing tool
 baseline. The budget test moved with it, from 9,800 to 11,000 chars, so
 it keeps catching quiet regrowth without failing the deliberate one.
 
+*Update, after the native-host measurement (§1.2):* the schema-weight
+trim. Property descriptions that restated their own JSON-schema bounds
+and enums, and tool descriptions that restated their schemas, were cut;
+every phrase the prompt suite protects survived unchanged. Discovery
+metadata is now **9,029 chars (~2,260 tokens)**, down 13.8% from 10,474,
+and the budget test follows it down to 9,500. `update_form`, the
+heaviest descriptor, went from 2,114 to 1,652 bytes; what remains there
+is the seven properties' types and bounds, which are the accuracy.
+
 **Verdict: the tool harness is not slow.** Every page-side number is two
 to three orders of magnitude below one model round trip. The recurring
 costs an agent conversation actually pays are metadata (~2.3 K tokens
@@ -93,10 +102,87 @@ get_preview_image           15     1.2     1.5     5.2     5.2         7378     
 The `schema-bytes` column is new in 0.2: the descriptor bytes the host
 ships for that tool in every conversation (UTF-8, from
 `ledger.tools[name].schemaBytes`). `update_form` carries the heaviest
-schema on the surface; the whole 15-tool surface is about 12 KB, the
-`get_perf_report` tool included while profiling is armed. Byte columns
+schema on the surface (1,652 bytes after the trim above; 2,114 in this
+table); the whole 15-tool surface is about 11 KB, the `get_perf_report`
+tool included while profiling is armed. Every tool count in this section
+is the surface as measured on that run — the merge into `update_design`
+has since taken it to eleven, twelve with the profiler's own tool. Byte columns
 across this report are UTF-8 from 0.2 on (0.1 counted UTF-16 units;
 the difference is nil for these ASCII payloads).
+
+### 1.2 · Through a real host: Chrome 152 native WebMCP (`npm run live:native`)
+
+The bench above talks to the page through the package's fake host, so it
+measures the page's side only. `e2e/native-host.mjs` measures the other
+side: Chrome for Testing 152 with `--enable-features=WebMCPTesting`
+exposes a native `document.modelContext`, and its DevTools `WebMCP`
+domain lets the script act as the agent host (`invokeTool` →
+`toolResponded`). Production, sandbox Linux headless, 20 runs per tool.
+"host" is the round trip as the host sees it; "page" is what the
+profiler inside the page recorded for the same calls.
+
+```
+tool                    runs   host p50    host p95    page p50    page p95   host overhead p50
+describe_project          20     282.8 ms    321.6 ms       0.7 ms      1.4 ms      282.1 ms
+get_preview_image         20     284.2 ms    291.0 ms       5.4 ms      7.0 ms      278.8 ms
+```
+
+`get_perf_report` read back through the host: 272 ms for 3,161 bytes
+(tools view). The ledger seen from the page: host on `document`, 15
+tools, 12,571 schema bytes, package 0.2.2.
+
+Reading: the page's compute is unchanged from the fake-host bench, and
+Chrome's host path adds a flat ~280 ms per invocation in this build,
+independent of the tool's own cost or result size. That fixed cost is
+the browser's (invocation plumbing between the DevTools client, the
+renderer and the page), not the site's, so the actionable lever for an
+agent conversation is the number of round trips, not the per-call
+compute. The number should be re-measured on each Chrome release; the
+script prints it in one line.
+
+### 1.3 · After the tool-performance spec (`docs/webmcp-tool-performance-spec.md`)
+
+The spec's §4–§8 landed together. Same bench as §1.1 (sandbox
+Chromium, production bundle, the package's fake host, 40 runs per case,
+15 for the image):
+
+```
+tool                              runs   min     p50     p95     max     result-bytes  schema-bytes
+describe_project                    40     0.1     0.4     1.3     2.1         1270         1431
+get_template_summary                40     0.1     0.3     0.5     1.0         1262          423
+update_design (height)              40     3.5     5.2     9.8    13.7         1293         2628
+update_design (type flip)           40     0.9     5.2     8.1    10.8         1397         2628
+update_design (clay)                40     2.1     2.4     4.7     5.3         1401         2628
+update_design (capacity)            40     2.3     2.9     5.6     5.7         1491         2628
+update_design (units)               40     0.8     3.5     7.6     9.8         1429         2628
+update_design (form+clay+units)     40     2.8     3.3     4.8     5.9         1449         2628
+apply_preset                        40     3.1     3.7     5.5     6.1         1309          540
+undo_last_change                    40     2.5     2.9     4.4     4.7         1405          536
+open_model                          40     2.1     2.3     4.0     4.1         1297          740
+get_preview_image                   15     1.5     1.7     6.2     6.2         7378          438
+```
+
+What changed, and what it bought:
+
+| | before | after |
+| --- | --- | --- |
+| tools registered (plus `get_perf_report` while armed) | 14 | **11** — `update_form`, `set_clay`, `set_units`, `set_capacity` merged into `update_design` (§4) |
+| *"hexagonal planter, 13% shrinkage, in inches, 350 ml"* | 3–4 sequential calls | **1 call**, one undo step; the bench's combined case runs in 3.3 ms p50 |
+| discovery metadata (the budget test's measure) | 9,029 chars | **8,912 chars** (~2,230 tokens); budget 9,350. `describe_project` grew by ~700 chars for the fresh-session offer (§6.2) and the merged tool weighs 2,559 against the four's 3,526 |
+| `describe_project` envelope (text + `structuredContent`) | 1,438 B | **1,094 B** (−24%): compact text, `linkMode` / `liveHandoffTool` dropped, `session {paired, peers}` added — contract `tool-result/2` (§5) |
+| `update_design` envelope | 1,499 B (`update_form`) | **1,110 B** |
+| host discovery after a late injection | up to 3 s (1.5 s average), never while hidden | **≤ 500 ms while visible, ≤ 3 s while hidden**, no visibility event needed (§7); the e2e suite's hidden-tab case registers the full set in under 6 s from injection with no event at all |
+| registration of the set | 14 sequential awaits | **one parallel set** — the unit test's 14-tool host at 20 ms per registration finishes in one delay |
+| `/assets/*` in the browser | `max-age=0, must-revalidate` (every chunk revalidated on every load) | **`public, max-age=31556952, immutable`** via `public/_headers` (§8); the HTML entry still revalidates. Checked by `e2e/worker-smoke.mjs` and `e2e/live.mjs` |
+| a fresh ChatGPT session | offered only the pairing code | the snapshot's `session.paired` is a fact, and `describe_project` tells the agent to offer the `create_live_handoff` link as "Open a paired browser session with this chat" first, the code second — both of them, even when the link fails, and naming where the code is found (§6.2 and its amendment) |
+
+The per-call page compute is unchanged (mutations 2–5 ms p50 including
+React's re-render and the lathe rebuild). Against the ~280 ms the native
+host adds per invocation (§1.2) and the model's own turn, the round-trip
+reductions are what the potter feels; the byte reductions are what the
+model reads less of, on every call. Reads are 0.4 ms p50 with the new
+`session` field: `liveSync.isPaired()` is a storage read, `peers()` a
+number.
 
 ## 2 · Boot and load
 
@@ -115,9 +201,19 @@ pipeline 158 KB (first export only) and the 3D stack 251 KB. The shell
 paints and registers tools long before the 3D chunk arrives; a browser
 with no GPU never downloads GPU code.
 
+*Repeat visits:* until the tool-performance spec §8 landed, every file
+under `/assets/` was served with `Cache-Control: public, max-age=0,
+must-revalidate` (the Workers static-assets default), so a return visit —
+and every fresh tab ChatGPT's agent browser opens — revalidated the shell,
+the store chunk, the 3D chunk and the PDF chunk with the edge before
+using them. `public/_headers` now marks `/assets/*` immutable for a year
+(the names are content hashes); only the HTML entry revalidates.
+
 Reading: the app shell is fast even throttled — an agent in a fresh
-ChatGPT tab has all 14 tools well under half a second of CPU time (the
-run measured 13; the fourteenth adds ~1 KB of metadata, no code path). The
+ChatGPT tab had all 14 tools of the surface as it then stood (the four
+`update_*`/`set_*` tools have since merged into `update_design`, leaving
+eleven) well under half a second of CPU time (the run measured 13; the
+fourteenth adds ~1 KB of metadata, no code path). The
 2 s LCP on the throttled run is the pot itself appearing, which is the
 inherent price of a real-time 3D preview arriving lazily; the page is
 interactive (sliders, templates, tools) long before.
@@ -179,7 +275,7 @@ memory behavior on mobile Safari.
    chunks; no GPU work is preloaded on browsers that can't use it; the
    preview payload is 19× lighter than its first version.
 
-## 7 · Structured results — contract `tool-result/1`
+## 7 · Structured results — contract `tool-result/2`
 
 Done additively. Every tool result keeps its
 MCP-style `content` array and `isError` flag byte-for-byte — the envelope
@@ -193,14 +289,18 @@ convention (`structuredContent` next to `content`), which is also what
 MCP-B's published types expose; a host that ignores the field loses
 nothing, and one that prefers structured data has it without parsing text.
 
-The contract, versioned `tool-result/1` (`TOOL_RESULT_CONTRACT` in
-`src/mcp/modelContext.ts`):
+The contract, versioned `tool-result/2` (`TOOL_RESULT_CONTRACT` in
+`src/mcp/modelContext.ts`; `/1` differed only in the text half being
+pretty-printed and the snapshot carrying two constant fields,
+`linkMode` and `liveHandoffTool`, retired by the tool-performance spec
+§5 — `session {paired, peers}` arrived in the same bump):
 
 | tool(s) | `structuredContent` |
 | --- | --- |
-| describe_project, open_model, update_form, set_clay, set_units, set_capacity, apply_preset, join_session, start_pairing, undo_last_change | `{ ok, message, state, warnings? }` — `state` is the same `describeState()` snapshot the text serializes (pretty-printed there, compact here); `warnings` only when the design has any |
+| describe_project, open_model, update_design, apply_preset, join_session, start_pairing, undo_last_change | `{ ok, message, state, warnings? }` — `state` is the same `describeState()` snapshot the text serializes (compact JSON in both from `/2` on: form, clay, paperSize, units, designUrl, capacityMl, pieces, printedPages, warnings, session); `warnings` only when the design has any |
+| start_pairing, additionally | `liveHandoffUrl` beside `state` when its link minted (live-handoff-link-spec §8.3): one call answers with the spoken code and the tappable link. The code alone when the token mint failed — that costs the link, not the pairing |
 | any of the above on failure (validation, failed join, nothing to undo, no pairing service) | `{ ok: false, message, state }` — the unchanged state |
-| create_live_handoff | the handoff object (`liveHandoffUrl`, `designUrl`, `expiresAt`, `expiresInSeconds`, `singleUse`, `instruction`) plus `ok`/`message`; fail-closed: `{ ok: false, message, state }` with no URL field |
+| create_live_handoff | the handoff object (`liveHandoffUrl`, `designUrl`, `expiresAt`, `expiresInSeconds`, `singleUse`, `instruction`) plus `ok`/`message`. A cold mint is retried once inside the tool (§9.1 of that spec) before it reports failure; fail-closed then means exactly `{ ok: false, message }` — no `state`, because a snapshot would smuggle `designUrl` back into a linkless result |
 | get_template_summary | the template summary object plus `ok`/`message` |
 | get_preview_image | image content unchanged; `{ ok, message, summary }` |
 | export_templates | `{ ok, message, pages, paper, rows, cols, state, warnings? }` — the export's own numbers plus the same `state` snapshot as the mutations (paper size is design state, and the text carries the same pretty-printed JSON after the message) |
@@ -214,17 +314,19 @@ discovery-metadata budget test is unchanged and green).
 
 Payload bytes (classic-mug design, measured by the test's last case):
 
-| tool | text content (pretty JSON) | `structuredContent` (compact) | `state` alone | envelope total |
-| --- | --- | --- | --- | --- |
-| describe_project | 673 B | 603 B | 555 B | 1,276 B |
-| update_form | 687 B | 601 B | 555 B | 1,288 B |
+| tool | contract | text content | `structuredContent` | `state` alone | envelope total |
+| --- | --- | --- | --- | --- | --- |
+| describe_project | `/1` (pretty text) | 673 B | 603 B | 555 B | 1,276 B |
+| update_form | `/1` (pretty text) | 687 B | 601 B | 555 B | 1,288 B |
+| describe_project | `/2` (compact) | 523 B | 571 B | 523 B | **1,094 B** |
+| update_design | `/2` (compact) | 539 B | 571 B | 523 B | **1,110 B** |
 
-Reading: the structured half is ~10% smaller than the text it mirrors
-(compact JSON versus 2-space pretty-printing), so carrying both roughly
-doubles a ~700 B result to ~1.3 KB — about 150 extra tokens per call on a
-host that serializes the whole result, still an order of magnitude under
-the 7 KB preview image and negligible against a model round trip. When
-the text half is retired (after structured results are verified in
-ChatGPT and Chrome), results get ~10% cheaper than today's text alone.
-Until then the duplication is the price of not touching the one path
-known to work.
+Reading: under `/1` carrying both halves roughly doubled a ~700 B result
+to ~1.3 KB; `/2` compacts the text and drops the constants, so both
+halves are now the same ~520 B object and the envelope is ~1.1 KB — about
+270 tokens per call on a host that serializes the whole result, still an
+order of magnitude under the 7 KB preview image. When the text half is
+retired (after structured results are verified in ChatGPT and Chrome —
+the post-launch review in docs/webmcp-tool-performance-spec.md §9),
+results halve again. Until then the duplication is the price of not
+touching the one path known to work.

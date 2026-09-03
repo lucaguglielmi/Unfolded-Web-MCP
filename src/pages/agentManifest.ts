@@ -4,8 +4,7 @@ import { buildTools } from "@/mcp/tools"
 import {
   claySettingsSchema,
   formParamsSchema,
-  setClayInputSchema,
-  updateFormInputSchema,
+  updateDesignInputSchema,
   DEFAULT_CLAY,
   PRESETS,
 } from "@/lib/model/schemas"
@@ -57,11 +56,12 @@ export function buildAgentManifest(): Record<string, unknown> {
       invariants: [
         "all tool I/O lengths are millimeters of the FIRED piece; volumes are milliliters",
         "templates are wet-clay sizes: every dimension is scaled by 1/(1 - shrinkagePct/100)",
-        "round walls develop on the slab mid-surface: radius used is r_outer - wallThicknessMm/2",
+        "wallThicknessMm is the WET slab as rolled (the only non-fired input); templates subtract it from wet outer sizes, the interior subtracts the fired wall wallThicknessMm*(1 - shrinkagePct/100) from fired outer sizes",
+        "round walls develop on the slab mid-surface: radius used is wet r_outer - wallThicknessMm/2",
         "faceted walls are flat panels cut to the outer face; the corner miter absorbs thickness",
         "straight forms mirror topDiameterMm = bottomDiameterMm; turning taper on without an explicit top flares it to min(300, round(bottom * 1.4))",
-        "interior capacity is linear in heightMm at fixed diameters — set_capacity solves it exactly, never iterate",
-        "every mutating tool returns the full new state (form, clay, paperSize, units, capacityMl, pieces, printedPages, warnings, designUrl) — snapshots are pure and never spend a live token",
+        "interior capacity is linear in heightMm at fixed diameters — update_design with capacityMl solves it exactly (after any diameters or clay in the same call apply), never iterate",
+        "every mutating tool returns the full new state (form, clay, paperSize, units, capacityMl, pieces, printedPages, warnings, designUrl, session) — snapshots are pure and never spend a live token; session.paired false means a fresh tab: offer the create_live_handoff link ('Open a paired browser session with this chat') first, the six-character code second",
         "designUrl is a permanent permalink (independent copy, no session); liveHandoffUrl exists only as create_live_handoff output and is the default link to hand the potter after any edit",
         "invalid input returns isError text with per-field issues AND the unchanged state",
         `every result also carries structuredContent (contract ${TOOL_RESULT_CONTRACT}): ok mirrors !isError, message opens the text, and state — when present — deep-equals the JSON the text serializes`,
@@ -80,14 +80,14 @@ export function buildAgentManifest(): Record<string, unknown> {
       invariants: [
         "structuredContent.ok === !isError",
         "structuredContent.message is the sentence the text content opens with",
-        "structuredContent.state, when present, deep-equals the pretty-printed JSON in the text",
+        "structuredContent.state, when present, deep-equals the JSON in the text (compact from tool-result/2 on)",
       ],
       shapes: {
-        stateReporting: "describe_project, open_model, update_form, set_clay, set_units, set_capacity, apply_preset, join_session, start_pairing, undo_last_change → { ok, message, state, warnings? }; on failure (validation, failed join, nothing to undo, no pairing service) { ok: false, message, state } with the unchanged state",
+        stateReporting: "describe_project, open_model, update_design, apply_preset, join_session, start_pairing, undo_last_change → { ok, message, state, warnings? }; state carries form, clay, paperSize, units, designUrl, capacityMl, pieces, printedPages, warnings, session {paired, peers}; start_pairing adds liveHandoffUrl beside them when its link minted (the code alone when it did not); on failure (validation, failed join, nothing to undo, no pairing service) { ok: false, message, state } with the unchanged state",
         create_live_handoff: "{ ok, message, liveHandoffUrl, designUrl, expiresAt, expiresInSeconds, singleUse, instruction }; fail-closed: { ok: false, message, state } with no URL field",
         get_template_summary: "{ ok, message, ...template summary }",
         get_preview_image: "image content unchanged; { ok, message, summary }",
-        export_templates: "{ ok, message, pages, paper, rows, cols }",
+        export_templates: "{ ok, message, pages, paper, rows, cols, state, warnings? }",
         cancelled: "any tool aborted by the host's signal → { ok: false, message }",
       },
     },
@@ -95,8 +95,7 @@ export function buildAgentManifest(): Record<string, unknown> {
     dataModel: {
       formParams: z.toJSONSchema(formParamsSchema),
       claySettings: z.toJSONSchema(claySettingsSchema),
-      updateFormInput: z.toJSONSchema(updateFormInputSchema),
-      setClayInput: z.toJSONSchema(setClayInputSchema),
+      updateDesignInput: z.toJSONSchema(updateDesignInputSchema),
       presets: PRESETS,
       defaults: { form: "presets['classic-mug']", clay: DEFAULT_CLAY, paperSize: "A4", unit: "cm" },
       papers: PAPERS,
@@ -123,7 +122,7 @@ export function buildAgentManifest(): Record<string, unknown> {
     },
     liveSync: {
       summary:
-        "optional cross-device session: any paired tab's edits reach all peers in ~1s. Pairing is by 6-character code (join_session / start_pairing tools, or the Continue dialog behind the header's connection button). Rule: the device that ENTERS a code adopts the minting session's design (one undo step). After joining, no device is special.",
+        "optional cross-device session: any paired tab's edits reach all peers in ~1s. Pairing is by 6-character code or by single-use link, and both tools serve both: start_pairing mints a code AND a liveHandoffUrl for this session, create_live_handoff mints the link alone; the Continue dialog behind the header's connection button shows the same pair (QR + link + code) to the human. A code or live link in the clipboard also raises a one-tap join offer in the app (src/lib/pairingOffer.ts). Rule: the device that ENTERS a code or OPENS a link adopts the minting session's design (one undo step). After joining, no device is special.",
       pairingCode: {
         alphabet: CODE_ALPHABET,
         length: CODE_LENGTH,
@@ -134,7 +133,7 @@ export function buildAgentManifest(): Record<string, unknown> {
         miss: "unknown, expired, and already-used codes are indistinguishable by design",
       },
       joinToken: {
-        what: "the URL-borne sibling of a code, minted on demand by create_live_handoff: liveHandoffUrl carries ?join=<single-use token> — the tab that opens it silently follows YOUR session (both ways) and strips the parameter. Call the tool right before replying with a link and return liveHandoffUrl verbatim; a failed mint yields no link (retry once, then start_pairing).",
+        what: "the URL-borne sibling of a code, minted on demand by create_live_handoff (and alongside the code by start_pairing): liveHandoffUrl carries ?join=<single-use token> — the tab that opens it silently follows YOUR session (both ways) and strips the parameter. Call the tool right before replying with a link and return liveHandoffUrl verbatim. A mint that lost its race with a cold session socket is retried inside the tool, so a reported failure is already the second attempt: yield no link, and offer the potter's own six-character code (join_session) instead.",
         regex: "^[A-Za-z0-9_-]{20,64}$",
         ttlMs: TOKEN_TTL_MS,
         singleUse: true,
@@ -173,7 +172,7 @@ export function buildAgentManifest(): Record<string, unknown> {
     profiler: describeProfiler({}, "get_perf_report"),
     profilerNotes: {
       howToProfileYourself:
-        "open_model any URL of this site with ?perf=1 (persists for the tab's origin, survives the app rewriting its URL), work normally, then call get_perf_report — it is registered as the fifteenth tool while profiling is armed. Start with view=summary; ask for spans only when you need individual calls.",
+        "open_model any URL of this site with ?perf=1 (persists for the tab's origin, survives the app rewriting its URL), work normally, then call get_perf_report — it is registered as the twelfth tool while profiling is armed. Start with view=summary; ask for spans only when you need individual calls.",
       knownFindings: [
         "every tool here executes in single-digit milliseconds (p50 <= 5 ms) — perceived latency is host/model round-trip time, not page compute",
         "get_preview_image returns a deliberately compact 320px JPEG (~7 KB, ~1.7K tokens); it was a 480px PNG (~130 KB, ~32K tokens) before profiling flagged it",

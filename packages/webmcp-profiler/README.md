@@ -9,6 +9,9 @@ tool surfaces. One import, zero dependencies, no framework: it wraps whatever
 `modelContext` registry a host injects, however late, and measures every tool
 call the page serves. It also lets the *agent* read the numbers, through a tool.
 
+**[Open the visual guide →](https://tryunfolded.com/webmcp-profiler/)** —
+architecture, measurements, relay, privacy, limitations, and roadmap.
+
 ## Why
 
 "WebMCP is slow" is three different problems wearing one coat:
@@ -29,7 +32,7 @@ line: `schemas 9.8KB (~2.5K tok) · tools 0.3s · payloads 310KB (~78K tok) · h
 - **Hosted demo:** [tryunfolded.com/webmcp-profiler/demo/](https://tryunfolded.com/webmcp-profiler/demo/)
   installs a fake host, registers two tools, fires calls by itself, and opens the panel.
 - **On a real site:** open [tryunfolded.com/?perf=overlay](https://tryunfolded.com/?perf=overlay),
-  then paste one line in DevTools: `__unfoldedTools.set_capacity.execute({ capacityMl: 350 })`.
+  then paste one line in DevTools: `__unfoldedTools.update_design.execute({ capacityMl: 350 })`.
   The panel fills. `__webmcpPerf.summary()` prints the split.
 
 ## Install
@@ -291,7 +294,7 @@ Chrome trace-event JSON that opens in Perfetto.
 
 ```
 npx webmcp-profiler bench http://localhost:4173 --runs 40 --json bench.json
-npx webmcp-profiler bench http://localhost:4173 --cases perf.cases.json --allow-mutating update_form --budget budgets.json
+npx webmcp-profiler bench http://localhost:4173 --cases perf.cases.json --allow-mutating update_design --budget budgets.json
 npx webmcp-profiler compare base.json head.json --thresholds thresholds.json
 ```
 
@@ -323,8 +326,8 @@ The script tag, pinned and integrity-checked:
 
 <!-- gen:sri -->
 ```html
-<script src="https://cdn.jsdelivr.net/npm/webmcp-profiler@0.2.2/dist/webmcp-profiler.iife.js"
-        integrity="sha384-jmfiJxdQj8uUSBXqDwA+1HJXO1iqRhF2ZtjYpz1KurkCFBx36DMmX2jhFyLYklDr" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/webmcp-profiler@0.2.4/dist/webmcp-profiler.iife.js"
+        integrity="sha384-KfuwO+0asTor+ghQmttyA9zpgqMb+UJ4o5ZH7QyvClcXnWpGd8CtwY8hccPF46zQ" crossorigin="anonymous"></script>
 ```
 <!-- /gen:sri -->
 
@@ -361,6 +364,7 @@ on the server and the real one in the browser.
 | host | `modelContext` on | verified | package |
 | --- | --- | --- | --- |
 | the fake host (`webmcp-profiler/testing`) | document, navigator, or window | every unit and end-to-end test | 0.2.0 |
+| Chrome 152 (Chrome for Testing) with `--enable-features=WebMCPTesting` | document | `e2e/native-host.mjs` in this repo drives tryunfolded.com through Chrome's own host over DevTools: the site's tools plus `get_perf_report` invoked and read back | 0.2.2 |
 | Chrome / Edge origin trial | document | not yet verified by the maintainers; rows are added with evidence only | |
 | ChatGPT desktop | document (late injection) | not yet verified | |
 

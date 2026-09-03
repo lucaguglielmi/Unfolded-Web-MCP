@@ -27,26 +27,48 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
   {
     prompt: "What am I designing right now?",
     tool: "describe_project",
-    mustMention: ["call this first", "designurl", "capacityml"],
+    mustMention: ["what am i designing", "depends on what is there now", "designurl", "capacityml"],
+  },
+  {
+    // docs/webmcp-tool-performance-spec.md §6.2 and its amendment: a fresh
+    // session is offered the paired-browser link first and the spoken code
+    // second — but BOTH, even when the link fails, and the code's place in
+    // the UI is named so "send me a code" isn't a puzzle
+    prompt: "Connect to tryunfolded.com",
+    tool: "describe_project",
+    mustMention: [
+      "session.paired",
+      "paired browser session",
+      "create_live_handoff",
+      "six-character",
+      "continue on another screen",
+      "even if (1) fails",
+    ],
   },
   {
     prompt: "Make it hold about 350 ml.",
-    tool: "set_capacity",
-    mustMention: ["milliliters", "solves the exact height"],
+    tool: "update_design",
+    mustMention: ["milliliters", "solves the exact height", "never iterate"],
   },
   {
     prompt: "My stoneware shrinks 13% — adjust my templates.",
-    tool: "set_clay",
+    tool: "update_design",
     mustMention: ["shrinkage"],
   },
   {
     prompt: "Make it a hexagonal planter, 18 cm tall.",
-    tool: "update_form",
+    tool: "update_design",
     mustMention: ["hexagon", "fired", "millimeters"],
   },
   {
+    // §6.1: an absolute edit needs no read first
+    prompt: "Make it 12 cm tall.",
+    tool: "update_design",
+    mustMention: ["one call", "one undo step", "full new state"],
+  },
+  {
     prompt: "Switch to inches.",
-    tool: "set_units",
+    tool: "update_design",
     mustMention: ["display", "millimeters regardless"],
   },
   {
@@ -60,9 +82,12 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
     mustMention: ["code", "adopts"],
   },
   {
+    // live-handoff-link-spec §8.3's amendment: this phrasing routes here,
+    // so the LINK has to be advertised here too — a code-only answer was
+    // the bug ("pair from here" got six characters and nothing to tap)
     prompt: "Put this design on my desktop screen.",
     tool: "start_pairing",
-    mustMention: ["other device", "follows this design"],
+    mustMention: ["other device", "follows this design", "liveHandoffUrl"],
   },
   {
     prompt: "Undo that.",
@@ -101,10 +126,21 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
  * balloon. Raising this number is a deliberate decision, not a fix. History:
  * the 9.1 trim cut 11,360 → 9,128 chars under a 9,800 budget; the fourteenth
  * tool (create_live_handoff, with the one-sentence link rule on every
- * editing tool — docs/live-handoff-link-spec.md) then raised it, on
- * purpose, to the figure below — still under the pre-trim baseline.
+ * editing tool — docs/live-handoff-link-spec.md) raised it, on purpose, to
+ * 10,474 under an 11,000 budget; the schema-weight trim that followed the
+ * first native-host measurement (docs/performance-report.md §1.2) cut
+ * property descriptions that restated their own bounds and enums, and
+ * descriptions that restated their schemas, down to ~9,030 chars; the
+ * tool-performance spec then merged update_form, set_clay, set_units and
+ * set_capacity into update_design and gave describe_project the
+ * fresh-session offer (docs/webmcp-tool-performance-spec.md §4, §6),
+ * and the budget followed the measured total down again. The first live
+ * run of that offer then bought back a few hundred chars, deliberately:
+ * describe_project names where the code lives and says to offer both ways
+ * in even when the link fails, and start_pairing advertises the link it
+ * now mints beside the code (§6.2's amendment).
  */
-const METADATA_BUDGET_CHARS = 11_000
+const METADATA_BUDGET_CHARS = 9_350
 
 describe("prompt suite — tool selection signals survive metadata trims", () => {
   const tools = buildTools()
@@ -123,17 +159,23 @@ describe("prompt suite — tool selection signals survive metadata trims", () =>
     })
   }
 
+  it("describe_project no longer asks to be called first", () => {
+    // §6.1: the sentence made agents spend a read round trip before
+    // absolute edits whose result carries the same snapshot anyway
+    expect(byName.get("describe_project")!.description.toLowerCase()).not.toContain("call this first")
+  })
+
   it("every tool that creates, edits, or opens a design carries the link rule", () => {
-    const linkTools = ["open_model", "update_form", "set_clay", "set_capacity", "set_units", "apply_preset", "undo_last_change"]
+    const linkTools = ["open_model", "update_design", "apply_preset", "undo_last_change", "export_templates"]
     for (const name of linkTools) {
       expect(byName.get(name)!.description, `${name} must route links to create_live_handoff`).toContain("create_live_handoff")
     }
   })
 
-  it("update_form defers target volumes to set_capacity", () => {
+  it("update_design routes target volumes to capacityMl, never a height loop", () => {
     // the single most valuable routing sentence: without it agents
-    // guess-loop update_form toward a volume the solver answers exactly
-    expect(byName.get("update_form")!.description).toContain("prefer set_capacity")
+    // guess-loop heightMm toward a volume the solver answers exactly
+    expect(metadataOf(byName.get("update_design")!).toLowerCase()).toContain("never iterate")
   })
 
   it("every tool that changes the design promises the full new state", () => {

@@ -1,0 +1,44 @@
+direction: down
+
+register: Tools ready
+call1: Tool A {
+  label: "Tool A\n5 ms page work"
+}
+gap1: Host + model gap {
+  label: "Host + model gap\n8.4 seconds"
+}
+call2: Tool B {
+  label: "Tool B\n7 ms page work"
+}
+gap2: Host + model gap {
+  label: "Host + model gap\n6.8 seconds"
+}
+call3: Tool C {
+  label: "Tool C\n4 ms page work"
+}
+summary: Ledger {
+  label: "Ledger\ntools 16 ms · gaps 15.2 s"
+}
+
+register -> call1: first call
+call1 -> gap1: result settled
+gap1 -> call2: next call arrives
+call2 -> gap2: result settled
+gap2 -> call3: next call arrives
+call3 -> summary: attribute ownership
+
+*.style.border-radius: 14
+register.style.fill: "#dbeafe"
+register.style.stroke: "#2563eb"
+call1.style.fill: "#d1fae5"
+call1.style.stroke: "#059669"
+call2.style.fill: "#d1fae5"
+call2.style.stroke: "#059669"
+call3.style.fill: "#d1fae5"
+call3.style.stroke: "#059669"
+gap1.style.fill: "#fef3c7"
+gap1.style.stroke: "#d97706"
+gap2.style.fill: "#fef3c7"
+gap2.style.stroke: "#d97706"
+summary.style.fill: "#ede9fe"
+summary.style.stroke: "#7c3aed"

@@ -336,10 +336,11 @@ The single source of truth for what has landed; the section markers
 above derive from this list.
 
 1. `npm run perf` (shipped) — Playwright bench of the synchronous tool
-   surface (10 of the 14 tools; `export_templates`, `create_live_handoff`,
-   `join_session`, and `start_pairing` are excluded — they download files
-   or talk to the pairing service, so their latency is network, not
-   harness), the numbers in §1.
+   surface (`export_templates`, `create_live_handoff`, `join_session`, and
+   `start_pairing` are excluded — they download files or talk to the
+   pairing service, so their latency is network, not harness; `e2e/perf.mjs`
+   states the same exclusions, and the case file is the count of record),
+   the numbers in §1.
 2. (shipped) In-page interceptor + collector + console API, live on
    tryunfolded.com behind `?perf=1` — `packages/webmcp-profiler/src`,
    consumed by the app via the `@/profiler` alias, deliberately free

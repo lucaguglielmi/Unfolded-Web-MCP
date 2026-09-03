@@ -9,36 +9,32 @@ import { z } from "zod"
 export const formTypeSchema = z
   .enum(["round", "faceted"])
   .describe(
-    "Wall geometry: 'round' = circular (cylinder; cone frustum when tapered), 'faceted' = prism with `facets` flat sides (pyramid frustum when tapered). Taper is a separate flag — any shape can be straight or tapered."
+    "'round' (a cylinder, or a cone when tapered) or 'faceted' (a prism of `facets` flat sides). Taper is the separate flag."
   )
 
 export const formParamsSchema = z.object({
   type: formTypeSchema,
   tapered: z
     .boolean()
-    .describe(
-      "True: top and bottom sizes differ and topDiameterMm applies. False: straight wall, top mirrors bottomDiameterMm."
-    ),
-  name: z.string().min(1).max(60).describe("Display name of the piece, e.g. 'Classic mug'"),
-  heightMm: z.number().min(20).max(600).describe("Fired height of the wall in millimeters"),
+    .describe("True: rim and base differ and topDiameterMm applies. False: straight wall."),
+  name: z.string().min(1).max(60).describe("Display name, e.g. 'Classic mug'"),
+  heightMm: z.number().min(20).max(600).describe("Fired height, mm"),
   topDiameterMm: z
     .number()
     .min(20)
     .max(500)
-    .describe(
-      "Fired outer size at the rim in millimeters (applies when tapered). For 'faceted' forms, measured across corners."
-    ),
+    .describe("Fired rim size, mm (when tapered); across corners for faceted"),
   bottomDiameterMm: z
     .number()
     .min(20)
     .max(500)
-    .describe("Fired outer size at the base in millimeters. For 'faceted' forms this is measured across corners (the circumscribed circle)."),
+    .describe("Fired base size, mm; across corners for faceted"),
   facets: z
     .number()
     .int()
     .min(3)
     .max(8)
-    .describe("Number of flat sides for type 'faceted' (3 = triangle, 4 = square, 5 = pentagon, 6 = hexagon, 8 = octagon). Ignored for round forms."),
+    .describe("Sides for 'faceted': 3 triangle, 4 square, 5 pentagon, 6 hexagon, 8 octagon; ignored for round"),
 })
 
 /**
@@ -64,12 +60,12 @@ export const claySettingsSchema = z.object({
     .number()
     .min(0)
     .max(25)
-    .describe("Total wet-to-fired shrinkage of the clay body in percent (stoneware is typically 10-13)"),
+    .describe("Total wet-to-fired shrinkage, percent (stoneware typically 10-13)"),
   wallThicknessMm: z
     .number()
     .min(2)
     .max(15)
-    .describe("Slab thickness in millimeters (typically 4-6 for mugs)"),
+    .describe("Wet slab thickness, mm, as rolled (typically 4-6 for mugs); shrinks with the clay"),
 })
 
 export type FormType = z.infer<typeof formTypeSchema>
@@ -78,6 +74,25 @@ export type ClaySettings = z.infer<typeof claySettingsSchema>
 
 export const updateFormInputSchema = formParamsSchema.partial()
 export const setClayInputSchema = claySettingsSchema.partial()
+
+/** the pre-taper-split `type` vocabulary normalizeLegacyFormPatch still honors */
+export const LEGACY_FORM_TYPES = ["cylinder", "tapered"] as const
+
+/**
+ * The form half of the update_design tool's advertised contract (and the
+ * base of updateDesignInputSchema below): the form patch with the
+ * legacy `type` values admitted, so a host that validates calls against
+ * the advertised schema lets them through to normalizeLegacyFormPatch —
+ * what is advertised is exactly what is accepted.
+ */
+export const updateFormToolInputSchema = updateFormInputSchema.extend({
+  type: z
+    .enum([...formTypeSchema.options, ...LEGACY_FORM_TYPES])
+    .optional()
+    .describe(
+      `${formTypeSchema.description} Legacy: 'cylinder' (round, straight), 'tapered' (round, tapered).`
+    ),
+})
 
 export type UpdateFormInput = z.infer<typeof updateFormInputSchema>
 export type SetClayInput = z.infer<typeof setClayInputSchema>
@@ -125,3 +140,31 @@ export const DEFAULT_CLAY: ClaySettings = {
   shrinkagePct: 12,
   wallThicknessMm: 5,
 }
+
+/**
+ * The update_design tool's advertised contract, declared once and used
+ * for both the JSON Schema a host reads and the parse the call runs
+ * (docs/webmcp-tool-performance-spec.md §4): the form patch with the
+ * legacy `type` values, the clay settings, the display units, the paper
+ * size, and a target capacity that stands in for heightMm. Every field
+ * optional — any subset of the design changes in one call.
+ */
+export const updateDesignInputSchema = updateFormToolInputSchema.extend({
+  shrinkagePct: claySettingsSchema.shape.shrinkagePct.optional(),
+  wallThicknessMm: claySettingsSchema.shape.wallThicknessMm.optional(),
+  units: z
+    .enum(["cm", "in"])
+    .optional()
+    .describe("Display units for the potter — display only, tool I/O stays in mm"),
+  paperSize: z.enum(["A4", "A3", "Letter"]).optional(),
+  capacityMl: z
+    .number()
+    .min(1)
+    .max(200000)
+    .optional()
+    .describe(
+      "Target capacity in ml, e.g. 350 for a mug — give this INSTEAD of heightMm and the exact height is solved in this call; never iterate"
+    ),
+})
+
+export type UpdateDesignInput = z.infer<typeof updateDesignInputSchema>

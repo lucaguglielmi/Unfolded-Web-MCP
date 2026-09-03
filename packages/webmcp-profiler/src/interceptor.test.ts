@@ -291,6 +291,34 @@ describe("startInterception with the fake host", () => {
     interception.unpatchAll()
   })
 
+  it("retains nothing for an unregistered tool and wraps it afresh on re-registration", async () => {
+    host = createFakeHost({ async: false })
+    const opts = setup()
+    const interception = startInterception(opts)
+    const registry = host.registry as { registerTool: (t: ToolLike, o?: { signal: AbortSignal }) => Promise<void>; unregisterTool: (n: string) => Promise<void> }
+    const original = async () => ({ content: [] })
+    const tool: ToolLike = { name: "a", execute: original }
+    await registry.registerTool(tool)
+    expect(tool.execute).not.toBe(original)
+    expect(opts.originals.size).toBe(1)
+    await registry.unregisterTool("a")
+    expect(tool.execute).toBe(original) // handed back untouched
+    expect(opts.originals.size).toBe(0)
+    // a site that re-creates descriptors per registration leaves nothing behind
+    for (let i = 0; i < 5; i++) {
+      const controller = new AbortController()
+      await registry.registerTool({ name: "b", execute: async () => ({}) }, { signal: controller.signal })
+      controller.abort()
+    }
+    expect(opts.originals.size).toBe(0)
+    // and the same descriptor registered again is measured again
+    await registry.registerTool(tool)
+    await tool.execute({})
+    expect(opts.collector.spans()).toHaveLength(1)
+    interception.stop()
+    interception.unpatchAll()
+  })
+
   it("legacy provideContext hosts are wrapped and clearContext empties the registry", async () => {
     host = createFakeHost({ legacy: true, location: "navigator" })
     const opts = setup()

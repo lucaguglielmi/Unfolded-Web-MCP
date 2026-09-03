@@ -133,14 +133,11 @@ export function ledgerRegister(tool: ToolLike, collector: Collector): void {
 export function instrumentTool(tool: ToolLike, opts: WrapOptions, register = true): void {
   if (!isToolLike(tool)) return
   const { collector, originals } = opts
-  if (isInternal(tool)) {
-    if (register) ledgerRegister(tool, collector)
-    return
-  }
-  const execute = tool.execute as ((...args: unknown[]) => unknown) & { [WRAPPED]?: true }
   // a re-registration (a host swap, a StrictMode remount) re-opens the
   // ledger record even though the function is already wrapped
   if (register) ledgerRegister(tool, collector)
+  if (isInternal(tool)) return
+  const execute = tool.execute as ((...args: unknown[]) => unknown) & { [WRAPPED]?: true }
   if (execute[WRAPPED]) return
 
   originals.set(tool, execute)
@@ -171,6 +168,7 @@ export function instrumentTool(tool: ToolLike, opts: WrapOptions, register = tru
       return result
     } catch (error) {
       const settledAt = performance.now()
+      const estInputTokens = collector.tokenEstimator({ kind: "input", bytes: inputBytes })
       collector.record({
         tool: tool.name,
         invokedAt,
@@ -181,10 +179,10 @@ export function instrumentTool(tool: ToolLike, opts: WrapOptions, register = tru
         resultBytes: 0,
         contentTypes: {},
         imageBytes: 0,
-        estInputTokens: collector.tokenEstimator({ kind: "input", bytes: inputBytes }),
+        estInputTokens,
         estTextTokens: 0,
         estImageTokens: 0,
-        estTokens: collector.tokenEstimator({ kind: "input", bytes: inputBytes }),
+        estTokens: estInputTokens,
         isError: true,
         error: describeError(error, opts.errorPolicy),
         serializable: true,
@@ -205,12 +203,9 @@ export function instrumentTool(tool: ToolLike, opts: WrapOptions, register = tru
 
 /** Retrofit a site-exposed `{ name: tool }` registry (the late-load path). Returns how many were wrapped. */
 export function instrumentMap(tools: Record<string, ToolLike>, opts: WrapOptions): number {
-  let count = 0
-  for (const tool of Object.values(tools ?? {})) {
-    instrumentTool(tool, opts)
-    count++
-  }
-  return count
+  const list = Object.values(tools ?? {}).filter(isToolLike)
+  for (const tool of list) instrumentTool(tool, opts)
+  return list.length
 }
 
 interface RegistryLike {
@@ -271,6 +266,25 @@ export function startInterception(wrap: WrapOptions, options: InterceptionOption
   let location: string | null = null
   let timer: number | null = null
 
+  /**
+   * Unregistration: the ledger closes the record, and every wrapped
+   * descriptor of that name gets its original execute back and is
+   * forgotten — the profiler retains nothing for a tool the host no longer
+   * holds. A site that re-creates its descriptors on every registration (a
+   * StrictMode remount, a route change) would otherwise leave one closure
+   * per registration behind for the life of the page; a re-registered
+   * descriptor is simply wrapped afresh.
+   */
+  const release = (name: string): void => {
+    collector.toolUnregistered(name)
+    for (const [tool, execute] of originals) {
+      if (tool.name === name) {
+        tool.execute = execute
+        originals.delete(tool)
+      }
+    }
+  }
+
   const reconcile = (registry: RegistryLike): void => {
     if (typeof registry.getTools !== "function") return
     const issuedAt = performance.now()
@@ -311,7 +325,7 @@ export function startInterception(wrap: WrapOptions, options: InterceptionOption
               signal.addEventListener(
                 "abort",
                 () => {
-                  if (latestSignal.get(tool.name) === signal) collector.toolUnregistered(tool.name)
+                  if (latestSignal.get(tool.name) === signal) release(tool.name)
                 },
                 { once: true }
               )
@@ -326,7 +340,7 @@ export function startInterception(wrap: WrapOptions, options: InterceptionOption
     }
     if (unregisterTool) {
       registry.unregisterTool = (name, ...rest) => {
-        collector.toolUnregistered(name)
+        release(name)
         return unregisterTool.call(registry, name, ...rest)
       }
     }
@@ -336,14 +350,14 @@ export function startInterception(wrap: WrapOptions, options: InterceptionOption
       registry.provideContext = (context, ...rest) => {
         const next = (context?.tools ?? []).filter(isToolLike)
         const names = new Set(next.map((t) => t.name))
-        for (const name of [...collector.ledger.registeredTools]) if (!names.has(name)) collector.toolUnregistered(name)
+        for (const name of [...collector.ledger.registeredTools]) if (!names.has(name)) release(name)
         for (const tool of next) instrumentTool(tool, wrap)
         return provideContext.call(registry, context, ...rest)
       }
     }
     if (clearContext) {
       registry.clearContext = (...rest) => {
-        for (const name of [...collector.ledger.registeredTools]) collector.toolUnregistered(name)
+        for (const name of [...collector.ledger.registeredTools]) release(name)
         return clearContext.call(registry, ...rest)
       }
     }

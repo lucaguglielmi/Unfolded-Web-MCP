@@ -4,6 +4,7 @@ import { applyClayPatch, applyFormPatch } from "@/lib/model/applyPatch"
 import type { PaperSize } from "@/lib/export/svg"
 import type { Unit } from "@/lib/units"
 import type { ClaySettings, FormParams } from "@/lib/model/schemas"
+import { rememberMintedSecret } from "@/lib/pairingOffer"
 import { useProjectStore, type ProjectStore } from "./useProjectStore"
 
 /**
@@ -205,6 +206,13 @@ export function createSyncClient({
   let socketStartedAt = 0
   let probeTimer: ReturnType<typeof setTimeout> | undefined
   /**
+   * A resync hello has been sent and its welcome is still to come. A burst
+   * of peer patches after one missed broadcast all look like gaps until
+   * that snapshot lands; one hello covers them all, and one is what the
+   * server's per-socket message budget affords.
+   */
+  let resyncPending = false
+  /**
    * Patches sent but not yet echoed back by the server, by patchId. A
    * frozen socket swallows sends silently, so a welcome after a wake
    * re-applies these on top of the server state (local wins per-field,
@@ -283,6 +291,13 @@ export function createSyncClient({
 
   const storedSid = (): string | null => storedRecord()?.sid ?? null
 
+  /** ask the server to re-welcome this client with a full snapshot — at most one request in flight */
+  const requestResync = () => {
+    if (resyncPending) return
+    resyncPending = true
+    send({ kind: "hello", protocolVersion: SYNC_PROTOCOL_VERSION, clientId, actor: "human" })
+  }
+
   /**
    * Adopt a server snapshot (welcome/resync): apply it, then move the diff
    * baseline in the same frame so the publisher sees nothing to send. Edits
@@ -347,6 +362,7 @@ export function createSyncClient({
     switch (msg.kind) {
       case "welcome":
       case "resync": {
+        resyncPending = false
         setStatus("syncing")
         reconnectDelay = RECONNECT_MIN_MS // the link is healthy again
         if (typeof msg.peers === "number") setPeers(msg.peers)
@@ -372,7 +388,7 @@ export function createSyncClient({
         if (newVersion > version + 1) {
           // missed a broadcast — a fresh hello makes the server re-welcome
           // this client with a full snapshot
-          send({ kind: "hello", protocolVersion: SYNC_PROTOCOL_VERSION, clientId, actor: "human" })
+          requestResync()
           break
         }
         const patches = sanitizeSharePatches(msg.patches)
@@ -416,7 +432,7 @@ export function createSyncClient({
         // field back instead of the tab believing the edit synced.
         const refused = unacked.keys().next().value
         if (refused !== undefined) unacked.delete(refused)
-        send({ kind: "hello", protocolVersion: SYNC_PROTOCOL_VERSION, clientId, actor: "human" })
+        requestResync()
         break
       }
       case "code": {
@@ -453,6 +469,7 @@ export function createSyncClient({
     socket = s
     socketOpen = false
     socketStartedAt = Date.now()
+    resyncPending = false
     setStatus("connecting")
     s.onopen = () => {
       if (socket !== s) return
@@ -664,7 +681,7 @@ export function createSyncClient({
   const mintCode = async (): Promise<{ code: string; expiresAt: number } | null> => {
     pair()
     if (!(await whenSyncing(8_000))) return null
-    return new Promise((resolve) => {
+    return new Promise<{ code: string; expiresAt: number } | null>((resolve) => {
       pendingMint?.(null)
       pendingMint = resolve
       send({ kind: "mint_code" })
@@ -674,6 +691,9 @@ export function createSyncClient({
           resolve(null)
         }
       }, 8_000)
+    }).then((minted) => {
+      if (minted) rememberMintedSecret(minted.code)
+      return minted
     })
   }
 
@@ -681,7 +701,7 @@ export function createSyncClient({
   const mintToken = async (): Promise<{ token: string; expiresAt: number } | null> => {
     pair()
     if (!(await whenSyncing(8_000))) return null
-    return new Promise((resolve) => {
+    return new Promise<{ token: string; expiresAt: number } | null>((resolve) => {
       pendingToken?.(null)
       pendingToken = resolve
       send({ kind: "mint_token" })
@@ -691,6 +711,9 @@ export function createSyncClient({
           resolve(null)
         }
       }, 8_000)
+    }).then((minted) => {
+      if (minted) rememberMintedSecret(minted.token)
+      return minted
     })
   }
 

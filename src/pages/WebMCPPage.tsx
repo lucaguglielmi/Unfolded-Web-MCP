@@ -26,12 +26,15 @@ import { useProjectStore } from "@/store/useProjectStore"
  */
 
 const COUNT_WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen"]
-const TOOL_COUNT = COUNT_WORDS[TOOL_SUMMARIES.length] ?? String(TOOL_SUMMARIES.length)
+/** the tools every session registers — a conditional one (the profiler's
+    report, armed only by a ?perf=1 link) is listed below but never counted
+    or promised to an agent that hasn't armed it */
+const ALWAYS_ON_TOOLS = TOOL_SUMMARIES.filter((t) => !t.conditional)
+const TOOL_COUNT = COUNT_WORDS[ALWAYS_ON_TOOLS.length] ?? String(ALWAYS_ON_TOOLS.length)
 
 const PROMPTS = [
   "What am I designing right now?",
-  "Make it a hexagonal planter, 18 cm tall and 14 cm wide.",
-  "My stoneware shrinks 13% — adjust and tell me the fired sizes.",
+  "Make it a hexagonal planter, 18 cm tall and 14 cm wide, my stoneware shrinks 13%, show me inches.",
   "Make it hold about 350 ml, show me how it looks, then export the PDF.",
   "Join my desktop session, code K7F-3QP.",
   "Send me your latest link — I want to watch this live on my screen.",
@@ -244,7 +247,7 @@ function FiveMinutes() {
                 (desktop, or via <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.8rem] text-foreground/80">chrome://inspect</code> for
                 a phone):{" "}
                 <code className="rounded bg-muted px-1 py-0.5 font-mono text-[0.8rem] break-all text-foreground/80">
-                  __unfoldedTools.set_capacity.execute({"{"}capacityMl: 350{"}"})
+                  __unfoldedTools.update_design.execute({"{"}capacityMl: 350{"}"})
                 </code>
               </li>
             </ol>
@@ -459,7 +462,7 @@ function FiveMinutes() {
  * the etiquette — but the page shows only its first line: it's for pasting,
  * not reading.
  */
-const KICKSTART_PROMPT = `Open ${SITE_URL} in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get ${TOOL_COUNT} typed tools: ${TOOL_SUMMARIES.map((t) => t.name).join(", ")}. Start by calling describe_project to see the current design. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it through the tools — all dimensions are FIRED sizes in millimeters; for a target volume use set_capacity, which solves the exact height in one call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and then call create_live_handoff and give me its liveHandoffUrl exactly as returned — it's a single-use live link: when I open it, my browser follows your session and my edits show up in your next read (never send me the address-bar URL instead). If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
+const KICKSTART_PROMPT = `Open ${SITE_URL} in your built-in browser. It's Unfolded, a parametric designer for slab-built pottery that registers WebMCP tools on document.modelContext the moment it loads — you get ${TOOL_COUNT} typed tools: ${ALWAYS_ON_TOOLS.map((t) => t.name).join(", ")}. Start by calling describe_project to see the current design; if its session.paired is false, call create_live_handoff and give me its liveHandoffUrl as "Open a paired browser session with this chat" before anything else. Then help me design a piece: ask me what I want to make (shape, rough size or target capacity, my clay's shrinkage percent and slab thickness), apply it in ONE update_design call — all dimensions are FIRED sizes in millimeters; for a target volume pass capacityMl, which solves the exact height in the same call — and show me the result with get_preview_image. When I'm happy, run export_templates so I get the true-scale printable PDF, and then call create_live_handoff and give me its liveHandoffUrl exactly as returned — it's a single-use live link: when I open it, my browser follows your session and my edits show up in your next read (never send me the address-bar URL instead). If the tools aren't there yet, keep the page open: the site keeps watching for the WebMCP API and connects the moment your browser exposes it.`
 
 function HumanEasterEgg() {
   const [copied, setCopied] = useState(false)
@@ -529,23 +532,23 @@ function JsonBlock({ label, data }: { label?: string; data: unknown }) {
 
 const AGENT_CONNECTION: [string, string][] = [
   ["Registration", "current WebMCP draft: document.modelContext.registerTool, awaited, all-or-nothing under one AbortController — the connection reads active only after the last tool resolves, and a replaced registry re-registers cleanly. Legacy hosts (navigator/window locations, provideContext, void returns) work via a compatibility layer. Registration is automatic — nothing for you to enable."],
-  ["Late injection", "the app never stops watching: 500 ms polling for 15 s, then a 3 s heartbeat (paused while the tab is hidden), plus focus/visibility re-checks. Your execute() calls receive an options bag whose signal cancels cleanly — a cancelled mutation commits nothing. Executing any tool flips the app to connected."],
+  ["Late injection", "the app never stops watching: 500 ms polling for the life of a visible tab, every 3 s while hidden, plus focus/visibility re-checks; the tools register as one parallel set. Your execute() calls receive an options bag whose signal cancels cleanly — a cancelled mutation commits nothing. Executing any tool flips the app to connected."],
   ["Knowing you're in", "the header connection button's agent dot pulses green once your tools registered in this tab (its second dot is cross-device sync); the live status also renders at the top of this page. If it's grey, your host hasn't exposed WebMCP here."],
   ["Two links, never confused", "designUrl (in every state snapshot) is a permanent permalink: parameters only, reopens an independent copy — for explicit bookmark/print/archive asks. liveHandoffUrl comes ONLY from create_live_handoff: the same parameters plus ?via=chatgpt and a single-use ?join= token; the tab that opens it silently follows YOUR session both ways and strips the token. It is the default link after any edit — call the tool right before you reply, return it verbatim, never the address bar. Links parse forgivingly: legacy vocabulary normalizes, unknown keys are ignored, out-of-range values clamp."],
-  ["Units contract", "tool inputs and outputs are millimeters and milliliters, always. set_units only changes what the human sees (UI, warnings, printed PDF)."],
-  ["Full-state returns", "every mutation returns the complete snapshot — form, clay, paperSize, units, capacityMl, annotated pieces, printedPages, warnings, designUrl — so you never need a read-after-write. Snapshots are pure: they never mint or spend a live token."],
+  ["Units contract", "tool inputs and outputs are millimeters and milliliters, always. update_design's units field only changes what the human sees (UI, warnings, printed PDF)."],
+  ["Full-state returns", "every mutation returns the complete snapshot — form, clay, paperSize, units, capacityMl, annotated pieces, printedPages, warnings, designUrl, and session {paired, peers} — so you never need a read-after-write. Snapshots are pure: they never mint or spend a live token. The text half is compact JSON; parse structuredContent instead."],
   ["Structured results", `every result carries its MCP-style content array and isError unchanged, plus a structuredContent object (contract ${TOOL_RESULT_CONTRACT}): { ok, message, state, warnings? } for the state-reporting tools — ok mirrors !isError and state deep-equals the JSON in the text; the handoff object, the template summary, and { pages, paper, rows, cols } for the export, each with ok and message; the preview keeps its image and adds { ok, message, summary }. Parse the object, skip the text.`],
-  ["Manual driving", "window.__unfoldedTools exposes each registered tool: __unfoldedTools.set_capacity.execute({capacityMl: 350})."],
-  ["Live sessions", "create_live_handoff invites the tap; join_session (the potter reads you a code) and start_pairing (you mint one for them) cover the spoken path. Once any device joins, syncing is transparent — peers' edits simply appear in your next read, so re-read before assuming state."],
+  ["Manual driving", "window.__unfoldedTools exposes each registered tool: __unfoldedTools.update_design.execute({capacityMl: 350})."],
+  ["Live sessions", "create_live_handoff invites the tap; start_pairing mints the same invitation as a spoken code AND a link, so the potter can type six characters or open one; join_session is the way in when the potter reads you a code from their own screen. Once any device joins, syncing is transparent — peers' edits simply appear in your next read, so re-read before assuming state."],
 ]
 
 const AGENT_PLAYBOOK: string[] = [
-  "Call describe_project first — one read gives you the whole design. Finish with create_live_handoff whenever you hand back a link: it is the potter's way to continue in their own browser.",
-  "For a target volume use set_capacity, never an update_form guessing loop: volume is linear in height and the tool solves it exactly.",
+  "Read describe_project when the request depends on what is there now, or when the potter has just connected; an absolute edit can go straight to update_design, which returns the same snapshot. When session.paired is false, offer the create_live_handoff link as \"Open a paired browser session with this chat\" first, and the six-character code (join_session) as the alternative — and offer both even if the link fails, saying where the code lives: connection button, top right, then Continue on another screen.",
+  "One potter sentence is ONE update_design call: shape, fired sizes, clay, paper and display units together, as one undo step. For a target volume pass capacityMl, never a heightMm guessing loop: volume is linear in height and the call solves it exactly.",
   "After a visual change, get_preview_image shows you exactly what the potter sees — verify before you announce.",
   "Errors come back as isError text with per-field issues AND the unchanged state — structuredContent says the same as { ok: false, message, state }; recover by correcting the field, not by re-reading.",
   "The human is your peer: they may edit between your calls (you'll see it in your next result), and undo_last_change reverts either of you.",
-  "Pairing direction matters: the device that opens a link or enters a code ADOPTS this session's design. The potter wants to SEE your work elsewhere → create_live_handoff and hand them liveHandoffUrl verbatim, or start_pairing for a spoken code. The work lives on their other screen → ask for its code and join_session. If a live link fails to mint, send no link — retry once, then offer a code.",
+  "Pairing direction matters: the device that opens a link or enters a code ADOPTS this session's design. The potter wants to SEE your work elsewhere → create_live_handoff and hand them liveHandoffUrl verbatim, or start_pairing, which returns a spoken code and that same link together. The work lives on their other screen → ask for its code and join_session; the code is in their connection button (top right, two dots) → Continue on another screen, shown beside the QR, tap to copy. A cold mint is retried inside the tool, so a link that still fails to mint sends no link at all — fall back to the code, never to the address bar.",
 ]
 
 function ForAgents() {
@@ -678,7 +681,7 @@ function ForAgents() {
           make is spanned: wall time, payload bytes, the tokens your result costs you to
           read, and the gap the host + model spent thinking before your call arrived. Read
           it back through the host: call <Code>get_perf_report</Code>, registered as the
-          fifteenth tool while profiling is armed. Known baseline: every tool here executes
+          twelfth tool while profiling is armed. Known baseline: every tool here executes
           in single-digit milliseconds — if an interaction feels slow, the ledger will show
           you it isn't the page.
         </p>
