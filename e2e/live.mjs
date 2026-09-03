@@ -135,7 +135,7 @@ try {
     check("create_live_handoff: reaches the pairing service", surface.handoff === true, surface.handoffMessage)
     check("start_pairing: mints a code from the worker", !!surface.pairingCode, surface.pairingMessage)
     check(
-      "start_pairing: mints the tappable link beside it (live-handoff-link-spec §8.3)",
+      "start_pairing: mints the tappable link beside it (live-handoff-link-spec §7.1)",
       /[?&]join=[A-Za-z0-9_-]{20,}/.test(surface.pairingLink ?? ""),
       surface.pairingLink ?? surface.pairingMessage
     )

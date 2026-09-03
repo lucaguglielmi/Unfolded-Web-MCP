@@ -8,7 +8,7 @@ import {
 import type { Env } from "./index"
 
 /**
- * The one global pairing registry (docs/live-sync-spec.md §3, §11): active
+ * The one global pairing registry (docs/live-sync-spec.md §4, §11): active
  * codes only, resolved and burned atomically — which is exactly why this
  * is a single Durable Object and not KV. Reached only over service
  * bindings/stubs from the worker and SessionDOs, never directly from the

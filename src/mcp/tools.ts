@@ -127,14 +127,14 @@ function plainError(message: string): ToolResult {
 
 /** a failure that must carry NO link at all, not even the permanent one
     inside a state snapshot — the fail-closed handoff contract
-    (docs/live-handoff-link-spec.md §7): a substitute URL is the incident */
+    (docs/live-handoff-link-spec.md §5): a substitute URL is the incident */
 function linklessError(message: string): ToolResult {
   return textResult(message, true, { ok: false, message })
 }
 
 /**
  * The link policy, in one sentence, on every tool that creates, edits, or
- * opens a design (docs/live-handoff-link-spec.md §8.1): the full rules
+ * opens a design (docs/live-handoff-link-spec.md §3): the full rules
  * live on create_live_handoff itself, so this stays cheap in the discovery
  * metadata every conversation pays for.
  */
@@ -435,7 +435,7 @@ export function buildTools(): ToolDescriptor[] {
           // a cancel that lands mid-mint: the unused token simply expires
           if (options?.signal?.aborted) return cancelledResult()
           if (!handoff) {
-            // fail closed — no fallback URL of any kind (spec §7)
+            // fail closed — no fallback URL of any kind (spec §5)
             return linklessError(
               "A live handoff link could not be created because the pairing service is unavailable. " +
                 "No link was generated. Retry once; if it still fails, don't give up on pairing — ask the potter for " +
@@ -571,7 +571,7 @@ export function buildTools(): ToolDescriptor[] {
     },
   ]
   // The profiler's own report tool, so an agent can read the numbers
-  // through the host (docs/webmcp-profiler-0.2-spec.md §18.5). Registered
+  // through the host (docs/webmcp-profiler-spec.md §9). Registered
   // only when a ?perf= link armed profiling, so an unarmed session carries
   // no extra schema bytes.
   const profiler = typeof window === "undefined" ? undefined : window.__webmcpPerf

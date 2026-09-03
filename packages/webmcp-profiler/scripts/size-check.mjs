@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Gzip size ceilings for the built artifacts (0.2 spec §16.5). Fails
+// Gzip size ceilings for the built artifacts (current profiler spec §13). Fails
 // loudly with the numbers so a regression is visible in CI output.
 import { readdirSync, readFileSync } from "node:fs"
 import { gzipSync } from "node:zlib"

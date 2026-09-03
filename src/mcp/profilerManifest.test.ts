@@ -9,7 +9,7 @@ import { buildTools } from "./tools"
 
 /**
  * The agent manifest's profiler block is the package's own description
- * (docs/webmcp-profiler-0.2-spec.md §2.1 item 5): it cannot drift because it
+ * (docs/webmcp-profiler-spec.md §9): it cannot drift because it
  * is not written here. The tool the manifest promises is registered while
  * profiling is armed.
  */

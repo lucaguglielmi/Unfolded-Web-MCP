@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Refuse to publish from a dirty tree or without a CHANGELOG heading for
-// this version (0.2 spec §15.7).
+// this version (current profiler spec §13).
 import { execSync } from "node:child_process"
 import { readFileSync } from "node:fs"
 

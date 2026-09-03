@@ -8,7 +8,7 @@ import { rememberMintedSecret } from "@/lib/pairingOffer"
 import { useProjectStore, type ProjectStore } from "./useProjectStore"
 
 /**
- * Live-sync client core (docs/live-sync-spec.md §7, work item 3): keeps a
+ * Live-sync client core (docs/live-sync-spec.md §7): keeps a
  * paired tab's design slice converged with its session's Durable Object
  * over a WebSocket. Wire shape for every state change is SharePatches —
  * the exact contract share links already speak — applied through the same
@@ -72,7 +72,7 @@ export interface DesignSlice {
 /**
  * Changed fields of `next` relative to `prev`, as SharePatches — null when
  * nothing differs. Field-level, so two devices editing different knobs in
- * the same instant both win (per-field LWW, spec §7.3).
+ * the same instant both win (per-field LWW, spec §7.2).
  */
 export function diffDesign(prev: DesignSlice, next: DesignSlice): SharePatches | null {
   const out: SharePatches = {}
@@ -141,7 +141,7 @@ export interface SyncClient {
   pair(): void
   /** mint a pairing code for this tab's session — pairs first if needed */
   mintCode(): Promise<{ code: string; expiresAt: number } | null>
-  /** mint a single-use URL join token (codes' URL-borne sibling, longer TTL) */
+  /** mint a single-use URL join token (codes' URL-borne sibling, same TTL) */
   mintToken(): Promise<{ token: string; expiresAt: number } | null>
   /** claim a code from another device; on success this tab follows that session */
   joinWithCode(rawCode: string, signal?: AbortSignal): Promise<{ ok: true } | { ok: false; retryable: boolean }>
@@ -306,9 +306,9 @@ export function createSyncClient({
    * baseline in the same frame so the publisher sees nothing to send. Edits
    * made while disconnected survive: the baseline is kept across a lost
    * socket, so the delta the potter built up offline is re-applied ON TOP
-   * of the server state (per-field local-wins, spec §7.5) and the follow-up
+   * of the server state (per-field local-wins, spec §7.2) and the follow-up
    * flush sends it to the peers. A first join has no baseline — there the
-   * session's state wins whole, which is the §4.3 adopt rule.
+   * session's state wins whole, which is the §5.2 adopt rule.
    */
   const adoptServerState = (raw: unknown, newVersion: number) => {
     const offlineDelta = lastSynced ? diffDesign(lastSynced, slice()) : null
@@ -402,7 +402,7 @@ export function createSyncClient({
             // the shared applyPatch semantics) rather than snapshotting the
             // store: the store may also hold a not-yet-flushed local edit,
             // which must keep differing from the baseline so it still goes
-            // out — per-field LWW, both sides win (spec §7.3). For the
+            // out — per-field LWW, both sides win (spec §7.2). For the
             // no-pending-edit case the two are identical, which is the
             // echo suppression.
             lastSynced = {
@@ -653,7 +653,7 @@ export function createSyncClient({
   }
 
   const pair = () => {
-    if (!storedSid()) persistRecord(newSid(), false) // eager creation (spec §4.2)
+    if (!storedSid()) persistRecord(newSid(), false) // eager creation (spec §5.1)
     start()
   }
 

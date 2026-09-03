@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { HIDDEN_POLL_MS, HOST_POLL_MS, startHostWatch } from "./hostWatch"
 
 /**
- * docs/webmcp-tool-performance-spec.md §7: the host watch never slows
+ * docs/webmcp-tool-performance-spec.md §9: the host watch never slows
  * down and never stops — 500 ms for the life of a visible tab, 3 s while
  * hidden, and an immediate re-check on focus/visibility.
  */

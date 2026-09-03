@@ -140,11 +140,11 @@ Registered on `document.modelContext` per the current WebMCP draft (legacy
 
 **Two links, never confused.** `designUrl` reopens an independent copy: parameters
 only, bookmarkable, printable months later; it is also the address bar and the
-printed QR. `liveHandoffUrl` comes only from `create_live_handoff`: the same
-parameters plus a single-use join token, so the tab that opens it follows the
-agent's session both ways. The tool descriptions make the live link the default
-for any "send me the link" ask, returned verbatim and never substituted with the
-address bar; a failed mint yields no link at all.
+printed QR. `liveHandoffUrl` comes from `create_live_handoff`
+or `start_pairing`: the same parameters plus `via=chatgpt` and a single-use
+join token, so the tab that opens it follows the agent's session both ways.
+The human Continue dialog uses a join-only invitation. The live link is
+returned verbatim for "send me the link"; a failed mint yields no link.
 
 ## Work with an agent from any browser
 
@@ -218,7 +218,7 @@ value is inlined into the client bundle, so no `.env` here may hold a secret.
   fewer round trips per request, lighter results, no discovery gap, immutable assets
 - [`docs/webmcp-profiler-spec.md`](./docs/webmcp-profiler-spec.md) and
   [`docs/webmcp-profiler-0.2-spec.md`](./docs/webmcp-profiler-0.2-spec.md): the
-  profiler's design and its next release
+  profiler's current package contract and 0.2 release history
 
 ## License
 

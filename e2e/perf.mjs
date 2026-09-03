@@ -4,7 +4,7 @@
  * vite preview, real Chromium. Run with `npm run perf` after `npm run build`.
  *
  * The bench itself is `webmcp-profiler bench` (packages/webmcp-profiler,
- * §18.7 of docs/webmcp-profiler-0.2-spec.md); this file only starts the
+ * §11 of docs/webmcp-profiler-spec.md); this file only starts the
  * preview server and hands it the case file. Network tools (join_session,
  * start_pairing, create_live_handoff) and export_templates are not in the
  * cases: their latency is a Durable Object round trip or a download, not

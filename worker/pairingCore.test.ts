@@ -146,7 +146,7 @@ describe("PairingCore", () => {
     expect(revived.claim(code, "ip", 1)).toEqual({ ok: true, sid: SID })
   })
 
-  it("mints URL-safe join tokens with the longer TTL, claimable once", () => {
+  it("mints URL-safe join tokens with the same TTL, claimable once", () => {
     const core = new PairingCore()
     const { token, expiresAt } = core.mintToken(SID, 1_000)
     expect(token).toMatch(/^[A-Za-z0-9_-]{20,64}$/)

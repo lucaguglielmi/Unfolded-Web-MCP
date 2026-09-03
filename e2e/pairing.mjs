@@ -137,7 +137,7 @@ try {
   // ---- the agent-side tools (spec flows A and B) ----
   // flow B: the work lives on B ("the phone") — its agent mints via
   // start_pairing, which returns a spoken code AND a tappable link
-  // (live-handoff-link-spec §8.3), and A joins B's session with the code
+  // (live-handoff-link-spec §7.1), and A joins B's session with the code
   await b.keyboard.press("Escape")
   await b.evaluate(() => window.__mcpTools.update_design.execute({ name: "Flow B planter" }))
   const mintResult = await b.evaluate(async () => {

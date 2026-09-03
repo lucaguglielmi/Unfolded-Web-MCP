@@ -48,7 +48,7 @@ describe("registerToolSet", () => {
   })
 
   it("registers the whole set in parallel: fourteen slow tools cost one delay, in order", async () => {
-    // docs/webmcp-tool-performance-spec.md §7: a host whose registration
+    // docs/webmcp-tool-performance-spec.md §9: a host whose registration
     // is a real round trip pays one latency for the set, not fourteen
     const fourteen = Array.from({ length: 14 }, (_, i) => tool(`tool_${i}`))
     const host = draftHost({ delayMs: 20 })

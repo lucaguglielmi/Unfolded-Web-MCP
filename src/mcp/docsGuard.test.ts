@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest"
 import { TOOL_SUMMARIES } from "./tools"
 
 /**
- * Documentation quality gate (docs/live-handoff-link-spec.md §10.8): the
+ * Documentation quality gate (docs/live-handoff-link-spec.md §10): the
  * public copy must describe the two-link model the code implements and
  * never drift back to the claims it replaced. README can't import, so its
  * tool table is checked against TOOL_SUMMARIES here; /webmcp renders the
@@ -68,10 +68,8 @@ describe("docs guard", () => {
 
   it("the README stays a fast overview", () => {
     const words = read("README.md").split(/\s+/).filter(Boolean).length
-    // docs/live-handoff-link-spec.md §10.2 asks for a ~1,200-word README
-    // excluding commands and the tool table; the rewrite landed at ~1,400
-    // prose words (~1,700 whole-file, which is what this counts), so this
-    // ceiling holds the line against regrowth
+    // The README ceiling is an agent-context budget, not a specification
+    // of its prose length; keep the fast overview from regrowing.
     expect(words).toBeLessThanOrEqual(1_800)
   })
 })

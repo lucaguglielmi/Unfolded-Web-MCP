@@ -18,7 +18,7 @@ import { liveSync } from "@/store/syncClient"
 import { useProjectStore } from "@/store/useProjectStore"
 
 /**
- * "Continue on another screen" (docs/live-sync-spec.md v3): the design,
+ * "Continue on another screen" (docs/live-sync-spec.md §9): the design,
  * live, on your other device — which needs no WebMCP, only a browser.
  * Primary path: a QR carrying the share link plus a single-use join
  * token — scanning it pairs instantly (so does the copyable link). The

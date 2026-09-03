@@ -30,7 +30,7 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
     mustMention: ["what am i designing", "depends on what is there now", "designurl", "capacityml"],
   },
   {
-    // docs/webmcp-tool-performance-spec.md §6.2 and its amendment: a fresh
+    // docs/webmcp-tool-performance-spec.md §6.1: a fresh
     // session is offered the paired-browser link first and the spoken code
     // second — but BOTH, even when the link fails, and the code's place in
     // the UI is named so "send me a code" isn't a puzzle
@@ -61,7 +61,7 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
     mustMention: ["hexagon", "fired", "millimeters"],
   },
   {
-    // §6.1: an absolute edit needs no read first
+    // tool-performance spec §4: an absolute edit needs no read first
     prompt: "Make it 12 cm tall.",
     tool: "update_design",
     mustMention: ["one call", "one undo step", "full new state"],
@@ -82,7 +82,7 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
     mustMention: ["code", "adopts"],
   },
   {
-    // live-handoff-link-spec §8.3's amendment: this phrasing routes here,
+    // live-handoff-link-spec §7.1: this phrasing routes here,
     // so the LINK has to be advertised here too — a code-only answer was
     // the bug ("pair from here" got six characters and nothing to tap)
     prompt: "Put this design on my desktop screen.",
@@ -122,23 +122,9 @@ const PROMPT_SUITE: { prompt: string; tool: string; mustMention: string[] }[] = 
 ]
 
 /**
- * Room above the current size, tight enough that metadata can't quietly
- * balloon. Raising this number is a deliberate decision, not a fix. History:
- * the 9.1 trim cut 11,360 → 9,128 chars under a 9,800 budget; the fourteenth
- * tool (create_live_handoff, with the one-sentence link rule on every
- * editing tool — docs/live-handoff-link-spec.md) raised it, on purpose, to
- * 10,474 under an 11,000 budget; the schema-weight trim that followed the
- * first native-host measurement (docs/performance-report.md §1.2) cut
- * property descriptions that restated their own bounds and enums, and
- * descriptions that restated their schemas, down to ~9,030 chars; the
- * tool-performance spec then merged update_form, set_clay, set_units and
- * set_capacity into update_design and gave describe_project the
- * fresh-session offer (docs/webmcp-tool-performance-spec.md §4, §6),
- * and the budget followed the measured total down again. The first live
- * run of that offer then bought back a few hundred chars, deliberately:
- * describe_project names where the code lives and says to offer both ways
- * in even when the link fails, and start_pairing advertises the link it
- * now mints beside the code (§6.2's amendment).
+ * Room above the current size, tight enough that metadata cannot quietly
+ * balloon. Raising this number is a deliberate review decision, not a fix;
+ * the current tool descriptions and schemas are the measured surface.
  */
 const METADATA_BUDGET_CHARS = 9_350
 
@@ -160,7 +146,7 @@ describe("prompt suite — tool selection signals survive metadata trims", () =>
   }
 
   it("describe_project no longer asks to be called first", () => {
-    // §6.1: the sentence made agents spend a read round trip before
+    // tool-performance spec §4: the sentence made agents spend a read round trip before
     // absolute edits whose result carries the same snapshot anyway
     expect(byName.get("describe_project")!.description.toLowerCase()).not.toContain("call this first")
   })

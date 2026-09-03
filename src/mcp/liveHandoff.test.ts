@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 /**
- * The two-link contract (docs/live-handoff-link-spec.md §11.1): state
+ * The two-link contract (docs/live-handoff-link-spec.md §2 and §6): state
  * reads are pure and carry only the permanent designUrl; the live
  * liveHandoffUrl exists only as the output of create_live_handoff, which
  * mints on demand and fails closed.
