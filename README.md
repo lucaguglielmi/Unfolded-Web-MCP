@@ -45,7 +45,7 @@ the geometry is always right.
 ## Verify in 60 seconds
 
 The live app is **<https://tryunfolded.com>**: no account, no setup. Open it in
-ChatGPT's built-in browser and the agent has all 14 tools immediately. In Google
+ChatGPT's built-in browser and the agent has all 11 tools immediately. In Google
 Chrome (desktop and Android), enable `chrome://flags/#enable-webmcp-testing`; the
 app shows a one-time tip with that address when it detects real Chrome without
 WebMCP. To verify the repo from a clean checkout:
@@ -71,9 +71,10 @@ Three prompts to try against the live site in ChatGPT, and what should happen:
 
 1. *"What am I designing right now?"* One `describe_project` call; the agent
    answers with the current shape, sizes, capacity in ml, and a design link.
-2. *"Make it hold about 350 ml and show me how it looks."* `set_capacity` solves
-   the height in closed form (no guess loop), then `get_preview_image` returns
-   the same 3D view the potter sees.
+2. *"Make it a hexagonal planter, 13% shrinkage, in inches, holding 350 ml."*
+   One `update_design` call applies shape, clay and units and solves the height
+   in closed form (no guess loop); `get_preview_image` then returns the same 3D
+   view the potter sees.
 3. *"Export the PDF for A4."* `export_templates` downloads a multi-page,
    100%-scale template with a calibration ruler; the agent reports the page count.
 
@@ -85,23 +86,27 @@ tool execution time and payload size.
 Everything below lives in [`src/mcp/`](./src/mcp/) and the [`worker/`](./worker/)
 directory, covered by the committed test suites:
 
-- **Fourteen tools with real contracts.** Zod-validated inputs exported as JSON
+- **Eleven tools with real contracts.** Zod-validated inputs exported as JSON
   Schema, current-draft descriptors, host cancellation signals honored, and
   graceful error results that include the unchanged state, plus a parseable
-  `structuredContent` half (`tool-result/1`).
-- **Every design-changing tool returns the full new state**, PDF export included,
-  so the agent never needs a follow-up read. Snapshots carry a permanent
-  `designUrl`; the return channel is `create_live_handoff`, which mints a
-  single-use `liveHandoffUrl` and fails closed.
-- **A solver, not just setters.** `set_capacity` computes the exact height for a
-  target volume in one call instead of letting the agent iterate.
+  `structuredContent` half (`tool-result/2`).
+- **One call per potter sentence.** `update_design` takes any subset of shape,
+  fired sizes, clay, paper size and display units together, as one undo step,
+  and a `capacityMl` field solves the exact height for a target volume instead
+  of letting the agent iterate. Every design-changing tool returns the full new
+  state, PDF export included, so the agent never needs a follow-up read.
+  Snapshots carry a permanent `designUrl` and a `session` fact; the return
+  channel is `create_live_handoff`, which mints a single-use `liveHandoffUrl`
+  and fails closed. A fresh session is offered that link first, as "Open a
+  paired browser session with this chat".
 - **The agent sees what the potter sees.** `get_preview_image` returns the live
   WebGL canvas as a compact JPEG (about 7 KB; it was a 130 KB PNG until the
   built-in profiler flagged it as the costliest payload in the loop).
 - **Never-give-up registration.** Hosts inject `modelContext` at wildly different
   times (ChatGPT only when the person engages the agent), so the app watches
-  forever: fast polling, then a heartbeat paused in hidden tabs, plus focus and
-  visibility re-checks, with a legacy compatibility layer for older hosts.
+  forever: every 500 ms while visible, every 3 s while hidden, plus focus and
+  visibility re-checks; the tools register as one parallel set, with a legacy
+  compatibility layer for older hosts.
 - **Human and agent are true peers.** Same store, same validation, and shared
   undo over both actors' edits, whatever device pushed them.
 - **Live cross-device sessions.** One Durable Object per session over WebSockets,
@@ -122,10 +127,7 @@ Registered on `document.modelContext` per the current WebMCP draft (legacy
 |---|---|
 | `describe_project` | Read the current design, clay, template pieces, capacity (ml), and its permanent design link |
 | `open_model` | Open a design from a share link the user pastes in chat, then keep editing it |
-| `update_form` | Change shape, taper, facets, height and diameters (fired mm); any shape can be straight or tapered |
-| `set_clay` | Change shrinkage % and wall thickness |
-| `set_units` | Switch display units between cm and inches, in the UI and the printed PDF |
-| `set_capacity` | Solve the height for a target interior volume ("make it 350 ml") |
+| `update_design` | Change any part of the design in one call: shape, taper, facets, fired sizes, shrinkage and slab thickness, paper size, display units, or a target capacity the height is solved for |
 | `get_template_summary` | Template layout, per-piece dimensions, exact PDF page count |
 | `get_preview_image` | Compact JPEG snapshot of the live 3D preview, exactly what the potter sees |
 | `export_templates` | Generate and download the multi-page PDF (A4 / A3 / Letter) |
@@ -213,7 +215,7 @@ value is inlined into the client bundle, so no `.env` here may hold a secret.
   two-link contract and `create_live_handoff`
 - [`docs/performance-report.md`](./docs/performance-report.md): the app-wide audit
 - [`docs/webmcp-tool-performance-spec.md`](./docs/webmcp-tool-performance-spec.md):
-  proposed — fewer round trips per request, lighter results, no discovery gap
+  fewer round trips per request, lighter results, no discovery gap, immutable assets
 - [`docs/webmcp-profiler-spec.md`](./docs/webmcp-profiler-spec.md) and
   [`docs/webmcp-profiler-0.2-spec.md`](./docs/webmcp-profiler-0.2-spec.md): the
   profiler's design and its next release

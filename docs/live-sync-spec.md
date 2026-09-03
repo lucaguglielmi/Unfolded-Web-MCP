@@ -673,7 +673,7 @@ link selection; this section only reconciles the wording above.
 - **Wording.** "No URL is ever a live capability" → "no URL ever carries a
   *durable* capability": a live handoff URL carries a single-use,
   short-lived claim ticket; no URL ever carries a session id.
-- **Tool count** is fourteen; `/webmcp` derives it from `TOOL_SUMMARIES`
+- **Tool count** is eleven (docs/webmcp-tool-performance-spec.md §4 merged the four setters into `update_design`); `/webmcp` derives it from `TOOL_SUMMARIES`
   and `src/mcp/docsGuard.test.ts` pins the README table to the same list.
 
 - **Lifetimes.** Codes and tokens both live **15 minutes**

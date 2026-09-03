@@ -204,9 +204,14 @@ The current shareUrl field must be removed or deprecated and replaced with:
 
     {
       "designUrl": "https://tryunfolded.com/?...",
-      "linkMode": "independent-copy",
-      "liveHandoffTool": "create_live_handoff"
+      "session": { "paired": false, "peers": 1 }
     }
+
+(The `linkMode` and `liveHandoffTool` constants that first replaced it
+were retired with contract `tool-result/2` — their meaning lives in
+`describe_project`'s description and the manifest; `session` is the
+fact the fresh-session offer is decided on. See
+docs/webmcp-tool-performance-spec.md §5 and §6.2.)
 
 These results must not mint, prefetch, take, or consume a join token.
 
@@ -550,6 +555,12 @@ The work is complete when all of the following are true:
 ## 14. Product decision
 
 Keep both link types.
+
+> **Review after public launch.** The link rule costs a second tool
+> call on every edit turn. What to measure and the candidate change (a
+> `liveHandoffUrl` inside mutation results when the tab is already
+> paired) are recorded in docs/webmcp-tool-performance-spec.md §9; the
+> rule stays as written here until those numbers say otherwise.
 
 For conversational creation, ChatGPT must finish with create_live_handoff whenever it gives the user a newly created result link. This includes generic requests to send, show, open, or continue with the design. The default is always a fresh paired link so the user can edit in the browser and ChatGPT can observe those edits.
 

@@ -1,7 +1,7 @@
 # Unfolded — WebMCP Tool Performance Specification
 
-Status: **design** — nothing below has landed  
-Baseline: `main` at `09afed1` (the code-smell review merge, after the schema-weight trim `3c2fe5c`)
+Status: **landed** — §4, §5, §6, §7 and §8 are built; §9 is the post-launch review it always was  
+Baseline: `main` at `09afed1` (the code-smell review merge, after the schema-weight trim `3c2fe5c`); measured results in docs/performance-report.md §1.3
 
 **Changes since first draft.** Re-based on the schema-weight trim and
 profiler 0.2: the metadata figures, the merged tool's estimate, the
